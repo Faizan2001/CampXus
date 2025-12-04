@@ -106,22 +106,39 @@ class SPARouter {
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
         indexable: false,
       },
-      notify: {
-        title: "Notify Friends - MeetchuThere",
-        template: "/templates/notify.html",
-        cssFiles: ["/src/css/styles.css", "/src/css/notify.css"],
-        jsImporters: [() => import("/src/js/pages/NotifyFriendsPage.js")],
-        description:
-          "Ask your starred friends if they're free and see responses",
+      messages: {
+        title: "Messages - MeetchuThere",
+        template: "/templates/groups.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/groups.css"],
+        jsImporters: [() => import("/src/js/pages/GroupsPage.js")],
+        description: "Your class spaces and group chats",
         requiresAuth: true,
         indexable: false,
       },
       groups: {
-        title: "Groups - MeetchuThere",
-        template: "/templates/groups.html",
-        cssFiles: ["/src/css/styles.css"],
-        jsImporters: [() => import("/src/js/pages/GroupsPage.js")],
-        description: "Your class spaces (auto-created)",
+        title: "Clubs - MeetchuThere",
+        template: "/templates/clubs.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/clubs/index.css"],
+        jsImporters: [() => import("/src/js/pages/ClubsPage.js")],
+        description: "Campus clubs and events",
+        requiresAuth: true,
+        indexable: false,
+      },
+      clubs: {
+        title: "Clubs - MeetchuThere",
+        template: "/templates/clubs.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/clubs/index.css"],
+        jsImporters: [() => import("/src/js/pages/ClubsPage.js")],
+        description: "Campus clubs and student organizations",
+        requiresAuth: true,
+        indexable: false,
+      },
+      club: {
+        title: "Club - MeetchuThere",
+        template: "/templates/club.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/clubs/index.css"],
+        jsImporters: [() => import("/src/js/pages/ClubDetailPage.js")],
+        description: "Club detail, members and events",
         requiresAuth: true,
         indexable: false,
       },
@@ -152,6 +169,16 @@ class SPARouter {
         canonicalPath: "/about/",
         indexable: true,
         og: { image: "/icons/icon-512x512.png", type: "website" },
+      },
+      admin: {
+        title: "Admin Dashboard - MeetchuThere",
+        template: "/templates/admin.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/admin.css"],
+        jsImporters: [() => import("/src/js/pages/AdminPage.js")],
+        description: "Super Admin Dashboard",
+        requiresAuth: true,
+        requiresSuperAdmin: true, // 🔐 Special flag for super admin only routes
+        indexable: false,
       },
     };
 
@@ -771,8 +798,7 @@ class SPARouter {
       // With a strong session hint (cached profile / user store), prefer
       // rendering the intended protected route instead of bouncing through
       // the landing page, even if Firebase auth has not fully hydrated yet.
-      const target =
-        authedUser || hasSessionHint ? desiredRoute : "landing";
+      const target = authedUser || hasSessionHint ? desiredRoute : "landing";
       await this.navigateTo(target, true);
     } finally {
       this._suppressAuthRedirects = false;
@@ -834,8 +860,8 @@ class SPARouter {
     this._lastNavigation = { route, ts: now };
 
     // 🛡️ Authentication Check with proper ES6 imports!
-    const routeConfig = this.routes[route];
-    if (routeConfig.requiresAuth) {
+	    const routeConfig = this.routes[route];
+	    if (routeConfig.requiresAuth) {
       // Use Firebase auth currentUser as the source of truth (avoid optimistic store hydration)
       let isAuthenticated = !!authManager?.auth?.currentUser;
 
@@ -863,7 +889,7 @@ class SPARouter {
       // can unlock protected routes even if Firebase hasn't populated
       // auth.currentUser yet. This lets returning users see their schedule
       // immediately from local cache while auth/network hydrate in the background.
-      if (!isAuthenticated) {
+	      if (!isAuthenticated) {
         const hasSessionHint =
           !!authManager?.auth?.currentUser ||
           !!profileCache.peek() ||
@@ -897,19 +923,32 @@ class SPARouter {
         return;
       }
 
-      // 🧭 Profile Completion Gate: ensure users complete setup before using protected routes
-      // If navigating to any protected route other than 'profile', verify setup completion.
-      // This covers first-login flow and direct hash navigation.
-      if (route !== "profile") {
-        const redirected = await this._ensureProfileCompletionGate(
-          updateHistory
-        );
-        if (redirected) {
-          if (this._pendingRoute === route) this._pendingRoute = null;
-          return; // navigation has been redirected to profile setup
-        }
-      }
-    }
+	      // 🧭 Profile Completion Gate: ensure users complete setup before using protected routes
+	      // If navigating to any protected route other than 'profile', verify setup completion.
+	      // This covers first-login flow and direct hash navigation.
+	      if (route !== "profile") {
+	        const redirected = await this._ensureProfileCompletionGate(
+	          updateHistory
+	        );
+	        if (redirected) {
+	          if (this._pendingRoute === route) this._pendingRoute = null;
+	          return; // navigation has been redirected to profile setup
+	        }
+	      }
+
+	      // 🔐 Super Admin Gate: check if route requires super admin privileges
+	      if (routeConfig.requiresSuperAdmin) {
+	        const isSuperAdmin = await this._checkSuperAdmin();
+	        if (!isSuperAdmin) {
+	          logManager.auth.warn(
+	            `🚫 Super admin access denied for route: ${route}`
+	          );
+	          this.navigateTo("home", updateHistory);
+	          if (this._pendingRoute === route) this._pendingRoute = null;
+	          return;
+	        }
+	      }
+	    }
 
     // 🛡️ If authenticated user tries to access landing page, redirect to home
     if (route === "landing") {
@@ -981,20 +1020,6 @@ class SPARouter {
         );
       }
     }
-    // Special-case: open Notify overlay without route reload
-    if (route === "notify") {
-      try {
-        const mod = await import("../pages/NotifyFriendsPage.js");
-        if (mod && typeof mod.openNotifyOverlay === "function") {
-          await mod.openNotifyOverlay();
-        }
-      } catch (e) {
-        logManager.warn("⚠️ Failed to open notify overlay via route:", e);
-      }
-      this._pendingRoute = null;
-      return;
-    }
-
     try {
       // 🎯 LEARNING: Show the loading indicator at the start of the navigation process.
       this.showLoading();
@@ -1003,15 +1028,24 @@ class SPARouter {
       if (updateHistory) {
         const routeData = this.routes[route];
         const currentHash = window.location.hash || "";
-        const targetHash = currentHash.startsWith(`#${route}?`) ? currentHash : `#${route}`;
-        const historyStateRoute = (history.state && history.state.route) || null;
-        const isDuplicate = historyStateRoute === route && currentHash === targetHash;
-        const isInitialLoadSameHash = !history.state && currentHash === targetHash; // page reload scenario
+        const targetHash = currentHash.startsWith(`#${route}?`)
+          ? currentHash
+          : `#${route}`;
+        const historyStateRoute =
+          (history.state && history.state.route) || null;
+        const isDuplicate =
+          historyStateRoute === route && currentHash === targetHash;
+        const isInitialLoadSameHash =
+          !history.state && currentHash === targetHash; // page reload scenario
         // Avoid pushing duplicate history entries (prevents double-back issue after reload)
         if (!isDuplicate && !isInitialLoadSameHash) {
           history.pushState({ route }, routeData.title, targetHash);
         } else {
-          logManager.dev && logManager.dev.debug("[Router] Skipped pushState (duplicate/initial reload) for route", route);
+          logManager.dev &&
+            logManager.dev.debug(
+              "[Router] Skipped pushState (duplicate/initial reload) for route",
+              route
+            );
         }
       }
 
@@ -1233,7 +1267,11 @@ class SPARouter {
       const currentRoutePart = this._parseRouteName(currentHash);
       if (currentRoutePart !== route) {
         // Only replace if the route actually changed (preserve query params otherwise)
-        history.replaceState({ route }, routeData.title, currentHash.startsWith(`#${route}?`) ? currentHash : `#${route}`);
+        history.replaceState(
+          { route },
+          routeData.title,
+          currentHash.startsWith(`#${route}?`) ? currentHash : `#${route}`
+        );
       }
 
       // Dispatch custom event for other parts of the app
@@ -1256,6 +1294,39 @@ class SPARouter {
       logManager.error(`❌ Error loading page ${route}:`, error);
       // 🎯 REFACTOR: The navigateTo method's finally block will handle hiding the loader.
       this.showErrorPage(error);
+    }
+  }
+
+  /**
+   * Check if the current user is a super admin.
+   * Super admins are listed in /admin/superAdmins.uids array.
+   * @returns {Promise<boolean>} True if user is a super admin
+   */
+  async _checkSuperAdmin() {
+    try {
+      const firebaseUser = authManager?.auth?.currentUser;
+      if (!firebaseUser) return false;
+
+      // Use existing Firebase config (db) to avoid duplicating initialization
+      const { db } = await import("../lib/firebase/firebase-config.js");
+      const { doc, getDoc } = await import("firebase/firestore");
+
+      const adminDoc = await getDoc(doc(db, "admin", "superAdmins"));
+      if (!adminDoc.exists()) {
+        logManager.warn("Super admin document does not exist");
+        return false;
+      }
+
+      const superAdmins = adminDoc.data()?.uids || [];
+      const isSuper = superAdmins.includes(firebaseUser.uid);
+      logManager.auth.user("Router: Super admin check", {
+        uid: firebaseUser.uid,
+        isSuperAdmin: isSuper,
+      });
+      return isSuper;
+    } catch (error) {
+      logManager.auth.error("Error checking super admin status:", error);
+      return false;
     }
   }
 
@@ -1524,8 +1595,14 @@ class SPARouter {
       if (!icon) return;
       const iconMap = {
         home: {
-          active: { add: ["fa-solid", "fa-calendar-minus"], remove: ["fa-regular"] },
-          inactive: { add: ["fa-regular", "fa-calendar-minus"], remove: ["fa-solid"] },
+          active: {
+            add: ["fa-solid", "fa-calendar-minus"],
+            remove: ["fa-regular"],
+          },
+          inactive: {
+            add: ["fa-regular", "fa-calendar-minus"],
+            remove: ["fa-solid"],
+          },
         },
         groups: {
           active: {
@@ -1538,8 +1615,24 @@ class SPARouter {
           },
         },
         friends: {
-          active: { add: ["fa-solid", "fa-users"], remove: ["fa-regular", "fa-user"] },
-          inactive: { add: ["fa-regular", "fa-user"], remove: ["fa-solid", "fa-users"] },
+          active: {
+            add: ["fa-solid", "fa-users"],
+            remove: ["fa-regular", "fa-user"],
+          },
+          inactive: {
+            add: ["fa-regular", "fa-user"],
+            remove: ["fa-solid", "fa-users"],
+          },
+        },
+        messages: {
+          active: {
+            add: ["fa-solid", "fa-paper-plane"],
+            remove: ["fa-regular"],
+          },
+          inactive: {
+            add: ["fa-regular", "fa-paper-plane"],
+            remove: ["fa-solid"],
+          },
         },
         notifications: {
           active: { add: ["fa-solid", "fa-bell"], remove: ["fa-regular"] },
@@ -1554,11 +1647,22 @@ class SPARouter {
       add.forEach((cls) => icon.classList.add(cls));
       // Fallback: if no mapping, just flip solid/regular where present
       if (!state) {
-        if (icon.classList.contains("fa-solid") || icon.classList.contains("fa-regular")) {
+        if (
+          icon.classList.contains("fa-solid") ||
+          icon.classList.contains("fa-regular")
+        ) {
           icon.classList.toggle("fa-solid", !!isActive);
           icon.classList.toggle("fa-regular", !isActive);
         }
       }
+    };
+
+    // Treat certain routes as aliases in the navigation so the correct
+    // tab remains highlighted even when legacy hashes are used elsewhere.
+    const resolveActiveNavRoutes = (route) => {
+      if (route === "clubs") return ["clubs", "groups"];
+      if (route === "groups") return ["groups", "clubs"];
+      return [route];
     };
 
     // 1. Clear existing active classes on any SPA route element (top nav + mobile nav)
@@ -1571,8 +1675,9 @@ class SPARouter {
     if (brand) brand.classList.remove("active");
 
     // 2. Activate all elements that match the current route (top + mobile)
+    const navRoutesToMatch = resolveActiveNavRoutes(activeRoute);
     const matchingRouteEls = document.querySelectorAll(
-      `[data-spa-route="${activeRoute}"]`
+      navRoutesToMatch.map((route) => `[data-spa-route="${route}"]`).join(", ")
     );
     if (matchingRouteEls.length > 0) {
       matchingRouteEls.forEach((el) => {

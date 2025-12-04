@@ -12,6 +12,14 @@ const BASE_SLOTS = [
   { start: "14:40", end: "16:10", label: "14:40-16:10" },
 ];
 
+// Helper to create a local date (not UTC) for testing
+function createLocalDate(year, month, day, hours, minutes) {
+  const d = new Date();
+  d.setFullYear(year, month - 1, day); // month is 0-indexed
+  d.setHours(hours, minutes, 0, 0);
+  return d;
+}
+
 function createScheduleForDay(now, busySlots = []) {
   const slots = BASE_SLOTS.map((slot) => ({ ...slot }));
   const matrix = Array.from({ length: 7 }, () =>
@@ -61,7 +69,7 @@ function buildFriend(config, now) {
 
 describe("SchedulePresenceService.deriveStatus", () => {
   test("returns PRIVATE when friend is restricted", () => {
-    const now = new Date("2025-01-06T10:00:00.000Z");
+    const now = createLocalDate(2025, 1, 6, 10, 0); // Monday 10:00 AM local
     const status = SchedulePresenceService.deriveStatus(
       { friendId: "restricted", isRestricted: true },
       now
@@ -73,7 +81,8 @@ describe("SchedulePresenceService.deriveStatus", () => {
   });
 
   test("combines GPS + schedule to show IN_CLASS when GPS is on campus", () => {
-    const now = new Date("2025-01-06T10:00:00.000Z");
+    // At 10:00, slot 1 (09:40-11:10) is active
+    const now = createLocalDate(2025, 1, 6, 10, 0); // Monday 10:00 AM local
     const friend = buildFriend(
       { busySlots: [1], gpsStatus: "on", lastGpsMinutesAgo: 4 },
       now
@@ -83,14 +92,17 @@ describe("SchedulePresenceService.deriveStatus", () => {
 
     expect(status.state).toBe(PRESENCE_STATES.IN_CLASS);
     expect(status.color).toBe("blue");
-    expect(status.pillText).toBe("IN CLASS");
+    // Updated: pillText is now "CLASS" not "IN CLASS"
+    expect(status.pillText).toBe("CLASS");
     expect(status.metadata.hasFreshGPS).toBe(true);
     expect(status.metadata.source).toBe("mixed");
     expect(status.metadata.currentClassEnd).toBeInstanceOf(Date);
   });
 
   test("shows FREE_ON_CAMPUS when GPS says on campus but not in class", () => {
-    const now = new Date("2025-01-06T12:20:00.000Z");
+    // At 12:20, between slot 2 (11:20-12:50) - but slot 0 is busy, slot 2 is not
+    // So at 12:20 with only slot 0 busy (08:00-09:30), no current class
+    const now = createLocalDate(2025, 1, 6, 12, 20);
     const friend = buildFriend(
       { busySlots: [0], gpsStatus: "on", lastGpsMinutesAgo: 1 },
       now
@@ -104,7 +116,7 @@ describe("SchedulePresenceService.deriveStatus", () => {
   });
 
   test("GPS off campus overrides schedule inference", () => {
-    const now = new Date("2025-01-06T10:00:00.000Z");
+    const now = createLocalDate(2025, 1, 6, 10, 0);
     const friend = buildFriend(
       { busySlots: [1], gpsStatus: "off", lastGpsMinutesAgo: 2 },
       now
@@ -118,7 +130,8 @@ describe("SchedulePresenceService.deriveStatus", () => {
   });
 
   test("stale GPS falls back to schedule-derived IN_CLASS", () => {
-    const now = new Date("2025-01-06T10:00:00.000Z");
+    // At 10:00 with busySlots [1] (09:40-11:10), should be in class
+    const now = createLocalDate(2025, 1, 6, 10, 0);
     const friend = buildFriend(
       { busySlots: [1], gpsStatus: "on", lastGpsMinutesAgo: 45 },
       now
@@ -131,21 +144,25 @@ describe("SchedulePresenceService.deriveStatus", () => {
     expect(status.metadata.source).toBe("schedule");
   });
 
-  test("between classes resolves to FREE_NOW with schedule source", () => {
-    const now = new Date("2025-01-06T09:35:00.000Z");
+  test("between classes resolves to FREE with schedule source", () => {
+    // At 09:35, between slot 0 (08:00-09:30) and slot 1 (09:40-11:10)
+    // With busySlots [0, 1], previous class ended, next class starts soon
+    const now = createLocalDate(2025, 1, 6, 9, 35);
     const friend = buildFriend({ busySlots: [0, 1] }, now);
 
     const status = SchedulePresenceService.deriveStatus(friend, now);
 
     expect(status.state).toBe(PRESENCE_STATES.FREE_ON_CAMPUS);
-    expect(status.pillText).toBe("FREE NOW");
+    // Updated: pillText is now "FREE" not "FREE NOW"
+    expect(status.pillText).toBe("FREE");
     expect(status.color).toBe("green");
     expect(status.metadata.inDayGap).toBe(true);
     expect(status.metadata.source).toBe("schedule");
   });
 
   test("before first class shows CLASS LATER pill", () => {
-    const now = new Date("2025-01-06T07:15:00.000Z");
+    // At 07:15 before slot 0 (08:00-09:30)
+    const now = createLocalDate(2025, 1, 6, 7, 15);
     const friend = buildFriend({ busySlots: [0], nestedSchedule: true }, now);
 
     const status = SchedulePresenceService.deriveStatus(friend, now);
@@ -156,7 +173,7 @@ describe("SchedulePresenceService.deriveStatus", () => {
   });
 
   test("no schedule data returns UNKNOWN_NO_DATA", () => {
-    const now = new Date("2025-01-06T10:00:00.000Z");
+    const now = createLocalDate(2025, 1, 6, 10, 0);
     const status = SchedulePresenceService.deriveStatus(
       { friendId: "no-data" },
       now
@@ -170,14 +187,13 @@ describe("SchedulePresenceService.deriveStatus", () => {
 
 describe("SchedulePresenceService.deriveStatusForFriends", () => {
   test("returns map of friendId to status payloads", () => {
-    const now = new Date("2025-01-06T10:00:00.000Z");
+    const now = createLocalDate(2025, 1, 6, 10, 0);
     const friends = [
       buildFriend({ friendId: "a", busySlots: [1] }, now),
       { friendId: "b", isRestricted: true },
     ];
 
-    const result =
-      SchedulePresenceService.deriveStatusForFriends(friends, now);
+    const result = SchedulePresenceService.deriveStatusForFriends(friends, now);
 
     expect(Object.keys(result)).toEqual(["a", "b"]);
     expect(result.a.state).toBeDefined();

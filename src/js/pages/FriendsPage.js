@@ -4869,17 +4869,6 @@ class FriendsUI {
   }
 
   /**
-   * ⭐ DEPRECATED: This method caused duplicate listeners
-   * Quick Access updates are now handled via onQuickAccessUpdated callback in setupRealTimeCallbacks
-   * Keeping this method for reference but it's no longer called
-   */
-  setupQuickAccessRealTimeListener_DEPRECATED() {
-    console.warn(
-      "⚠️ setupQuickAccessRealTimeListener is deprecated - use onQuickAccessUpdated callback instead"
-    );
-  }
-
-  /**
    * ⭐ Handle real-time Quick Access updates from other tabs/sessions
    * Updates the star states without refetching data
    * @param {Object} quickAccessData - Quick Access update data

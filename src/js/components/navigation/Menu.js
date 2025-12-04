@@ -49,9 +49,12 @@ let activeNotifUid = null; // Prevent re-initializing listeners on unrelated use
 // Unified indicator state (avoid reading DOM which caused stale badges)
 let _notifDocsHasAlert = false; // any unseen notifications of target types
 let _pendingFriendHasAlert = false; // any pending friend requests
-// Notify indicator vars predeclared to avoid TDZ
-let notifyRespUnsub = null;
-let _notifyHasAlert = false;
+
+// Messages (class spaces) unread indicator
+let messagesSpacesUnsub = null;
+let _messagesHasUnread = false;
+let _messagesSpacesCache = []; // Cache for recalculation on view
+let _messagesUserId = null; // Track which user's spaces are cached
 
 // 🎯 CRITICAL FIX: Initialize immediately when module loads (for SPA compatibility)
 // Don't wait for DOMContentLoaded in SPA mode - initialize when script loads
@@ -94,8 +97,8 @@ function initializeInteractiveElements() {
   // Initialize notifications nav indicator (real-time)
   initializeNotificationsIndicator();
 
-  // Initialize notify-friends button and indicator
-  initializeNotifyFriendsEntry();
+  // Initialize Messages button and indicator (class spaces entry)
+  initializeMessagesEntry();
 
   // Set initial auth body class to avoid flash for authenticated users on load
   try {
@@ -184,7 +187,9 @@ function toggleDarkMode() {
   try {
     // Update the first theme-color meta without media (fallback) if present,
     // otherwise update all theme-color tags so Android/iOS reflect app toggle.
-    const metas = Array.from(document.querySelectorAll('meta[name="theme-color"]'));
+    const metas = Array.from(
+      document.querySelectorAll('meta[name="theme-color"]')
+    );
     const darkColor = "#0d021a";
     const lightColor = "#ffffff";
     const color = isDarkMode ? darkColor : lightColor;
@@ -1283,7 +1288,7 @@ async function setupNotificationsIndicatorListener(userId) {
     notificationsUnsub = dm.setupNotificationsListener(
       userId,
       (notifications) => {
-        // Show dot if there are any unseen friend/location/availability pings
+        // Show dot if there are any unseen friend/location notifications
         _notifDocsHasAlert = notifications.some((n) => {
           // Check for both timestamp fields AND status field (backwards compatibility)
           const isUnseen =
@@ -1292,9 +1297,7 @@ async function setupNotificationsIndicatorListener(userId) {
             n.status !== "read" &&
             n.status !== "dismissed";
           const isTargetType =
-            n.type === "friend_request" ||
-            n.type === "location_share_request" ||
-            n.type === "availability_ping";
+            n.type === "friend_request" || n.type === "location_share_request";
           return isUnseen && isTargetType;
         });
         recomputeNotificationsDot();
@@ -1302,13 +1305,10 @@ async function setupNotificationsIndicatorListener(userId) {
     );
 
     // Also listen to pending friend requests directly
-    friendReqUnsub = dm.listenToPendingFriendRequests(
-      userId,
-      (requests) => {
-        _pendingFriendHasAlert = Array.isArray(requests) && requests.length > 0;
-        recomputeNotificationsDot();
-      }
-    );
+    friendReqUnsub = dm.listenToPendingFriendRequests(userId, (requests) => {
+      _pendingFriendHasAlert = Array.isArray(requests) && requests.length > 0;
+      recomputeNotificationsDot();
+    });
   } catch (e) {
     console.warn("⚠️ Could not set notifications listener:", e);
   }
@@ -1336,15 +1336,7 @@ function toggleNotificationsDot(show) {
   if (link) {
     link.classList.toggle("has-alert", !!show);
   }
-  // Update mobile badge (same behavior and style on both form-factors)
-  const mobileBadge = document.querySelector(
-    '.mobile-bottom-nav .mobile-nav-item[data-spa-route="notifications"] .mobile-nav-badge'
-  );
-  if (mobileBadge) {
-    mobileBadge.style.display = show ? "block" : "none";
-    // For dot style, we don't show numbers; clear any text if present
-    if (!show) mobileBadge.textContent = "";
-  }
+  // Note: Mobile bottom nav no longer has a notifications item - it's top-right only
 }
 
 function recomputeNotificationsDot() {
@@ -1352,20 +1344,18 @@ function recomputeNotificationsDot() {
 }
 
 // =========================
-// Notify Friends Entry + Indicator
+// Messages Entry (former Notify Friends)
 // =========================
 
-function initializeNotifyFriendsEntry() {
+function initializeMessagesEntry() {
   try {
-    const btn = document.getElementById("notifyFriendsBtn");
+    const btn = document.getElementById("messagesNavBtn");
     if (btn) {
       // Make an immediate best-effort decision so the button isn't invisible until the
       // auth subscription fires (affects iOS PWA on cold start).
       try {
         if (typeof currentUser?.isLoggedIn === "function") {
-          btn.style.display = currentUser.isLoggedIn()
-            ? "inline-flex"
-            : "none";
+          btn.style.display = currentUser.isLoggedIn() ? "inline-flex" : "none";
         }
       } catch (_) {}
 
@@ -1373,132 +1363,145 @@ function initializeNotifyFriendsEntry() {
         e.preventDefault();
         e.stopPropagation();
 
-        // Check if overlay is already open
-        const existingOverlay = document.querySelector(".notify-overlay");
-        if (existingOverlay) {
-          // Close the overlay if it's already open
-          try {
-            const mod = await import("../../pages/NotifyFriendsPage.js");
-            if (
-              mod.notifyFriendsPage &&
-              typeof mod.notifyFriendsPage.closeOverlay === "function"
-            ) {
-              mod.notifyFriendsPage.closeOverlay();
-            }
-          } catch (err) {
-            console.warn("⚠️ Failed to close Notify overlay:", err);
-          }
-          return;
-        }
-
-        // Open the overlay if it's not open
+        // Navigate to Messages (group chats)
         try {
-          const mod = await import("../../pages/NotifyFriendsPage.js");
-          if (typeof mod.openNotifyOverlay === "function") {
-            await mod.openNotifyOverlay();
-            try {
-              sessionStorage.setItem("notify:lastClearTs", String(Date.now()));
-            } catch (_) {}
-            setNotifyDot(false);
-          }
+          navigateTo("messages");
         } catch (err) {
-          console.warn("⚠️ Failed to open Notify overlay:", err);
+          console.warn("⚠️ Failed to navigate to messages:", err);
+          try {
+            window.location.hash = "#messages";
+          } catch (_) {}
         }
       });
     }
 
-    // Show/hide by auth state
+    // Show/hide by auth state and setup unread indicator
     if (currentUser && typeof currentUser.subscribe === "function") {
       currentUser.subscribe(({ isLoggedIn }) => {
-        const b = document.getElementById("notifyFriendsBtn");
+        const b = document.getElementById("messagesNavBtn");
         if (!b) return;
         b.style.display = isLoggedIn ? "inline-flex" : "none";
-        if (!isLoggedIn) setNotifyDot(false);
+        if (!isLoggedIn) {
+          setMessagesDot(false);
+          teardownMessagesIndicator();
+        } else {
+          // Setup unread messages listener when logged in
+          const uid = currentUser?.uid;
+          if (uid) setupMessagesIndicator(uid);
+        }
       });
     }
-
-    // Setup indicator
-    setupNotifyFriendsIndicator();
-
-    // Clear dot when overlay opens via custom event
-    document.addEventListener("notify:overlay:open", () => {
-      try {
-        sessionStorage.setItem("notify:lastClearTs", String(Date.now()));
-      } catch (_) {}
-      setNotifyDot(false);
-    });
   } catch (e) {
-    console.warn("⚠️ Failed to initialize Notify Friends entry:", e);
+    console.warn("⚠️ Failed to initialize Messages entry:", e);
   }
 }
 
-function setupNotifyFriendsIndicator() {
+function setMessagesDot(show) {
+  // Desktop nav button dot
+  const btn = document.getElementById("messagesNavBtn");
+  if (btn) {
+    const dot = btn.querySelector(".nav-dot");
+    if (dot) {
+      dot.style.display = show ? "inline-block" : "none";
+    }
+  }
+  // Mobile nav item dot (add has-alert class like notifications)
+  const mobileLink = document.querySelector(
+    '.mobile-bottom-nav .mobile-nav-item[data-spa-route="messages"]'
+  );
+  if (mobileLink) {
+    mobileLink.classList.toggle("has-alert", !!show);
+  }
+}
+
+/**
+ * Setup realtime listener for unread class space messages
+ * Uses the same pattern as notifications indicator
+ */
+async function setupMessagesIndicator(userId) {
   try {
-    // Cleanup previous
-    if (notifyRespUnsub) {
-      try {
-        notifyRespUnsub();
-      } catch (_) {}
-      notifyRespUnsub = null;
-    }
+    teardownMessagesIndicator();
+    if (!userId) return;
 
-    // Listen for responded availability pings sent BY me in the last 30 minutes
-    if (currentUser && typeof currentUser.subscribe === "function") {
-      currentUser.subscribe(async ({ isLoggedIn }) => {
-        if (!isLoggedIn || !currentUser.uid) {
-          if (notifyRespUnsub) {
-            try {
-              notifyRespUnsub();
-            } catch (_) {}
-            notifyRespUnsub = null;
-          }
-          setNotifyDot(false);
-          return;
+    _messagesUserId = userId;
+
+    // Dynamically import to keep Menu.js bundle light
+    const [{ db }, { collection, query, where, onSnapshot }] =
+      await Promise.all([
+        import("../../lib/firebase/firebase-config.js"),
+        import("firebase/firestore"),
+      ]);
+    const { unreadTracker } = await import(
+      "../../services/groups/UnreadTracker.js"
+    );
+
+    // Helper to calculate unread state from cached spaces
+    const recalculateUnread = () => {
+      let hasAnyUnread = false;
+      for (const space of _messagesSpacesCache) {
+        if (unreadTracker.hasUnread(space.spaceId, space, userId)) {
+          hasAnyUnread = true;
+          break;
         }
-        const uid = currentUser.uid;
-        
-        // 🎯 FIX: Initialize lastClearTs on first login to prevent showing old notifications as "new"
-        try {
-          if (!sessionStorage.getItem("notify:lastClearTs")) {
-            sessionStorage.setItem("notify:lastClearTs", String(Date.now()));
-          }
-        } catch (_) {}
-        
-        // Use DataService to set up a lightweight listener
-        try {
-          if (notifyRespUnsub) {
-            try {
-              notifyRespUnsub();
-            } catch (_) {}
-          }
-          const dm = await getMenuDataManager();
-          if (!dm) {
-            console.warn(
-              "Menu: DataService unavailable; Notify indicator disabled"
-            );
-            return;
-          }
-          notifyRespUnsub = dm.setupAvailabilityResponsesListener(
-            uid,
-            (hasUnseen) => {
-              _notifyHasAlert = !!hasUnseen;
-              setNotifyDot(_notifyHasAlert);
-            }
-          );
-        } catch (err) {
-          console.warn("⚠️ Could not start Notify indicator listener", err);
-        }
-      });
-    }
+      }
+      _messagesHasUnread = hasAnyUnread;
+      setMessagesDot(_messagesHasUnread);
+    };
+
+    // Listen for space view events to recalculate badge immediately
+    const viewHandler = (e) => {
+      if (e.detail?.userId === userId) {
+        recalculateUnread();
+      }
+    };
+    document.addEventListener("classspace:viewed", viewHandler);
+
+    // Listen to user's class spaces
+    const spacesRef = collection(db, "classSpaces");
+    const q = query(spacesRef, where("memberIds", "array-contains", userId));
+
+    messagesSpacesUnsub = onSnapshot(
+      q,
+      (snapshot) => {
+        // Cache spaces for recalculation
+        _messagesSpacesCache = [];
+        snapshot.forEach((docSnap) => {
+          _messagesSpacesCache.push({ spaceId: docSnap.id, ...docSnap.data() });
+        });
+        recalculateUnread();
+      },
+      (error) => {
+        console.warn("⚠️ Messages unread listener error:", error);
+      }
+    );
+
+    // Store view handler reference for cleanup
+    messagesSpacesUnsub._viewHandler = viewHandler;
   } catch (e) {
-    console.warn("⚠️ Failed to set notify indicator:", e);
+    console.warn("⚠️ Failed to setup messages indicator:", e);
   }
 }
 
-function setNotifyDot(show) {
-  const btn = document.getElementById("notifyFriendsBtn");
-  if (!btn) return;
-  const dot = btn.querySelector(".nav-dot");
-  if (!dot) return;
-  dot.style.display = show ? "inline-block" : "none";
+function teardownMessagesIndicator() {
+  if (messagesSpacesUnsub) {
+    // Remove event listener if attached
+    if (messagesSpacesUnsub._viewHandler) {
+      try {
+        document.removeEventListener(
+          "classspace:viewed",
+          messagesSpacesUnsub._viewHandler
+        );
+      } catch (_) {}
+    }
+    // Unsubscribe from Firestore
+    if (typeof messagesSpacesUnsub === "function") {
+      try {
+        messagesSpacesUnsub();
+      } catch (_) {}
+    }
+  }
+  messagesSpacesUnsub = null;
+  _messagesHasUnread = false;
+  _messagesSpacesCache = [];
+  _messagesUserId = null;
 }

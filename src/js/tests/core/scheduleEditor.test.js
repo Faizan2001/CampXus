@@ -111,7 +111,7 @@ describe("Phase 3: Time Range Header Editing (Mock-less)", () => {
       jest.runAllTimers();
       expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Error");
       expect(DOM_ELEMENTS.modalMessage.textContent).toContain(
-        "Slot index missing"
+        "Range index missing"
       );
     });
 
@@ -122,7 +122,7 @@ describe("Phase 3: Time Range Header Editing (Mock-less)", () => {
       jest.runAllTimers();
       expect(DOM_ELEMENTS.modalTitle.textContent).toBe("Error");
       expect(DOM_ELEMENTS.modalMessage.textContent).toContain(
-        "Invalid slot index provided. Must be a number."
+        "Invalid time range index provided. Must be a number."
       );
     });
 
@@ -390,7 +390,7 @@ describe("Phase 3: Time Range Header Editing (Mock-less)", () => {
       expect(result).toBe(false);
       expect(
         document.getElementById("edit-slot-error-message").textContent
-      ).toContain("must be after previous slot's end (09:00)");
+      ).toContain("previous range's end");
     });
 
     test("should display error on conflict with next slot and return false", () => {
@@ -401,7 +401,7 @@ describe("Phase 3: Time Range Header Editing (Mock-less)", () => {
       expect(result).toBe(false);
       expect(
         document.getElementById("edit-slot-error-message").textContent
-      ).toContain("must be before next slot's start (12:00)");
+      ).toContain("next range's start");
     });
 
     test("should allow editing first slot without previous conflict error", () => {

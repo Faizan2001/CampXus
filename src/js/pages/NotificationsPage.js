@@ -24,6 +24,10 @@ import { notificationManager } from "../services/realtime/NotificationService.js
 import { renderPushPermissionBanner } from "../components/notifications/PushPermissionBanner.js";
 import { campusLocationService } from "../services/location/CampusLocationService.js";
 import {
+  isClubNotification,
+  getClubNotificationDisplay,
+} from "../services/clubs/ClubNotificationService.js";
+import {
   realTimeManager,
   REALTIME_EVENTS,
 } from "../services/realtime/RealtimeService.js";
@@ -40,7 +44,7 @@ export class NotificationsPage {
     this.isInitialized = false;
     this.isActive = false;
     this.baseRendered = false; // Prevent full re-render flicker
-    this.filter = "all"; // 'all' | 'friend' | 'location'
+    this.filter = "all"; // 'all' | 'friend' | 'location' | 'club'
     this._listElement = null; // track current bound list element for delegation
     this._listDelegatedHandler = null; // reference to delegated handler
 
@@ -215,6 +219,12 @@ export class NotificationsPage {
                   <i class="fas fa-map-marker-alt"></i>
                   Location Requests
                 </button>
+                <button class="filter-btn ${
+                  this.filter === "club" ? "active" : ""
+                }" data-filter="club">
+                  <i class="fas fa-flag"></i>
+                  Clubs
+                </button>
               </div>
               <div id="notificationsList" class="notifications-scrollable-container">
                 ${this.renderNotifications()}
@@ -259,12 +269,7 @@ export class NotificationsPage {
       .querySelectorAll(".notifications-filters .filter-btn")
       .forEach((btn) => {
         const f = btn.getAttribute("data-filter");
-        btn.classList.toggle(
-          "active",
-          (f === "all" && this.filter === "all") ||
-            (f === "friend" && this.filter === "friend") ||
-            (f === "location" && this.filter === "location")
-        );
+        btn.classList.toggle("active", f === this.filter);
       });
     const markAll = document.querySelector(".mark-all-read");
     if (markAll) {
@@ -287,13 +292,18 @@ export class NotificationsPage {
       createdAt: r.createdAt,
     }));
 
-    // Preserve key fields for availability flows (status/response/timestamps)
     const normalizedNotifications = (this.notifications || []).map((n) => ({
       id: n.id,
       type: n.type,
       fromUserId: n.fromUserId,
       fromUserInfo: n.fromUserInfo,
       createdAt: n.createdAt,
+      // Club-specific fields (safe defaults if missing)
+      clubId: n.clubId,
+      eventId: n.eventId,
+      title: n.title,
+      message: n.message,
+      clubInfo: n.clubInfo,
       locationRequest: n.locationRequest,
       read: n.read,
       status: n.status,
@@ -304,26 +314,18 @@ export class NotificationsPage {
     }));
 
     let merged = [...normalizedNotifications, ...normalizedFriendRequests];
-    // Hide availability response items from Notifications page (overlay + push only)
-    merged = merged.filter((n) => n.type !== "availability_response");
-
-    // Drop availability pings that have been responded to or dismissed
-    merged = merged.filter((n) => {
-      if (n.type !== "availability_ping") return true;
-      const responded =
-        n.status === "responded" ||
-        n.response === "available" ||
-        n.response === "busy" ||
-        !!n.respondedAt;
-      const dismissed = n.status === "dismissed" || !!n.dismissedAt;
-      return !(responded || dismissed);
-    });
+    // Remove deprecated availability ping/response notifications
+    merged = merged.filter(
+      (n) => n.type !== "availability_ping" && n.type !== "availability_response"
+    );
 
     // Apply filter
     if (this.filter === "friend") {
       merged = merged.filter((n) => n.type === "friend_request");
     } else if (this.filter === "location") {
       merged = merged.filter((n) => n.type === "location_share_request");
+    } else if (this.filter === "club") {
+      merged = merged.filter((n) => isClubNotification(n));
     }
     merged.sort((a, b) => {
       const ta = a.createdAt?.toDate
@@ -340,8 +342,8 @@ export class NotificationsPage {
         <div class="no-notifications">
           <h4 class="no-notifications-text">All caught up!</h4>
           <p class="no-notifications-subtitle">
-            No new notifications right now. When friends send you requests or share their location,
-            you'll see them here.
+            No new notifications right now. When friends send you requests, share their location,
+            or clubs post new updates, you'll see them here.
           </p>
           <div class="empty-actions">
             <button type="button" class="button secondary" data-spa-route="friends">
@@ -355,17 +357,14 @@ export class NotificationsPage {
 
     return merged
       .map((notification) => {
-        if (notification.type === "availability_ping") {
-          return this.renderAvailabilityPing(notification);
-        }
-        if (notification.type === "availability_response") {
-          return this.renderAvailabilityResponse(notification);
-        }
         if (notification.type === "location_share_request") {
           return this.renderLocationShareRequest(notification);
         }
         if (notification.type === "friend_request") {
           return this.renderFriendRequest(notification);
+        }
+        if (isClubNotification(notification)) {
+          return this.renderClubNotification(notification);
         }
         if (notification.type === "location_sharing_enabled") {
           return this.renderLocationSharingEnabled(notification);
@@ -425,129 +424,6 @@ export class NotificationsPage {
     `;
   }
 
-  /**
-   * Render an availability ping notification (recipient side)
-   * @param {Object} notification
-   * @returns {string}
-   */
-  renderAvailabilityPing(notification = {}) {
-    const fromUserInfo = notification.fromUserInfo || {};
-    const handle = escapeHTML(fromUserInfo.handle || "friend");
-    const avatarUrl =
-      getAvatarUrl(fromUserInfo) ||
-      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo=";
-    const response = (notification.response || "").toLowerCase();
-    const hasResponded =
-      notification.status === "responded" ||
-      response === "available" ||
-      response === "busy";
-    const isOffline =
-      typeof navigator !== "undefined" &&
-      navigator &&
-      navigator.onLine === false;
-    const readClass =
-      notification.read || notification.readAt || hasResponded
-        ? "notification-read"
-        : "notification-unread";
-    const countdown = this.formatAvailabilityCountdown(notification.expiresAt);
-    const responseLabel = response === "available" ? "Available" : "Busy";
-    const metaLine = hasResponded
-      ? `You responded ${responseLabel}`
-      : countdown && countdown !== "Expired"
-      ? `Expires in ${countdown}`
-      : `Sent ${this.formatTime(notification.createdAt)}`;
-    const offlineAttrs = isOffline
-      ? ' disabled title="Reconnect to respond" aria-disabled="true"'
-      : "";
-
-    const actionsHtml = hasResponded
-      ? ""
-      : `
-        <div class="notification-actions">
-          <button class="accept-location-btn availability-response-btn" data-notification-id="${notification.id}" data-response="available"${offlineAttrs}>
-            Available
-          </button>
-          <button class="reject-friend-btn availability-response-btn" data-notification-id="${notification.id}" data-response="busy"${offlineAttrs}>
-            Busy
-          </button>
-        </div>
-      `;
-
-    return `
-      <div class="notification-item availability-request ${readClass}" data-notification-id="${notification.id}">
-        <div class="notification-content">
-          <div class="notification-avatar">
-            <img src="${avatarUrl}"
-                 alt="@${handle}"
-                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
-          </div>
-          <div class="notification-text-content">
-            <div class="notification-text">
-              <strong>@${handle}</strong>
-              <span class="action-verb"> is asking if you're free</span>
-            </div>
-            <div class="notification-time">${metaLine}</div>
-          </div>
-        </div>
-        ${actionsHtml}
-      </div>
-    `;
-  }
-
-  /**
-   * Render an availability response notification (sender side)
-   * @param {Object} notification
-   * @returns {string}
-   */
-  renderAvailabilityResponse(notification = {}) {
-    const fromUserInfo = notification.fromUserInfo || {};
-    const handle = escapeHTML(fromUserInfo.handle || "friend");
-    const avatarUrl =
-      getAvatarUrl(fromUserInfo) ||
-      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo=";
-    const response = (notification.response || "").toLowerCase();
-    const isAvailable = response === "available";
-    const readClass =
-      notification.read || notification.readAt
-        ? "notification-read"
-        : "notification-unread";
-    const responseLabel = isAvailable ? "Available" : "Busy";
-
-    return `
-      <div class="notification-item availability-response ${readClass}" data-notification-id="${notification.id}">
-        <div class="notification-content">
-          <div class="notification-avatar">
-            <img src="${avatarUrl}"
-                 alt="@${handle}"
-                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCA0MCA0MCI+CiAgPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNlNWU3ZWIiLz4KICA8cGF0aCBkPSJNMjAgMThjMS4xIDAtMi0uOS0yLTJzLjktMiAyLTIgMiAuOSAyIDItLjkgMi0yIDJaTTI4IDE2YzAgNC40LTMuNiA4LTggOHMtOC0zLjYtOC04IDMuNi04IDgtOCA4IDMuNiA4IDhaIiBmaWxsPSIjNjM2MzYzIi8+Cjwvc3ZnPgo='">
-          </div>
-          <div class="notification-text-content">
-            <div class="notification-text">
-              <span class="notification-icon ${
-                isAvailable ? "type-available" : "type-unavailable"
-              }" aria-hidden="true">
-                <i class="fas ${isAvailable ? "fa-check" : "fa-times"}"></i>
-              </span>
-              <strong>@${handle}</strong>
-              <span class="action-verb"> responded ${responseLabel.toLowerCase()}</span>
-            </div>
-            <div class="notification-time">${this.formatTime(
-              notification.createdAt
-            )}</div>
-          </div>
-        </div>
-        <div class="notification-actions">
-          <button class="accept-location-btn open-notify-overlay-btn" data-notification-id="${notification.id}">
-            <i class="fas fa-eye" aria-hidden="true"></i>
-            <span>View overlay</span>
-          </button>
-          <button class="dismiss-btn" data-notification-id="${notification.id}">
-            Dismiss
-          </button>
-        </div>
-      </div>
-    `;
-  }
 
   /**
    * Render a friend request notification
@@ -593,6 +469,69 @@ export class NotificationsPage {
           </button>
           <button class="reject-friend-btn" data-request-id="${requestId}">
             Decline
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Render a club notification (events, approvals, reminders, etc.)
+   * @param {Object} notification - Club notification with clubInfo metadata
+   * @returns {string} HTML string for the notification
+   */
+  renderClubNotification(notification) {
+    const isRead = notification.read || false;
+    const readClass = isRead ? "notification-read" : "notification-unread";
+
+    const clubId = notification.clubId || "";
+    const eventId = notification.eventId || "";
+    const display = getClubNotificationDisplay(notification);
+
+    const clubName =
+      notification.clubInfo?.name || "Club update";
+    const avatarUrl =
+      notification.clubInfo?.logoUrl ||
+      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSIxNiIgZmlsbD0iIzIxMjEzMiIvPjxwYXRoIGQ9Ik0xMSAxOUwxNSAxMUwyMSAyM0gxMSIgZmlsbD0iI0ZGRiIvPjwvc3ZnPg==";
+
+    const badgeHtml = display.badgeText
+      ? `<span class="club-badge ${display.badgeClass}">${escapeHTML(
+          display.badgeText
+        )}</span>`
+      : "";
+
+    return `
+      <div class="notification-item club-notification ${readClass}" data-notification-id="${
+        notification.id
+      }">
+        <div class="notification-avatar">
+          <img src="${avatarUrl}"
+               alt="${escapeHTML(clubName)} logo"
+               onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSIxNiIgZmlsbD0iIzIxMjEzMiIvPjxwYXRoIGQ9Ik0xMSAxOUwxNSAxMUwyMSAyM0gxMSIgZmlsbD0iI0ZGRiIvPjwvc3ZnPg=='">
+        </div>
+        <div class="notification-content">
+          <div class="notification-text">
+            <span class="notification-icon type-club" aria-hidden="true">
+              <i class="${display.iconClass}"></i>
+            </span>
+            <strong>${escapeHTML(clubName)}</strong>
+            ${badgeHtml}
+          </div>
+          <div class="notification-details">
+            ${escapeHTML(display.message)}
+          </div>
+          <div class="notification-time">${this.formatTime(
+            notification.createdAt
+          )}</div>
+        </div>
+        <div class="notification-actions">
+          <button class="open-club-notification button tertiary" data-club-id="${escapeHTML(
+            clubId
+          )}" data-event-id="${eventId ? escapeHTML(eventId) : ""}">
+            View
+          </button>
+          <button class="dismiss-btn" data-notification-id="${notification.id}">
+            Dismiss
           </button>
         </div>
       </div>
@@ -738,25 +677,6 @@ export class NotificationsPage {
       }
       this._listElement = list;
       this._listDelegatedHandler = async (e) => {
-        const availabilityBtn = e.target.closest(
-          ".availability-response-btn"
-        );
-        if (availabilityBtn) {
-          if (availabilityBtn.disabled) return;
-          const notificationId = availabilityBtn.dataset.notificationId;
-          const response = availabilityBtn.dataset.response;
-          if (!notificationId || !response) return;
-          await this.handleAvailabilityPingResponse(notificationId, response);
-          return;
-        }
-
-        const openOverlayBtn = e.target.closest(".open-notify-overlay-btn");
-        if (openOverlayBtn) {
-          const notificationId = openOverlayBtn.dataset.notificationId;
-          await this.openAvailabilityOverlay(notificationId);
-          return;
-        }
-
         const acceptLoc = e.target.closest(".accept-location-btn");
         if (acceptLoc) {
           const friendshipId = acceptLoc.dataset.friendshipId;
@@ -794,118 +714,29 @@ export class NotificationsPage {
           await this.dismissNotification(notificationId);
           return;
         }
+
+        const openClub = e.target.closest(".open-club-notification");
+        if (openClub) {
+          const clubId = openClub.dataset.clubId;
+          const eventId = openClub.dataset.eventId;
+          if (clubId) {
+            const hash = eventId
+              ? `#club?id=${clubId}&eventId=${eventId}`
+              : `#club?id=${clubId}`;
+            console.log("🎟️ Opening club from notification:", {
+              clubId,
+              eventId,
+              hash,
+            });
+            window.location.hash = hash;
+          }
+          return;
+        }
       };
       list.addEventListener("click", this._listDelegatedHandler);
     }
   }
 
-  /**
-   * Handle user response to an availability ping
-   * @param {string} notificationId
-   * @param {"available"|"busy"} response
-   */
-  async handleAvailabilityPingResponse(notificationId, response) {
-    if (!notificationId || !response) return;
-    const notification = this.notifications.find(
-      (n) => n.id === notificationId
-    );
-    const card = document.querySelector(
-      `[data-notification-id="${notificationId}"]`
-    );
-    const buttons = card
-      ? Array.from(
-          card.querySelectorAll(".availability-response-btn")
-        ).filter(Boolean)
-      : [];
-    const originalStates = buttons.map((btn) => ({
-      btn,
-      html: btn.innerHTML,
-    }));
-
-    try {
-      console.log(
-        "📨 Responding to availability ping:",
-        notificationId,
-        response
-      );
-      buttons.forEach((btn) => {
-        btn.disabled = true;
-        btn.innerHTML = `<span>Sending…</span>`;
-      });
-
-      const result = await dataManager.respondToAvailabilityPing(
-        notificationId,
-        response
-      );
-
-      if (!result.success) {
-        throw new Error(result.error || "Failed to respond");
-      }
-
-      // Mark as read so nav dot clears quickly (best-effort)
-      try {
-        await dataManager.markNotificationAsRead(notificationId);
-      } catch (markErr) {
-        console.warn("⚠️ Failed to mark availability ping as read:", markErr);
-      }
-
-      // Optimistically remove notification from local list
-      this.notifications = this.notifications.filter(
-        (n) => n.id !== notificationId
-      );
-      this.updateListOnly();
-
-      const targetHandle =
-        notification?.fromUserInfo?.handle ||
-        notification?.fromUserInfo?.displayName ||
-        "";
-      const audienceLabel = targetHandle ? `@${targetHandle}` : "your friend";
-      const sentLabel =
-        response === "available" ? "Marked available" : "Marked busy";
-      notificationManager.showSuccessNotification(
-        `${sentLabel} for ${audienceLabel}`
-      );
-      console.log("✅ Availability response sent:", notificationId, response);
-    } catch (error) {
-      console.error("❌ Failed to respond to availability ping:", error);
-      notificationManager.showErrorNotification(
-        "Could not send your response. Try again."
-      );
-      originalStates.forEach(({ btn, html }) => {
-        btn.disabled = false;
-        btn.innerHTML = html;
-      });
-    }
-  }
-
-  /**
-   * Open the Notify Friends overlay from a notification
-   * @param {string} notificationId
-   */
-  async openAvailabilityOverlay(notificationId) {
-    try {
-      const module = await import("./NotifyFriendsPage.js");
-      if (module && typeof module.openNotifyOverlay === "function") {
-        await module.openNotifyOverlay();
-      }
-      if (notificationId) {
-        try {
-          await dataManager.markNotificationAsRead(notificationId);
-        } catch (markErr) {
-          console.warn(
-            "⚠️ Failed to mark availability response as read:",
-            markErr
-          );
-        }
-        this.markNotificationLocallyRead(notificationId);
-      }
-    } catch (error) {
-      console.error("❌ Failed to open Notify overlay:", error);
-      notificationManager.showErrorNotification(
-        "Unable to open Notify Friends right now"
-      );
-    }
-  }
 
   /**
    * Accept location sharing with a friend
@@ -1220,44 +1051,6 @@ export class NotificationsPage {
       notificationManager.showErrorNotification(
         "Failed to start location tracking"
       );
-    }
-  }
-
-  /**
-   * Format countdown for availability ping expiry
-   * @param {Date|Object|string|number} expiresAt
-   * @returns {string}
-   */
-  formatAvailabilityCountdown(expiresAt) {
-    try {
-      if (!expiresAt) return "";
-      let expiryDate;
-      if (expiresAt?.toDate) {
-        expiryDate = expiresAt.toDate();
-      } else if (expiresAt instanceof Date) {
-        expiryDate = expiresAt;
-      } else {
-        expiryDate = new Date(expiresAt);
-      }
-      if (!expiryDate || Number.isNaN(expiryDate.getTime())) return "";
-
-      const diffMs = expiryDate.getTime() - Date.now();
-      if (!Number.isFinite(diffMs) || diffMs <= 0) return "Expired";
-
-      const totalMinutes = Math.max(1, Math.ceil(diffMs / 60000));
-      if (totalMinutes >= 60) {
-        const hours = Math.floor(totalMinutes / 60);
-        const remainder = totalMinutes % 60;
-        if (remainder === 0) return `${hours}h`;
-        return `${hours}h ${remainder}m`;
-      }
-      if (totalMinutes > 5) {
-        return `${Math.ceil(totalMinutes / 5) * 5}m`;
-      }
-      return `${totalMinutes}m`;
-    } catch (error) {
-      console.warn("⚠️ Error formatting availability countdown:", error);
-      return "";
     }
   }
 

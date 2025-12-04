@@ -38,6 +38,7 @@ export class GroupsPage {
     this.showDevTools = shouldShowDevSpaceTools();
     this.isRefreshing = false;
     this.groupsListener = null; // realtime groups list listener (unsubscribe)
+    this.groupsRoot = null; // Cached #groups-root element
     this.pullState = {
       startY: 0,
       active: false,
@@ -67,7 +68,7 @@ export class GroupsPage {
               <i class="fas fa-user-circle"></i>
             </div>
             <h2>Complete Your Profile First</h2>
-            <p>You need to complete your profile setup before accessing class spaces.</p>
+            <p>You need to complete your profile setup before accessing groups.</p>
             <button id="completeProfileBtn" class="btn primary">Complete Profile</button>
           </div>
         </section>
@@ -87,6 +88,15 @@ export class GroupsPage {
       return;
     }
 
+    // Cache groups root
+    this.groupsRoot =
+      document.querySelector("#groups-root") || this.container;
+
+    // Render class spaces list
+    await this.renderClassesTab(this.groupsRoot);
+  }
+
+  async renderClassesTab(targetEl) {
     // Only show the Trigger Scheduler button when running on localhost (emulator)
     const isLocal =
       typeof window !== "undefined" &&
@@ -104,9 +114,10 @@ export class GroupsPage {
           ${triggerBtnHtml}
         </div>`
       : "";
-    this.container.innerHTML = `
+    targetEl.innerHTML = `
       <section class="groups-page">
         ${devTools}
+        <p class="tab-description">Spaces are created daily at 06:00 based on matching schedules.</p>
         <div id="groups-list" class="groups-list"></div>
         <div id="groups-empty" class="groups-empty hidden">No class spaces yet. They are created daily at 06:00.</div>
       </section>
@@ -122,8 +133,9 @@ export class GroupsPage {
 
   // Cache-first, then realtime listener while viewing the page
   async loadGroupsHybrid() {
-    const listEl = this.container.querySelector("#groups-list");
-    const emptyEl = this.container.querySelector("#groups-empty");
+    const targetEl = this.groupsRoot || this.container;
+    const listEl = targetEl.querySelector("#groups-list");
+    const emptyEl = targetEl.querySelector("#groups-empty");
 
     const userId = currentUser?.uid;
     if (!userId) return;
@@ -210,11 +222,17 @@ export class GroupsPage {
   unmount() {
     this.detachGroupsListener();
     this.teardownPullToRefresh();
+    // Clean up clubs instance if active
+    if (this.clubsInstance) {
+      this.clubsInstance.unmount();
+      this.clubsInstance = null;
+    }
   }
 
   async loadGroups() {
-    const listEl = this.container.querySelector("#groups-list");
-    const emptyEl = this.container.querySelector("#groups-empty");
+    const targetEl = this.groupsRoot || this.container;
+    const listEl = targetEl.querySelector("#groups-list");
+    const emptyEl = targetEl.querySelector("#groups-empty");
 
     // Get current user ID for cache scoping
     const userId = currentUser?.uid;
@@ -512,9 +530,10 @@ export class GroupsPage {
 
   bindDevTools() {
     if (!this.showDevTools) return;
-    const createBtn = this.container.querySelector("#btnCreateDevSpaces");
-    const clearBtn = this.container.querySelector("#btnClearDevSpaces");
-    const triggerBtn = this.container.querySelector("#btnTriggerScheduler");
+    const targetEl = this.groupsRoot || this.container;
+    const createBtn = targetEl.querySelector("#btnCreateDevSpaces");
+    const clearBtn = targetEl.querySelector("#btnClearDevSpaces");
+    const triggerBtn = targetEl.querySelector("#btnTriggerScheduler");
 
     if (createBtn) {
       createBtn.addEventListener("click", async () => {
@@ -662,7 +681,7 @@ document.addEventListener("spa:page:unload", () => {
 
 document.addEventListener("spa:page:load", async (event) => {
   const route = event?.detail?.route;
-  if (route !== "groups") return;
+  if (route !== "messages") return;
   const root =
     document.querySelector("#groups-root") ||
     document.querySelector(".main-content");

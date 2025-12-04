@@ -60,17 +60,259 @@ service cloud.firestore {
       }
     }
 
-    function devCreationEnabled() {
+	    // --- Clubs (/clubs) ---
+    // Clubs are read by any authenticated user. Writes are restricted:
+    // - Verified users may create clubs (real users)
+    // - Dev-only test clubs may be created/edited/deleted by their owner when marked devTest
+	    match /clubs/{clubId} {
+	      allow read: if request.auth != null;
+
+	      // Create: allow verified users to create clubs, or allow devTest clubs created by their owner,
+	      // or super admins (via admin dashboard).
+	      // NOTE: followerCount is server-managed; clients must not set it to a non-zero value.
+	      allow create: if request.auth != null &&
+	        (
+	          isSuperAdmin() ||
+	          isVerified() || (
+	            request.resource.data.devTest == true &&
+	            request.resource.data.devOwnerUid == request.auth.uid
+	          )
+	        ) &&
+        (
+          !('followerCount' in request.resource.data) ||
+          request.resource.data.followerCount == 0
+        );
+
+      // Update: 
+      // 1. Creator can update their club (if verified)
+      // 2. DevTest owner can update their devTest club
+      // 3. Current president can update membership-related fields (members/officialIds)
+      //
+	      // NOTE: followerCount is server-managed (Cloud Functions); clients cannot change it directly.
+	      allow update: if request.auth != null && (
+	        // Super admins have full control over clubs (for maintenance / emergency fixes)
+	        isSuperAdmin() ||
+	        // Creator can update (verified) but may not touch followerCount
+        (
+          resource.data.createdBy == request.auth.uid &&
+          isVerified() &&
+          (
+            !('followerCount' in request.resource.data) ||
+            request.resource.data.followerCount == resource.data.followerCount
+          )
+        ) ||
+        // DevTest owner can update their club but may not touch followerCount
+        (
+          resource.data.devTest == true &&
+          resource.data.devOwnerUid == request.auth.uid &&
+          request.resource.data.devTest == true &&
+          request.resource.data.devOwnerUid == resource.data.devOwnerUid &&
+          (
+            !('followerCount' in request.resource.data) ||
+            request.resource.data.followerCount == resource.data.followerCount
+          )
+        ) ||
+        // President can update membership-related fields (members / officialIds) without touching followerCount
+        // or other core club metadata. We enforce:
+        // - President check mirrors isClubPresident() used in events: devOwnerUid for devTest,
+        //   or presidentId/createdBy for production clubs.
+        // - No removed top-level fields; new fields limited to members/officialIds
+        // - All non-membership fields remain identical
+        (
+          (
+            // DevTest club: devOwnerUid acts as president
+            resource.data.devTest == true &&
+            resource.data.devOwnerUid == request.auth.uid
+          ) ||
+          (
+            // Production club: presidentId or createdBy
+            resource.data.devTest != true &&
+            (
+              resource.data.presidentId == request.auth.uid ||
+              resource.data.createdBy == request.auth.uid
+            )
+          )
+          ) &&
+          // Preserve followerCount (if present, it must not change)
+          (
+            !('followerCount' in request.resource.data) ||
+            request.resource.data.followerCount == resource.data.followerCount
+          ) &&
+          // Allow only members/officialIds as new top-level fields; all existing keys must remain
+          request.resource.data.keys().hasOnly(resource.data.keys() + ['members','officialIds']) &&
+          // For all other top-level fields (non-membership), require equality when present
+          (
+            (!('presidentId' in request.resource.data) || request.resource.data.presidentId == resource.data.presidentId) &&
+            (!('clubId' in request.resource.data) || request.resource.data.clubId == resource.data.clubId) &&
+            (!('name' in request.resource.data) || request.resource.data.name == resource.data.name) &&
+            (!('description' in request.resource.data) || request.resource.data.description == resource.data.description) &&
+            (!('bannerUrl' in request.resource.data) || request.resource.data.bannerUrl == resource.data.bannerUrl) &&
+            (!('logoUrl' in request.resource.data) || request.resource.data.logoUrl == resource.data.logoUrl) &&
+            (!('accentColor' in request.resource.data) || request.resource.data.accentColor == resource.data.accentColor) &&
+            (!('devTest' in request.resource.data) || request.resource.data.devTest == resource.data.devTest) &&
+            (!('devOwnerUid' in request.resource.data) || request.resource.data.devOwnerUid == resource.data.devOwnerUid) &&
+            (!('createdBy' in request.resource.data) || request.resource.data.createdBy == resource.data.createdBy) &&
+            (!('university' in request.resource.data) || request.resource.data.university == resource.data.university) &&
+            (!('universityCode' in request.resource.data) || request.resource.data.universityCode == resource.data.universityCode) &&
+            (!('requireSafApproval' in request.resource.data) || request.resource.data.requireSafApproval == resource.data.requireSafApproval) &&
+            (!('isActive' in request.resource.data) || request.resource.data.isActive == resource.data.isActive) &&
+            (!('presidentInfo' in request.resource.data) || request.resource.data.presidentInfo == resource.data.presidentInfo) &&
+            (!('memberCount' in request.resource.data) || request.resource.data.memberCount == resource.data.memberCount) &&
+            (!('eventsThisWeek' in request.resource.data) || request.resource.data.eventsThisWeek == resource.data.eventsThisWeek) &&
+            (!('nextEventDate' in request.resource.data) || request.resource.data.nextEventDate == resource.data.nextEventDate) &&
+            (!('createdAt' in request.resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
+            (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt == resource.data.updatedAt) &&
+	            (!('lastEventAt' in request.resource.data) || request.resource.data.lastEventAt == resource.data.lastEventAt)
+	          )
+	        );
+
+	      // Delete: allow creator to delete if verified, or owner to delete devTest clubs,
+	      // or super admins (for global moderation/cleanup)
+	      allow delete: if request.auth != null && (
+	        isSuperAdmin() ||
+	        (resource.data.createdBy == request.auth.uid && isVerified()) ||
+	        (resource.data.devTest == true && resource.data.devOwnerUid == request.auth.uid)
+	      );
+
+      // Events subcollection:
+      // - General authenticated users may only read approved events
+      // - Club presidents/dev owners/officials may read all events (for moderation)
+      // - Super admins may read/manage all events regardless of club fields (robust for legacy docs)
+      // Must match storage.rules isClubOfficial() and UI authorization (ClubDetailPage, EventDetailModal)
+      match /events/{eventId} {
+        allow read: if request.auth != null && (
+          // Super admins always have access and short‑circuit other checks
+          isSuperAdmin() ||
+          // Presidents/devOwner and officials can read all events, regardless of status
+          isClubPresident() ||
+          isClubOfficialMember() ||
+          // Regular authenticated users may only read approved events
+          resource.data.status == 'approved'
+        );
+        
+        // Helper: Check if user is the club president (can approve/manage all)
+        function isClubPresident() {
+          let club = get(/databases/$(database)/documents/clubs/$(clubId)).data;
+
+          // Guard devTest flag so legacy clubs without this field do not cause evaluation errors.
+          let isDevTestClub = ('devTest' in club) && club.devTest == true;
+
+          // DevTest club: devOwnerUid acts as president
+          let devOwnerIsPresident =
+            isDevTestClub &&
+            ('devOwnerUid' in club) &&
+            club.devOwnerUid == request.auth.uid;
+
+          // Production club: presidentId or createdBy (when devTest is not true or missing)
+          let prodPresidentMatch =
+            !isDevTestClub && (
+              (('presidentId' in club) && club.presidentId == request.auth.uid) ||
+              (('createdBy' in club) && club.createdBy == request.auth.uid)
+            );
+
+          return devOwnerIsPresident || prodPresidentMatch;
+        }
+        
+        // Helper: Check if user is a club official (can create/manage certain events)
+        function isClubOfficialMember() {
+          let club = get(/databases/$(database)/documents/clubs/$(clubId)).data;
+
+          // Guard officialIds so legacy clubs without this field do not cause evaluation errors.
+          let hasOfficialIds =
+            ('officialIds' in club) &&
+            (club.officialIds is list);
+
+          // Check if user is in officialIds array (list membership)
+          return hasOfficialIds &&
+                 club.officialIds.hasAny([request.auth.uid]);
+        }
+        
+        // Create: allow for club presidents (any status), super admins,
+        // and officials (pending_president only)
+        allow create: if request.auth != null && (
+          // Super admin override
+          isSuperAdmin() ||
+          // President/devOwner may create events with any valid status
+          isClubPresident() ||
+          // Non-president officials must submit events for moderation
+          (
+            isClubOfficialMember() &&
+            request.resource.data.createdBy == request.auth.uid &&
+            request.resource.data.status == 'pending_president' &&
+            // Officials cannot set approval fields on creation
+            request.resource.data.approvedBy == null &&
+            request.resource.data.approvedAt == null &&
+            request.resource.data.safApprovedBy == null &&
+            request.resource.data.safApprovedAt == null
+          )
+        );
+        
+        // Update: presidents can update any event; super admins can update any event;
+        // officials can only update their own pending or rejected events (no self-approval)
+        // and may toggle live state for their approved events.
+        allow update: if request.auth != null && (
+          // Super admin override
+          isSuperAdmin() ||
+          // President/devOwner: full control over event (including approvals)
+          isClubPresident() || 
+          // Non-president officials: limited edits on their own events
+          (
+            isClubOfficialMember() &&
+            resource.data.createdBy == request.auth.uid &&
+            // Only events that are awaiting or have failed moderation
+            resource.data.status in ['pending_president', 'rejected'] &&
+            // New status must remain unapproved (cannot self-approve)
+            request.resource.data.status in ['pending_president'] &&
+            // Officials cannot change approval fields
+            request.resource.data.approvedBy == resource.data.approvedBy &&
+            request.resource.data.approvedAt == resource.data.approvedAt &&
+            request.resource.data.safApprovedBy == resource.data.safApprovedBy &&
+            request.resource.data.safApprovedAt == resource.data.safApprovedAt
+          ) ||
+          // Officials can toggle live status for approved events they created,
+          // but may not change any other fields.
+          (
+            isClubOfficialMember() &&
+            resource.data.createdBy == request.auth.uid &&
+            resource.data.status == 'approved' &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['isLive', 'startedAt', 'startedBy', 'startedByInfo', 'endedAt', 'endedBy'])
+          )
+        );
+        
+        // Delete: presidents and super admins can delete events
+        allow delete: if request.auth != null && (
+          isSuperAdmin() ||
+          isClubPresident()
+        );
+      }
+
+	      // Members subcollection: read for authenticated users; write via server/authorized flows
+	      // Super admins are also allowed for emergency fixes via the admin dashboard.
+	      match /members/{memberId} {
+	        allow read: if request.auth != null;
+	        allow write: if isSuperAdmin();
+	      }
+	    }
+
+	    function devCreationEnabled() {
       // Toggle stored on document: admin/config
       return exists(/databases/$(database)/documents/admin/config) &&
              get(/databases/$(database)/documents/admin/config).data.devAccountCreationEnabled == true;
     }
 
-    // Dev email must be <anything>.dev@iub.edu.bd (case-insensitive)
-    function isDevEmail() {
-      return request.auth != null &&
-             request.auth.token.email.matches('^[^@]+\\.[dD][eE][vV]@[iI][uU][bB]\\.[eE][dD][uU]\\.[bB][dD]$');
-    }
+	    // Dev email must be <anything>.dev@iub.edu.bd (case-insensitive)
+	    function isDevEmail() {
+	      return request.auth != null &&
+	             request.auth.token.email.matches('^[^@]+\\.[dD][eE][vV]@[iI][uU][bB]\\.[eE][dD][uU]\\.[bB][dD]$');
+	    }
+
+	    // Super admin helper: central definition so we can gate privileged writes.
+	    function isSuperAdmin() {
+	      return request.auth != null &&
+	             exists(/databases/$(database)/documents/admin/superAdmins) &&
+	             request.auth.uid in get(/databases/$(database)/documents/admin/superAdmins).data.uids;
+	    }
 
     // --- Handles Mapping (/handles) ---
     // Provides global uniqueness for user handles
@@ -169,11 +411,12 @@ service cloud.firestore {
          validateFriendRequestCachedInfoUpdate(request, resource));
     }
 
-    // --- Universities (Read-Only) ---
-    match /universities/{universityId} {
-      allow read: if request.auth != null;
-      allow write: if false;
-    }
+	    // --- Universities ---
+	    match /universities/{universityId} {
+	      allow read: if request.auth != null;
+	      // Universities are managed via the admin dashboard; only super admins may write.
+	      allow write: if isSuperAdmin();
+	    }
 
     // --- Notifications (/notifications) - Campus Presence 2025 ---
     match /notifications/{notificationId} {
@@ -216,6 +459,37 @@ service cloud.firestore {
       // Reads/updates/deletes reserved for admin panel (not client-accessible)
       allow read, update, delete: if false;
     }
+
+	    // --- Admin Collection (/admin) ---
+	    // Super admin configuration and SAF moderator management
+	    // Only super admins (UIDs listed in /admin/superAdmins) can read/write
+	    match /admin/{docId} {
+	      // The superAdmins doc itself is readable by any authenticated user so that
+	      // client-side code can evaluate super admin status safely. It should only
+	      // be written via console/Admin SDK, never by clients.
+	      allow read: if (docId == 'superAdmins' && request.auth != null) ||
+	                   (docId != 'superAdmins' && isSuperAdmin());
+	      
+	      // Super admins can write to other admin documents; superAdmins is console/Admin SDK only.
+	      allow create, update, delete: if isSuperAdmin() && docId != 'superAdmins';
+	    }
+
+	    // --- SAF Moderators (/safModerators) ---
+	    // SAF moderators can approve events for their university
+	    match /safModerators/{moderatorId} {
+	      // Super admins can read/write SAF moderator list
+	      allow read, write: if isSuperAdmin();
+	      
+	      // SAF moderators can read their own entry
+	      allow read: if request.auth != null && request.auth.uid == moderatorId;
+	    }
+
+	    // --- Club Events (Global Collection) ---
+	    // Denormalized club events used for admin maintenance and stats.
+	    // Only super admins may access this collection from clients; server/Admin SDK may bypass rules.
+	    match /clubEvents/{eventId} {
+	      allow read, write: if isSuperAdmin();
+	    }
 
     // --- Helper Functions ---
     function canViewFriendSchedule(viewerUserId, scheduleOwnerUserId) {

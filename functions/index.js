@@ -152,10 +152,6 @@ function computeWebpushTag(data = {}) {
       case "starred_presence":
         // Collapse repeated presence from same actor within a day; allow stacking across different actors
         return `presence-${actorId || today}-${today}`;
-      case "availability_response":
-        return `availability-response-${pingId || Date.now()}`;
-      case "availability_ping":
-        return `availability-ping-${pingId || fromUserId || Date.now()}`;
       default:
         return `meetchuthere-${type}-${today}`;
     }
@@ -174,8 +170,6 @@ function computeWebpushTTLSeconds(data = {}) {
       return 6 * 60 * 60; // 6h
     case "starred_presence":
       return 6 * 60 * 60; // 6h
-    case "availability_response":
-      return 24 * 60 * 60; // 24h
     default:
       return 24 * 60 * 60; // sensible default
   }
@@ -760,35 +754,55 @@ export const onNotificationCreated = onDocumentCreated(
       return;
     }
 
-    if (data.type === "availability_ping") {
-      // Initial push for availability ping so recipient sees device banner
+    // Club notifications for the new Clubs feature
+    if (typeof data.type === "string" && data.type.startsWith("club_")) {
       const toUserId = data.userId;
       if (!toUserId) return;
-      const handle = data?.fromUserInfo?.handle
-        ? `@${data.fromUserInfo.handle}`
-        : "A friend";
+
+      const clubId = data.clubId || "";
+      const eventId = data.eventId || "";
+
+      // Deep link to club or specific event inside the SPA
+      let link = "/#notifications";
+      if (clubId) {
+        link = `/#club?id=${clubId}${
+          eventId ? `&eventId=${eventId}` : ""
+        }`;
+      }
+
       const notification = {
-        title: "Are you free?",
-        body: `${handle} wants to know if you're free`,
+        title: data.title || "Club update",
+        body: data.message || "",
       };
+
       const payload = {
-        link: "/#notifications",
-        type: "availability_ping",
-        pingId:
-          data?.availabilityPing?.pingId || data?.availabilityPing?.id || "",
-        fromUserId: data.fromUserId || "",
+        link,
+        type: data.type,
+        clubId,
+        eventId,
       };
+
       try {
         const res = await sendToUser(toUserId, notification, payload);
-        logger.info("Availability ping push sent", res);
-      } catch (e) {
-        logger.warn("Failed to send availability ping push", {
+        logger.info("Club notification push sent", {
+          type: data.type,
           toUserId,
-          err: String(e),
+          clubId,
+          eventId,
+          ...res,
+        });
+      } catch (err) {
+        logger.error("Error sending club notification push", {
+          type: data.type,
+          toUserId,
+          clubId,
+          eventId,
+          error: String(err),
         });
       }
       return;
     }
+
   }
 );
 
@@ -910,122 +924,7 @@ export const onUserPresenceUpdated = onDocumentUpdated(
   }
 );
 
-// Availability ping: create response notification to sender and delete original
-export const onAvailabilityPingResponded = onDocumentUpdated(
-  "notifications/{id}",
-  async (event) => {
-    const before = event.data?.before?.data();
-    const after = event.data?.after?.data();
-    if (!after) return;
-    if (after.type !== "availability_ping") return;
-
-    const id = event.params?.id;
-    const prevResp = before?.response || null;
-    const newResp = after?.response || null;
-    const statusChangedToResponded =
-      before?.status !== "responded" && after?.status === "responded";
-    const responseAdded =
-      !prevResp && (newResp === "available" || newResp === "busy");
-    if (!statusChangedToResponded && !responseAdded) return;
-
-    const senderId = after.fromUserId; // original sender
-    const respondentId = after.userId; // recipient who responded
-    if (!senderId || !respondentId) return;
-
-    // Build fromUserInfo for respondent
-    let fromUserInfo = { handle: "friend", avatarConfig: null };
-    try {
-      const respDoc = await db.collection("users").doc(respondentId).get();
-      if (respDoc.exists) {
-        const ud = respDoc.data();
-        fromUserInfo = {
-          handle: ud?.profile?.handle || ud?.profile?.firstName || "friend",
-          avatarConfig: ud?.avatarConfig || ud?.profile?.avatarConfig || null,
-        };
-      }
-    } catch (e) {
-      logger.warn("Failed to fetch respondent user info", {
-        respondentId,
-        err: String(e),
-      });
-    }
-
-    // Create a response notification for the sender
-    try {
-      await db.collection("notifications").add({
-        userId: senderId,
-        fromUserId: respondentId,
-        fromUserInfo,
-        type: "availability_response",
-        response: newResp || after.status || "available",
-        availabilityResponse: { pingId: after?.availabilityPing?.pingId || "" },
-        createdAt: new Date(),
-        // Response notification expires after 5 minutes (backend cleanup)
-        // Sender's UI shows response for 10 minutes (local linger)
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-        status: "pending",
-      });
-      // Also send a push to the sender's device (no in-app list item required)
-      try {
-        const title = "Availability Response";
-        const who = fromUserInfo?.handle
-          ? `@${fromUserInfo.handle}`
-          : "A friend";
-        const how = newResp === "available" ? "Available" : "Busy";
-        const body = `${who} responded: ${how}`;
-        // Link to notify overlay; Router opens overlay without reloading
-        const payload = {
-          link: "/#notify",
-          type: "availability_response",
-          pingId: after?.availabilityPing?.pingId || "",
-        };
-        await sendToUser(senderId, { title, body }, payload);
-      } catch (pushErr) {
-        logger.warn("Failed to send availability response push", {
-          senderId,
-          err: String(pushErr),
-        });
-      }
-    } catch (e) {
-      logger.error("Failed creating availability_response notification", {
-        senderId,
-        respondentId,
-        err: String(e),
-      });
-    }
-
-    // Do not delete the original availability_ping; keep until expiresAt so
-    // sender cooldown remains enforced across devices/sessions.
-  }
-);
-
-// Periodic cleanup: remove expired availability ping/response docs
-export const cleanupExpiredAvailabilityPings = onSchedule(
-  "every 5 minutes",
-  async () => {
-    const now = new Date();
-    try {
-      const coll = db.collection("notifications");
-      const types = ["availability_ping", "availability_response"];
-      for (const t of types) {
-        const snap = await coll
-          .where("type", "==", t)
-          .where("expiresAt", "<", now)
-          .get();
-        if (snap.empty) continue;
-        const batch = db.batch();
-        snap.docs.forEach((d) => batch.delete(d.ref));
-        await batch.commit();
-        logger.info("Cleaned up expired availability docs", {
-          type: t,
-          count: snap.size,
-        });
-      }
-    } catch (e) {
-      logger.warn("Failed cleanupExpiredAvailabilityPings", { err: String(e) });
-    }
-  }
-);
+// (Availability ping/response Cloud Functions removed as the feature was deprecated)
 // 4) Token write trigger for server-side dedupe (browser -> PWA upgrade)
 export const onFcmTokenWrite = onDocumentWritten(
   "users/{userId}/fcmTokens/{tokenId}",
@@ -1122,6 +1021,536 @@ export const aggregateDailyStats = onSchedule("every day 00:10", async () => {
   );
   logger.info("Daily stats aggregated", { dayKey, active24h, pwaInstalls });
 });
+
+// -----------------------------
+// Clubs: Event notifications & cleanup
+// -----------------------------
+
+async function createClubNotificationForUser(userId, data) {
+  const ref = db.collection("notifications").doc();
+  await ref.set({
+    userId,
+    type: data.type,
+    clubId: data.clubId || "",
+    eventId: data.eventId || null,
+    title: data.title || "",
+    message: data.message || "",
+    clubInfo: data.clubInfo || null,
+    createdAt: FieldValue.serverTimestamp(),
+    status: "pending",
+    readAt: null,
+  });
+}
+
+async function notifyClubFollowers(clubId, notificationData) {
+  const followersSnapshot = await db
+    .collection("users")
+    .where("followedClubs", "array-contains", clubId)
+    .get();
+
+  if (followersSnapshot.empty) {
+    logger.info("No followers to notify for club", { clubId });
+    return;
+  }
+
+  let batch = db.batch();
+  let countInBatch = 0;
+  let total = 0;
+
+  for (const userDoc of followersSnapshot.docs) {
+    const notifRef = db.collection("notifications").doc();
+    batch.set(notifRef, {
+      userId: userDoc.id,
+      clubId,
+      type: notificationData.type,
+      eventId: notificationData.eventId || null,
+      title: notificationData.title || "",
+      message: notificationData.message || "",
+      clubInfo: notificationData.clubInfo || null,
+      createdAt: FieldValue.serverTimestamp(),
+      status: "pending",
+      readAt: null,
+    });
+    countInBatch += 1;
+    total += 1;
+
+    if (countInBatch >= 400) {
+      await batch.commit();
+      batch = db.batch();
+      countInBatch = 0;
+    }
+  }
+
+  if (countInBatch > 0) {
+    await batch.commit();
+  }
+
+  logger.info("Sent club follower notifications", {
+    clubId,
+    type: notificationData.type,
+    total,
+  });
+}
+
+async function updateClubEventStats(clubId) {
+  const now = new Date();
+  const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const eventsThisWeekSnap = await db
+    .collection(`clubs/${clubId}/events`)
+    .where("status", "==", "approved")
+    .where("firstSlotStart", ">=", now)
+    .where("firstSlotStart", "<=", weekFromNow)
+    .get();
+
+  const nextEventSnap = await db
+    .collection(`clubs/${clubId}/events`)
+    .where("status", "==", "approved")
+    .where("firstSlotStart", ">=", now)
+    .orderBy("firstSlotStart", "asc")
+    .limit(1)
+    .get();
+
+  const updates = {
+    eventsThisWeek: eventsThisWeekSnap.size,
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  if (!nextEventSnap.empty) {
+    updates.nextEventDate = nextEventSnap.docs[0].data().firstSlotStart;
+  } else {
+    updates.nextEventDate = null;
+  }
+
+  await db.doc(`clubs/${clubId}`).update(updates);
+}
+
+// When a club event is created, notify the president about pending approval
+export const onClubEventCreated = onDocumentCreated(
+  "clubs/{clubId}/events/{eventId}",
+  async (event) => {
+    const data = event.data?.data();
+    if (!data) return;
+
+    const { clubId, eventId } = event.params;
+
+    // Only handle events that are pending president approval or already approved
+    if (data.status !== "pending_president" && data.status !== "approved") {
+      return;
+    }
+
+    const clubSnap = await db.doc(`clubs/${clubId}`).get();
+    if (!clubSnap.exists) {
+      logger.warn("Club not found for event", { clubId, eventId });
+      return;
+    }
+    const club = clubSnap.data() || {};
+
+    if (data.status === "pending_president") {
+      // Determine who should review this event:
+      // 1) presidentId (if set)
+      // 2) devOwnerUid for devTest clubs (matches firestore.rules isClubPresident)
+      // 3) createdBy as a final fallback (initial seeding / legacy clubs)
+      let reviewerUid = club.presidentId || null;
+      if (!reviewerUid && club.devTest && club.devOwnerUid) {
+        reviewerUid = club.devOwnerUid;
+      }
+      if (!reviewerUid && club.createdBy) {
+        reviewerUid = club.createdBy;
+      }
+
+      if (!reviewerUid) {
+        logger.info("No president/devOwner/creator to notify for pending event", {
+          clubId,
+          eventId,
+        });
+        return;
+      }
+
+      await createClubNotificationForUser(reviewerUid, {
+        type: "club_event_pending",
+        clubId,
+        eventId,
+        title: "New Event Pending Approval",
+        message: `"${data.title || "Event"}" is waiting for your review`,
+        clubInfo: {
+          name: club.name || "",
+          logoUrl: club.logoUrl || null,
+          accentColor: club.accentColor || null,
+        },
+      });
+
+      logger.info("Notified reviewer of pending event", {
+        clubId,
+        eventId,
+        reviewerUid,
+      });
+      return;
+    }
+
+    if (data.status === "approved") {
+      // Auto-approved event (created by president/devOwner) — behave like a freshly approved event:
+      // notify creator and followers, and refresh club event stats.
+
+      if (data.createdBy) {
+        await createClubNotificationForUser(data.createdBy, {
+          type: "club_event_approved",
+          clubId,
+          eventId,
+          title: "Event Approved! 🎉",
+          message: `"${data.title || "Your event"}" is now live`,
+          clubInfo: {
+            name: club.name || "",
+            logoUrl: club.logoUrl || null,
+            accentColor: club.accentColor || null,
+          },
+        });
+      }
+
+      await notifyClubFollowers(clubId, {
+        type: "club_new_event",
+        eventId,
+        title: `New event from ${club.name || "a club"}`,
+        message: data.title || "",
+        clubInfo: {
+          name: club.name || "",
+          logoUrl: club.logoUrl || null,
+          accentColor: club.accentColor || null,
+        },
+      });
+
+      await updateClubEventStats(clubId);
+
+      logger.info("Handled auto-approved event on creation", {
+        clubId,
+        eventId,
+        createdBy: data.createdBy || null,
+      });
+    }
+  }
+);
+
+// When event status changes (approved / rejected / cancelled), notify creator and followers
+export const onClubEventStatusChanged = onDocumentUpdated(
+  "clubs/{clubId}/events/{eventId}",
+  async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!before || !after) return;
+
+    const { clubId, eventId } = event.params;
+
+    if (before.status === after.status) {
+      return;
+    }
+
+    const clubSnap = await db.doc(`clubs/${clubId}`).get();
+    if (!clubSnap.exists) {
+      logger.warn("Club not found for event status change", {
+        clubId,
+        eventId,
+      });
+      return;
+    }
+    const club = clubSnap.data() || {};
+
+    // Event approved (either first time or after edits)
+    if (after.status === "approved" && before.status !== "approved") {
+      if (after.createdBy) {
+        await createClubNotificationForUser(after.createdBy, {
+          type: "club_event_approved",
+          clubId,
+          eventId,
+          title: "Event Approved! 🎉",
+          message: `"${after.title || "Your event"}" is now live`,
+          clubInfo: {
+            name: club.name || "",
+            logoUrl: club.logoUrl || null,
+            accentColor: club.accentColor || null,
+          },
+        });
+      }
+
+      const isReapproval =
+        before.status === "pending_president" && before.approvedAt != null;
+
+      if (isReapproval) {
+        await notifyClubFollowers(clubId, {
+          type: "club_event_changed",
+          eventId,
+          title: `${club.name || "A club"} updated an event`,
+          message: `"${after.title || "Event"}" has been updated`,
+          clubInfo: {
+            name: club.name || "",
+            logoUrl: club.logoUrl || null,
+            accentColor: club.accentColor || null,
+          },
+        });
+      } else {
+        await notifyClubFollowers(clubId, {
+          type: "club_new_event",
+          eventId,
+          title: `New event from ${club.name || "a club"}`,
+          message: after.title || "",
+          clubInfo: {
+            name: club.name || "",
+            logoUrl: club.logoUrl || null,
+            accentColor: club.accentColor || null,
+          },
+        });
+      }
+
+      await updateClubEventStats(clubId);
+    }
+
+    // Event rejected
+    if (after.status === "rejected" && after.createdBy) {
+      await createClubNotificationForUser(after.createdBy, {
+        type: "club_event_rejected",
+        clubId,
+        eventId,
+        title: "Event Not Approved",
+        message:
+          after.rejectionReason ||
+          `"${after.title || "Your event"}" was not approved`,
+        clubInfo: {
+          name: club.name || "",
+          logoUrl: club.logoUrl || null,
+          accentColor: club.accentColor || null,
+        },
+      });
+    }
+
+    // Event re-submitted for president review (rejected -> pending_president)
+    if (
+      after.status === "pending_president" &&
+      before.status === "rejected"
+    ) {
+      // Determine reviewer (same logic as onClubEventCreated)
+      let reviewerUid = club.presidentId || null;
+      if (!reviewerUid && club.devTest && club.devOwnerUid) {
+        reviewerUid = club.devOwnerUid;
+      }
+      if (!reviewerUid && club.createdBy) {
+        reviewerUid = club.createdBy;
+      }
+
+      if (reviewerUid) {
+        await createClubNotificationForUser(reviewerUid, {
+          type: "club_event_pending",
+          clubId,
+          eventId,
+          title: "Event Resubmitted for Approval",
+          message: `"${after.title || "Event"}" was updated and is waiting for your review again`,
+          clubInfo: {
+            name: club.name || "",
+            logoUrl: club.logoUrl || null,
+            accentColor: club.accentColor || null,
+          },
+        });
+
+        logger.info("Notified reviewer of resubmitted event", {
+          clubId,
+          eventId,
+          reviewerUid,
+        });
+      } else {
+        logger.info(
+          "No reviewer found for resubmitted pending event",
+          { clubId, eventId }
+        );
+      }
+    }
+
+    // Event cancelled after being approved
+    if (after.status === "cancelled" && before.status === "approved") {
+      await notifyClubFollowers(clubId, {
+        type: "club_event_cancelled",
+        eventId,
+        title: "Event cancelled",
+        message: `"${after.title || "An event"}" from ${
+          club.name || "a club"
+        } has been cancelled`,
+        clubInfo: {
+          name: club.name || "",
+          logoUrl: club.logoUrl || null,
+          accentColor: club.accentColor || null,
+        },
+      });
+
+      await updateClubEventStats(clubId);
+    }
+  }
+);
+
+// When an event is marked as started (isLive toggles to true), notify followers
+export const onClubEventStarted = onDocumentUpdated(
+  "clubs/{clubId}/events/{eventId}",
+  async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!before || !after) return;
+
+    if (before.isLive === true || after.isLive !== true) {
+      return;
+    }
+
+    const { clubId, eventId } = event.params;
+    const clubSnap = await db.doc(`clubs/${clubId}`).get();
+    if (!clubSnap.exists) {
+      logger.warn("Club not found for event start", { clubId, eventId });
+      return;
+    }
+    const club = clubSnap.data() || {};
+
+    await notifyClubFollowers(clubId, {
+      type: "club_event_started",
+      eventId,
+      title: "🔴 Event is LIVE!",
+      message: `"${after.title || "An event"}" is happening now!`,
+      clubInfo: {
+        name: club.name || "",
+        logoUrl: club.logoUrl || null,
+        accentColor: club.accentColor || null,
+      },
+    });
+
+    logger.info("Event started, notified followers", { clubId, eventId });
+  }
+);
+
+// Scheduled: send 15-minute reminders for approved events
+export const sendClubEventReminders = onSchedule(
+  "every 5 minutes",
+  async () => {
+    const now = new Date();
+    const fifteenMinutesFromNow = new Date(now.getTime() + 15 * 60 * 1000);
+    const twentyMinutesFromNow = new Date(now.getTime() + 20 * 60 * 1000);
+
+    const upcomingEventsSnap = await db
+      .collectionGroup("events")
+      .where("status", "==", "approved")
+      .where("firstSlotStart", ">=", fifteenMinutesFromNow)
+      .where("firstSlotStart", "<", twentyMinutesFromNow)
+      .get();
+
+    if (upcomingEventsSnap.empty) return;
+
+    for (const eventDoc of upcomingEventsSnap.docs) {
+      const eventData = eventDoc.data() || {};
+
+      if (eventData.reminderSent) continue;
+
+      const clubRef = eventDoc.ref.parent.parent;
+      if (!clubRef) continue;
+
+      const clubSnap = await clubRef.get();
+      if (!clubSnap.exists) continue;
+      const club = clubSnap.data() || {};
+      const clubId = clubSnap.id;
+
+      await eventDoc.ref.update({ reminderSent: true });
+
+      const followersSnap = await db
+        .collection("users")
+        .where("followedClubs", "array-contains", clubId)
+        .get();
+
+      if (followersSnap.empty) {
+        logger.info("No followers for reminder", {
+          clubId,
+          eventId: eventDoc.id,
+        });
+        continue;
+      }
+
+      let batch = db.batch();
+      let countInBatch = 0;
+      let total = 0;
+
+      for (const userDoc of followersSnap.docs) {
+        const notifRef = db.collection("notifications").doc();
+        batch.set(notifRef, {
+          userId: userDoc.id,
+          type: "club_event_reminder",
+          clubId,
+          eventId: eventDoc.id,
+          title: "⏰ Event starting soon!",
+          message: `"${eventData.title || "An event"}" starts in 15 minutes`,
+          clubInfo: {
+            name: club.name || "",
+            logoUrl: club.logoUrl || null,
+            accentColor: club.accentColor || null,
+          },
+          createdAt: FieldValue.serverTimestamp(),
+          status: "pending",
+          readAt: null,
+        });
+        countInBatch += 1;
+        total += 1;
+
+        if (countInBatch >= 400) {
+          await batch.commit();
+          batch = db.batch();
+          countInBatch = 0;
+        }
+      }
+
+      if (countInBatch > 0) {
+        await batch.commit();
+      }
+
+      logger.info("Sent event reminders", {
+        clubId,
+        eventId: eventDoc.id,
+        total,
+      });
+    }
+  }
+);
+
+// Scheduled: cleanup club notifications older than 30 days
+export const cleanupOldClubNotifications = onSchedule(
+  "every sunday 04:00",
+  async () => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const clubTypes = [
+      "club_new_event",
+      "club_event_reminder",
+      "club_event_changed",
+      "club_event_started",
+      "club_event_cancelled",
+      "club_event_pending",
+      "club_event_approved",
+      "club_event_rejected",
+    ];
+
+    let totalDeleted = 0;
+
+    for (const type of clubTypes) {
+      const oldSnap = await db
+        .collection("notifications")
+        .where("type", "==", type)
+        .where("createdAt", "<", thirtyDaysAgo)
+        .limit(400)
+        .get();
+
+      if (oldSnap.empty) continue;
+
+      const batch = db.batch();
+      oldSnap.docs.forEach((docSnap) => batch.delete(docSnap.ref));
+      await batch.commit();
+
+      totalDeleted += oldSnap.size;
+    }
+
+    logger.info("Cleanup old club notifications complete", {
+      totalDeleted,
+    });
+  }
+);
 
 // 7) Cascade cleanup when a user document is deleted
 export const onUserDeleted = onDocumentDeleted(

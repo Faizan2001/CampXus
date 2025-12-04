@@ -1,0 +1,595 @@
+/**
+ * AdminService.js - Super Admin Backend Operations
+ *
+ * 🎯 Handles all admin-level operations:
+ *   - Super admin verification
+ *   - SAF moderator management
+ *   - Club CRUD operations
+ *   - University management
+ *   - Maintenance tasks
+ */
+
+import { db } from "../../lib/firebase/firebase-config.js";
+import {
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  query,
+  where,
+  writeBatch,
+  serverTimestamp,
+  orderBy,
+  limit,
+} from "firebase/firestore";
+import { logManager } from "../../utils/debug/LogManager.js";
+
+/**
+ * Check if a user is a super admin
+ * @param {string} uid - User ID to check
+ * @returns {Promise<boolean>}
+ */
+export async function isSuperAdmin(uid) {
+  if (!uid) return false;
+
+  try {
+    const adminDoc = await getDoc(doc(db, "admin", "superAdmins"));
+    if (!adminDoc.exists()) return false;
+
+    const superAdmins = adminDoc.data()?.uids || [];
+    return superAdmins.includes(uid);
+  } catch (error) {
+    logManager.error("Error checking super admin status", error);
+    return false;
+  }
+}
+
+/**
+ * Verify admin PIN against stored hash
+ * @param {string} pin - 6-digit PIN
+ * @returns {Promise<boolean>}
+ */
+export async function verifyAdminPin(pin) {
+  try {
+    // Hash the PIN using SHA-256
+    const encoder = new TextEncoder();
+    const data = encoder.encode(pin);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const pinHash = hashArray
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    const adminDoc = await getDoc(doc(db, "admin", "superAdmins"));
+    if (!adminDoc.exists()) return false;
+
+    return pinHash === adminDoc.data().pinHash;
+  } catch (error) {
+    logManager.error("PIN verification error", error);
+    return false;
+  }
+}
+
+// ==========================================
+// UNIVERSITIES
+// ==========================================
+
+/**
+ * Get all universities
+ * @returns {Promise<Array>}
+ */
+export async function getUniversities() {
+  try {
+    const snap = await getDocs(collection(db, "universities"));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (error) {
+    logManager.error("Error fetching universities", error);
+    return [];
+  }
+}
+
+/**
+ * Create a new university
+ * @param {Object} data - University data
+ * @returns {Promise<string>} - Created university ID
+ */
+export async function createUniversity(data) {
+  const { code, name, domain } = data;
+  if (!code || !name) throw new Error("Code and name are required");
+
+  await setDoc(doc(db, "universities", code), {
+    name,
+    domain: domain || null,
+    code,
+    createdAt: serverTimestamp(),
+    clubCount: 0,
+    safCount: 0,
+  });
+
+  logManager.info("University created", { code, name });
+  return code;
+}
+
+/**
+ * Update a university
+ * @param {string} id - University ID
+ * @param {Object} data - Fields to update
+ */
+export async function updateUniversity(id, data) {
+  await updateDoc(doc(db, "universities", id), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
+  logManager.info("University updated", { id });
+}
+
+/**
+ * Delete a university
+ * @param {string} id - University ID
+ */
+export async function deleteUniversity(id) {
+  await deleteDoc(doc(db, "universities", id));
+  logManager.info("University deleted", { id });
+}
+
+// ==========================================
+// SAF MODERATORS
+// ==========================================
+
+/**
+ * Get all SAF moderators
+ * @returns {Promise<Array>}
+ */
+export async function getSafModerators() {
+  try {
+    const snap = await getDocs(collection(db, "safModerators"));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (error) {
+    logManager.error("Error fetching SAF moderators", error);
+    return [];
+  }
+}
+
+/**
+ * Add a new SAF moderator
+ * @param {Object} data - Moderator data
+ * @returns {Promise<string>} - Created moderator ID (UID)
+ */
+export async function addSafModerator(data) {
+  const { uid, displayName, universityId, addedBy } = data;
+  if (!uid) throw new Error("User UID is required");
+
+  await setDoc(doc(db, "safModerators", uid), {
+    uid,
+    displayName: displayName || null,
+    universityId: universityId || null,
+    addedAt: serverTimestamp(),
+    addedBy: addedBy || null,
+  });
+
+  // Increment SAF count for university if specified
+  if (universityId) {
+    try {
+      const uniRef = doc(db, "universities", universityId);
+      const uniDoc = await getDoc(uniRef);
+      if (uniDoc.exists()) {
+        await updateDoc(uniRef, {
+          safCount: (uniDoc.data().safCount || 0) + 1,
+        });
+      }
+    } catch (e) {
+      logManager.warn("Could not update university SAF count", e);
+    }
+  }
+
+  logManager.info("SAF moderator added", { uid, universityId });
+  return uid;
+}
+
+/**
+ * Remove a SAF moderator
+ * @param {string} uid - Moderator's user ID
+ */
+export async function removeSafModerator(uid) {
+  const modDoc = await getDoc(doc(db, "safModerators", uid));
+  const universityId = modDoc.exists() ? modDoc.data().universityId : null;
+
+  await deleteDoc(doc(db, "safModerators", uid));
+
+  // Decrement SAF count for university if applicable
+  if (universityId) {
+    try {
+      const uniRef = doc(db, "universities", universityId);
+      const uniDoc = await getDoc(uniRef);
+      if (uniDoc.exists() && uniDoc.data().safCount > 0) {
+        await updateDoc(uniRef, {
+          safCount: uniDoc.data().safCount - 1,
+        });
+      }
+    } catch (e) {
+      logManager.warn("Could not update university SAF count", e);
+    }
+  }
+
+  logManager.info("SAF moderator removed", { uid });
+}
+
+// ==========================================
+// CLUBS
+// ==========================================
+
+/**
+ * Get all clubs
+ * @param {Object} filters - Optional filters { universityId, search }
+ * @returns {Promise<Array>}
+ */
+export async function getClubs(filters = {}) {
+  try {
+    let q = collection(db, "clubs");
+
+    if (filters.universityId) {
+      q = query(q, where("universityId", "==", filters.universityId));
+    }
+
+    const snap = await getDocs(q);
+    let clubs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    if (filters.search) {
+      const term = filters.search.toLowerCase();
+      clubs = clubs.filter((c) => c.name?.toLowerCase().includes(term));
+    }
+
+    return clubs;
+  } catch (error) {
+    logManager.error("Error fetching clubs", error);
+    return [];
+  }
+}
+
+/**
+ * Create a new club
+ * @param {Object} data - Club data
+ * @param {string} data.name
+ * @param {string} [data.description]
+ * @param {string} [data.universityId] - University code (e.g., 'iub')
+ * @param {string} [data.universityName] - Human-readable university name
+ * @param {string} [data.category]
+ * @param {string} [data.createdBy]
+ * @returns {Promise<string>} - Created club ID
+ */
+export async function createClub(data) {
+  const { name, description, universityId, universityName, category, createdBy } = data;
+  if (!name) throw new Error("Club name is required");
+
+  // Generate club ID from name
+  const clubId =
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "")
+      .slice(0, 30) +
+    "-" +
+    Date.now().toString(36);
+
+  await setDoc(doc(db, "clubs", clubId), {
+    clubId,
+    name,
+    description: description || "",
+    universityId: universityId || null,
+    // Align with existing clubs data model used by ClubsPage/ClubDetailPage
+    university: universityName || universityId || null,
+    universityCode: universityId || null,
+    category: category || "other",
+    createdAt: serverTimestamp(),
+    createdBy: createdBy || null,
+    memberCount: 0,
+    followerCount: 0,
+    isActive: true,
+    presidentUid: null,
+    presidentId: null,
+  });
+
+  // Increment club count for university
+  if (universityId) {
+    try {
+      const uniRef = doc(db, "universities", universityId);
+      const uniDoc = await getDoc(uniRef);
+      if (uniDoc.exists()) {
+        await updateDoc(uniRef, {
+          clubCount: (uniDoc.data().clubCount || 0) + 1,
+        });
+      }
+    } catch (e) {
+      logManager.warn("Could not update university club count", e);
+    }
+  }
+
+  logManager.info("Club created", { clubId, name });
+  return clubId;
+}
+
+/**
+ * Update a club
+ * @param {string} clubId - Club ID
+ * @param {Object} data - Fields to update
+ */
+export async function updateClub(clubId, data) {
+  await updateDoc(doc(db, "clubs", clubId), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
+  logManager.info("Club updated", { clubId });
+}
+
+/**
+ * Delete a club and its subcollections
+ * @param {string} clubId - Club ID
+ */
+export async function deleteClub(clubId) {
+  const clubDoc = await getDoc(doc(db, "clubs", clubId));
+  const universityId = clubDoc.exists() ? clubDoc.data().universityId : null;
+
+  // Delete members subcollection
+  const membersSnap = await getDocs(collection(db, "clubs", clubId, "members"));
+  const batch = writeBatch(db);
+  membersSnap.docs.forEach((d) => batch.delete(d.ref));
+
+  // Delete events subcollection
+  const eventsSnap = await getDocs(collection(db, "clubs", clubId, "events"));
+  eventsSnap.docs.forEach((d) => batch.delete(d.ref));
+
+  // Delete main club document
+  batch.delete(doc(db, "clubs", clubId));
+
+  await batch.commit();
+
+  // Decrement club count for university
+  if (universityId) {
+    try {
+      const uniRef = doc(db, "universities", universityId);
+      const uniDoc = await getDoc(uniRef);
+      if (uniDoc.exists() && uniDoc.data().clubCount > 0) {
+        await updateDoc(uniRef, {
+          clubCount: uniDoc.data().clubCount - 1,
+        });
+      }
+    } catch (e) {
+      logManager.warn("Could not update university club count", e);
+    }
+  }
+
+  logManager.info("Club deleted", { clubId });
+}
+
+/**
+ * Assign a president to a club
+ * @param {string} clubId - Club ID
+ * @param {string} uid - User ID of new president
+ */
+export async function assignPresident(clubId, uid) {
+  const batch = writeBatch(db);
+
+  // Update club document
+  batch.update(doc(db, "clubs", clubId), {
+    presidentUid: uid,
+    presidentId: uid,
+    updatedAt: serverTimestamp(),
+  });
+
+  // Add/update membership with president role
+  batch.set(
+    doc(db, "clubs", clubId, "members", uid),
+    {
+      uid,
+      role: "president",
+      joinedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  await batch.commit();
+  logManager.info("President assigned", { clubId, uid });
+}
+
+// ==========================================
+// MAINTENANCE TASKS
+// ==========================================
+
+/**
+ * Rebuild all club statistics (member counts, event counts)
+ * @param {Function} log - Logging callback
+ */
+export async function rebuildClubStats(log = console.log) {
+  log("Fetching all clubs...");
+  const clubsSnap = await getDocs(collection(db, "clubs"));
+
+  const batch = writeBatch(db);
+  let updated = 0;
+
+  for (const clubDoc of clubsSnap.docs) {
+    const clubId = clubDoc.id;
+
+    // Count members
+    const membersSnap = await getDocs(
+      collection(db, "clubs", clubId, "members")
+    );
+    const memberCount = membersSnap.size;
+
+    // Count events in subcollection
+    const eventsSubSnap = await getDocs(
+      collection(db, "clubs", clubId, "events")
+    );
+    const eventCount = eventsSubSnap.size;
+
+    batch.update(doc(db, "clubs", clubId), {
+      memberCount,
+      eventCount,
+      statsUpdatedAt: serverTimestamp(),
+    });
+
+    updated++;
+    log(
+      `Updated ${
+        clubDoc.data().name
+      }: ${memberCount} members, ${eventCount} events`
+    );
+  }
+
+  await batch.commit();
+  log(`Rebuilt stats for ${updated} clubs`);
+  return updated;
+}
+
+/**
+ * Clean up old events (older than specified days)
+ * @param {number} daysOld - Number of days old to consider for cleanup
+ * @param {Function} log - Logging callback
+ */
+export async function cleanupOldEvents(daysOld = 30, log = console.log) {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+  log(`Finding events older than ${daysOld} days...`);
+
+  // Get events from the global clubEvents collection
+  const eventsSnap = await getDocs(collection(db, "clubEvents"));
+  const oldEvents = eventsSnap.docs.filter((d) => {
+    const endTime = d.data().endTime?.toDate?.();
+    return endTime && endTime < cutoffDate;
+  });
+
+  log(`Found ${oldEvents.length} old events to clean up`);
+
+  if (oldEvents.length === 0) return 0;
+
+  const batch = writeBatch(db);
+  oldEvents.forEach((event) => {
+    batch.delete(event.ref);
+  });
+
+  await batch.commit();
+  log(`Deleted ${oldEvents.length} old events`);
+  return oldEvents.length;
+}
+
+/**
+ * Verify data integrity across collections
+ * @param {Function} log - Logging callback
+ */
+export async function verifyDataIntegrity(log = console.log) {
+  log("Checking club data integrity...");
+
+  const clubsSnap = await getDocs(collection(db, "clubs"));
+  let issues = 0;
+
+  for (const clubDoc of clubsSnap.docs) {
+    const data = clubDoc.data();
+
+    // Check for missing required fields
+    if (!data.name) {
+      log(`⚠ Club ${clubDoc.id} missing name`, "error");
+      issues++;
+    }
+
+    // Check president exists in members if set
+    const presidentUid = data.presidentUid || data.presidentId;
+    if (presidentUid) {
+      const memberDoc = await getDoc(
+        doc(db, "clubs", clubDoc.id, "members", presidentUid)
+      );
+      if (!memberDoc.exists()) {
+        log(`⚠ Club ${data.name}: President not in members list`);
+        issues++;
+      } else if (memberDoc.data().role !== "president") {
+        log(`⚠ Club ${data.name}: President member has wrong role`);
+        issues++;
+      }
+    }
+
+    // Check member count accuracy
+    const membersSnap = await getDocs(
+      collection(db, "clubs", clubDoc.id, "members")
+    );
+    if (data.memberCount !== membersSnap.size) {
+      log(
+        `⚠ Club ${data.name}: Member count mismatch (${data.memberCount} vs ${membersSnap.size})`
+      );
+      issues++;
+    }
+  }
+
+  log(`Verification complete. Found ${issues} issues.`);
+  return issues;
+}
+
+/**
+ * Clean up old read notifications
+ * @param {number} daysOld - Number of days old
+ * @param {Function} log - Logging callback
+ */
+export async function cleanupOldNotifications(daysOld = 7, log = console.log) {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+  log(`Finding read notifications older than ${daysOld} days...`);
+
+  const notifSnap = await getDocs(
+    query(collection(db, "notifications"), where("read", "==", true))
+  );
+
+  const oldNotifs = notifSnap.docs.filter((d) => {
+    const createdAt = d.data().createdAt?.toDate?.();
+    return createdAt && createdAt < cutoffDate;
+  });
+
+  log(`Found ${oldNotifs.length} old notifications to clean up`);
+
+  if (oldNotifs.length === 0) return 0;
+
+  // Batch delete (max 500 per batch)
+  let deleted = 0;
+  const batchSize = 500;
+
+  for (let i = 0; i < oldNotifs.length; i += batchSize) {
+    const batch = writeBatch(db);
+    const chunk = oldNotifs.slice(i, i + batchSize);
+    chunk.forEach((n) => batch.delete(n.ref));
+    await batch.commit();
+    deleted += chunk.length;
+    log(`Deleted batch: ${deleted}/${oldNotifs.length}`);
+  }
+
+  log(`Deleted ${deleted} old notifications`);
+  return deleted;
+}
+
+// Export all functions as a service object
+export const AdminService = {
+  isSuperAdmin,
+  verifyAdminPin,
+  // Universities
+  getUniversities,
+  createUniversity,
+  updateUniversity,
+  deleteUniversity,
+  // SAF Moderators
+  getSafModerators,
+  addSafModerator,
+  removeSafModerator,
+  // Clubs
+  getClubs,
+  createClub,
+  updateClub,
+  deleteClub,
+  assignPresident,
+  // Maintenance
+  rebuildClubStats,
+  cleanupOldEvents,
+  verifyDataIntegrity,
+  cleanupOldNotifications,
+};
+
+export default AdminService;

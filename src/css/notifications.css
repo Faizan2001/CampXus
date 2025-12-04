@@ -738,6 +738,100 @@ body.page-notifications .schedule-section {
   box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 4px 10px -2px rgba(0,0,0,0.4);
 }
 
+/* 🏁 Club Notifications */
+.notification-item.club-notification {
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.14),
+    rgba(129, 140, 248, 0.08),
+    rgba(255, 255, 255, 0.04)
+  );
+  border: 1px solid rgba(129, 140, 248, 0.25);
+}
+
+.notification-item.club-notification::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 80% 10%, rgba(129,140,248,0.18), transparent 60%);
+  border-radius: 13px;
+  pointer-events: none;
+}
+
+.notification-item.club-notification .notification-icon.type-club {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(129, 140, 248, 0.18);
+  color: #a855f7;
+  box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.35),
+              0 2px 6px -1px rgba(55, 65, 81, 0.6);
+  margin-right: 4px;
+}
+
+.notification-item.club-notification .notification-details {
+  display: block;
+}
+
+.club-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  margin-left: 0.35rem;
+}
+
+.badge-club-new {
+  background: rgba(16, 185, 129, 0.18);
+  color: #10b981;
+}
+
+.badge-club-reminder {
+  background: rgba(245, 158, 11, 0.18);
+  color: #f59e0b;
+}
+
+.badge-club-live {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.badge-club-updated {
+  background: rgba(59, 130, 246, 0.18);
+  color: #3b82f6;
+}
+
+.badge-club-cancelled {
+  background: rgba(148, 163, 184, 0.25);
+  color: #e5e7eb;
+}
+
+.badge-club-pending {
+  background: rgba(251, 191, 36, 0.22);
+  color: #fbbf24;
+}
+
+.badge-club-approved {
+  background: rgba(16, 185, 129, 0.18);
+  color: #10b981;
+}
+
+.badge-club-rejected {
+  background: rgba(239, 68, 68, 0.22);
+  color: #fecaca;
+}
+
+.badge-club-generic {
+  background: rgba(129, 140, 248, 0.16);
+  color: #e5e7eb;
+}
+
 
 /* ╭──────────────────────────────────────────────────────────────────────────╮
    │ 10) HOVER VARIANTS                                                        │
