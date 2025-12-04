@@ -231,6 +231,14 @@ This document outlines the phased development approach for the Clubs feature.
 
 ---
 
+### 🔀 UX Divergence (2025-12-04)
+
+- Members UI now shows **only President + Officials** (general members hidden for read-only simplicity).
+- Role assignment uses the **Friends search component** with an Assign button; results scoped to university (or global for super admin).
+- Confirmation modal chooses role (President disabled if already set); adds user as needed.
+
+---
+
 ## 📦 Phase 4: Live Events & Announcements
 
 ### Goals
@@ -258,8 +266,8 @@ This document outlines the phased development approach for the Clubs feature.
 □ Pulsing red dot animation
 □ Time remaining countdown
 □ Club logo and name
-□ Latest chat message preview
-□ Click → open live chat view
+□ Latest announcement preview
+□ Click → open live event view
 ```
 
 #### 4.3 Live Timeline Component (`src/js/components/clubs/LiveTimeline.js`)

@@ -23,23 +23,29 @@ import { currentUser } from "../../store/userStore.js";
  * @param {Array} events - All events for this club
  * @param {Function} onEventUpdated - Callback when event is approved/rejected
  */
-export function renderModerateTab(container, clubData, events, onEventUpdated) {
-  // Filter for pending events only
-  const pendingEvents = events.filter(
-    (e) => e.status === "pending_president" || e.status === "pending_saf"
-  );
+export function renderModerateTab(
+  container,
+  clubData,
+  events,
+  onEventUpdated,
+  members = []
+) {
+  // Filter for pending events only (presidents should not see SAF-queued events)
+  const pendingEvents = events.filter((e) => e.status === "pending_president");
 
-  // Check if user can moderate
-  const canModerate = checkCanModerate(clubData);
+  // Check if user can view the moderate tab (presidents and officials)
+  const canViewModerate = checkCanModerate(clubData, members);
+  // Check if user is a president who can approve/reject
+  const canApproveReject = checkIsPresident(clubData);
 
-  if (!canModerate) {
+  if (!canViewModerate) {
     container.innerHTML = `
       <div class="moderate-access-denied">
         <div class="access-denied-icon">
           <i class="fas fa-lock"></i>
         </div>
         <h3>Access Restricted</h3>
-        <p>Only club presidents and authorized moderators can access this tab.</p>
+        <p>Only club presidents and officials can access this tab.</p>
       </div>
     `;
     return;
@@ -52,12 +58,22 @@ export function renderModerateTab(container, clubData, events, onEventUpdated) {
           <i class="fas fa-check-circle"></i>
         </div>
         <h3>All Caught Up!</h3>
-        <p>No events are waiting for your approval.</p>
+        <p>No events are waiting for approval.</p>
         <p class="hint">New events created by officials will appear here.</p>
       </div>
     `;
     return;
   }
+
+  // Show read-only notice for officials
+  const readOnlyNotice = !canApproveReject
+    ? `
+    <div class="moderate-readonly-notice">
+      <i class="fas fa-eye"></i>
+      <span>View only — Only the president can approve or reject events</span>
+    </div>
+  `
+    : "";
 
   // Render pending events
   const html = `
@@ -68,9 +84,12 @@ export function renderModerateTab(container, clubData, events, onEventUpdated) {
     pendingEvents.length !== 1 ? "s" : ""
   }</span>
       </div>
+      ${readOnlyNotice}
       <div class="moderate-list">
         ${pendingEvents
-          .map((event) => renderPendingEventCard(event, clubData))
+          .map((event) =>
+            renderPendingEventCard(event, clubData, canApproveReject)
+          )
           .join("")}
       </div>
     </div>
@@ -78,14 +97,17 @@ export function renderModerateTab(container, clubData, events, onEventUpdated) {
 
   container.innerHTML = html;
 
-  // Bind action buttons
-  bindModerateActions(container, clubData.id, events, onEventUpdated);
+  // Bind action buttons (only if user is president)
+  if (canApproveReject) {
+    bindModerateActions(container, clubData, events, onEventUpdated);
+  }
 }
 
 /**
- * Check if current user can moderate this club
+ * Check if current user can view the moderate tab
+ * Presidents, officials, and dev owners can access the Moderate tab
  */
-function checkCanModerate(clubData) {
+function checkCanModerate(clubData, members = []) {
   const uid = currentUser?.uid;
   if (!uid) return false;
 
@@ -96,17 +118,52 @@ function checkCanModerate(clubData) {
   if (clubData.presidentId === uid) return true;
   if (clubData.createdBy === uid) return true;
 
-  // SAF moderator check (would need to query admin/safModerators)
-  // For now, we'll rely on the above checks
-  // TODO: Add SAF moderator check when admin system is implemented
+  // Officials can also access Moderate tab (view queue, but approval still president-only)
+  if (
+    Array.isArray(clubData.officialIds) &&
+    clubData.officialIds.includes(uid)
+  ) {
+    return true;
+  }
+
+  // Check members array for official role
+  if (
+    Array.isArray(members) &&
+    members.some((m) => m.uid === uid && m.role === "official")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if current user is the president (can approve/reject)
+ * Only presidents can take action on events
+ */
+function checkIsPresident(clubData) {
+  const uid = currentUser?.uid;
+  if (!uid) return false;
+
+  // DevTest clubs: devOwnerUid can approve/reject
+  if (clubData.devTest && clubData.devOwnerUid === uid) return true;
+
+  // Production clubs: only presidentId can approve/reject
+  if (clubData.presidentId === uid) return true;
+
+  // createdBy can also approve (for initial setup)
+  if (clubData.createdBy === uid) return true;
 
   return false;
 }
 
 /**
  * Render a single pending event card
+ * @param {Object} event - Event data
+ * @param {Object} clubData - Club data
+ * @param {boolean} canApproveReject - Whether user can approve/reject
  */
-function renderPendingEventCard(event, clubData) {
+function renderPendingEventCard(event, clubData, canApproveReject = true) {
   const title = escapeHtml(event.title || "Untitled Event");
   const location = escapeHtml(event.location || "TBA");
   const description = escapeHtml(event.description || "");
@@ -127,7 +184,11 @@ function renderPendingEventCard(event, clubData) {
   }
 
   // Creator info
-  const creatorName = event.createdByInfo?.name || "Unknown";
+  const creatorName = event.createdByInfo?.firstName
+    ? `${event.createdByInfo.firstName} ${
+        event.createdByInfo.lastName || ""
+      }`.trim()
+    : event.createdByInfo?.name || "Unknown";
   const createdAt = event.createdAt?.toDate
     ? formatRelativeTime(event.createdAt.toDate())
     : "Unknown";
@@ -139,11 +200,25 @@ function renderPendingEventCard(event, clubData) {
       ? `<span class="multi-day-badge"><i class="fas fa-layer-group"></i> ${multiDayCount} days</span>`
       : "";
 
+  // Only show action buttons if user can approve/reject
+  const actionButtons = canApproveReject
+    ? `
+    <div class="pending-event-actions">
+      <button class="action-btn approve-btn" data-action="approve" data-event-id="${event.id}">
+        <i class="fas fa-check"></i> Approve
+      </button>
+      <button class="action-btn reject-btn" data-action="reject" data-event-id="${event.id}">
+        <i class="fas fa-times"></i> Reject
+      </button>
+    </div>
+  `
+    : "";
+
   return `
     <div class="pending-event-card" data-event-id="${event.id}">
       ${
         event.imageUrl
-          ? `<div class="pending-event-image"><img src="${event.imageUrl}" alt="${title}" loading="lazy" /></div>`
+          ? `<div class="pending-event-image"><img src="${escapeAttr(event.imageUrl)}" alt="${title}" loading="lazy" /></div>`
           : ""
       }
       <div class="pending-event-content">
@@ -178,18 +253,7 @@ function renderPendingEventCard(event, clubData) {
           </div>
         </div>
         
-        <div class="pending-event-actions">
-          <button class="action-btn approve-btn" data-action="approve" data-event-id="${
-            event.id
-          }">
-            <i class="fas fa-check"></i> Approve
-          </button>
-          <button class="action-btn reject-btn" data-action="reject" data-event-id="${
-            event.id
-          }">
-            <i class="fas fa-times"></i> Reject
-          </button>
-        </div>
+        ${actionButtons}
       </div>
     </div>
   `;
@@ -198,7 +262,7 @@ function renderPendingEventCard(event, clubData) {
 /**
  * Bind click handlers for approve/reject buttons
  */
-function bindModerateActions(container, clubId, events, onEventUpdated) {
+function bindModerateActions(container, clubData, events, onEventUpdated) {
   // Approve buttons
   container.querySelectorAll(".approve-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
@@ -207,7 +271,7 @@ function bindModerateActions(container, clubId, events, onEventUpdated) {
       const event = events.find((ev) => ev.id === eventId);
       if (!event) return;
 
-      await handleApprove(clubId, eventId, event.title, btn, onEventUpdated);
+      await handleApprove(clubData, event, btn, onEventUpdated);
     });
   });
 
@@ -219,7 +283,7 @@ function bindModerateActions(container, clubId, events, onEventUpdated) {
       const event = events.find((ev) => ev.id === eventId);
       if (!event) return;
 
-      showRejectModal(clubId, eventId, event.title, onEventUpdated);
+      showRejectModal(clubData.id, eventId, event.title, onEventUpdated);
     });
   });
 }
@@ -227,7 +291,7 @@ function bindModerateActions(container, clubId, events, onEventUpdated) {
 /**
  * Handle event approval
  */
-async function handleApprove(clubId, eventId, eventTitle, btn, onEventUpdated) {
+async function handleApprove(clubData, event, btn, onEventUpdated) {
   // Disable button and show spinner
   const originalContent = btn.innerHTML;
   btn.disabled = true;
@@ -243,8 +307,32 @@ async function handleApprove(clubId, eventId, eventTitle, btn, onEventUpdated) {
     const firstName = profile.firstName || "";
     const lastName = profile.lastName || "";
 
+    const clubId = clubData.id;
+    const eventId = event.id;
+    // SAF approval is now mandatory for all events
+    const requiresSafApproval = true;
+
+    // Presidents must not bypass SAF queue; block if event is already pending_saf
+    if (event.status === "pending_saf") {
+      notificationManager.show(
+        "This event is awaiting SAF review. Presidents cannot approve it.",
+        "warning"
+      );
+      btn.disabled = false;
+      btn.innerHTML = originalContent;
+      return;
+    }
+
+    // Determine next status based on club settings and current event status.
+    // - If SAF approval is required and event is pending_president, move to pending_saf.
+    // - Otherwise, move directly to approved.
+    let nextStatus = "approved";
+    if (event.status === "pending_president" && requiresSafApproval) {
+      nextStatus = "pending_saf";
+    }
+
     await updateDoc(doc(db, "clubs", clubId, "events", eventId), {
-      status: "approved",
+      status: nextStatus,
       approvedAt: serverTimestamp(),
       approvedBy: currentUser.uid,
       approvedByInfo: {
@@ -253,7 +341,13 @@ async function handleApprove(clubId, eventId, eventTitle, btn, onEventUpdated) {
       },
     });
 
-    notificationManager.show(`"${eventTitle}" has been approved!`, "success");
+    const eventTitle = event.title || "Event";
+    const message =
+      nextStatus === "pending_saf"
+        ? `"${eventTitle}" has been approved by the president and is awaiting SAF review.`
+        : `"${eventTitle}" has been approved!`;
+
+    notificationManager.show(message, "success");
 
     if (onEventUpdated) {
       await onEventUpdated();
@@ -270,11 +364,21 @@ async function handleApprove(clubId, eventId, eventTitle, btn, onEventUpdated) {
 }
 
 /**
- * Show reject modal with optional comment
+ * Show reject modal with required comment (minimum 15 characters)
  */
 function showRejectModal(clubId, eventId, eventTitle, onEventUpdated) {
   // Remove existing modal if any
   document.querySelector(".reject-modal-overlay")?.remove();
+
+  // Get president's name for display
+  const profile = currentUser.profile?.profile || {};
+  const firstName = profile.firstName || "";
+  const lastName = profile.lastName || "";
+  const presidentName = firstName
+    ? `${firstName} ${lastName || ""}`.trim()
+    : "President";
+
+  const MIN_REASON_LENGTH = 15;
 
   const modal = document.createElement("div");
   modal.className = "reject-modal-overlay";
@@ -288,26 +392,38 @@ function showRejectModal(clubId, eventId, eventTitle, onEventUpdated) {
         <p class="reject-event-title">Rejecting: <strong>${escapeHtml(
           eventTitle
         )}</strong></p>
+        <p class="rejector-info">
+          <i class="fas fa-user-tie"></i> Rejected by: <strong>${escapeHtml(
+            presidentName
+          )}</strong>
+        </p>
         <div class="form-group">
           <label for="rejectReason">
-            <i class="fas fa-comment-alt"></i> Reason (optional)
+            <i class="fas fa-comment-alt"></i> Reason (required, minimum ${MIN_REASON_LENGTH} characters)
           </label>
           <textarea 
             id="rejectReason" 
-            placeholder="Let the creator know why this event was not approved..."
+            placeholder="Please explain why this event was not approved..."
             rows="3"
             maxlength="500"
+            required
           ></textarea>
-          <span class="char-count"><span id="charCount">0</span>/500</span>
+          <div class="char-count-container">
+            <span class="char-count ${
+              MIN_REASON_LENGTH > 0 ? "char-count-warning" : ""
+            }">
+              <span id="charCount">0</span>/500 (min ${MIN_REASON_LENGTH})
+            </span>
+          </div>
         </div>
         <p class="reject-hint">
           <i class="fas fa-info-circle"></i>
-          The creator will be notified and can edit and resubmit the event.
+          The creator will be notified with your reason and can edit and resubmit the event.
         </p>
       </div>
       <div class="reject-modal-footer">
         <button class="btn secondary cancel-reject-btn">Cancel</button>
-        <button class="btn danger confirm-reject-btn">
+        <button class="btn danger confirm-reject-btn" disabled>
           <i class="fas fa-times"></i> Reject Event
         </button>
       </div>
@@ -321,15 +437,32 @@ function showRejectModal(clubId, eventId, eventTitle, onEventUpdated) {
     modal.classList.add("active");
   });
 
-  // Character count
+  // Character count and validation
   const textarea = modal.querySelector("#rejectReason");
   const charCount = modal.querySelector("#charCount");
+  const charCountContainer = modal.querySelector(".char-count");
+  const confirmBtn = modal.querySelector(".confirm-reject-btn");
+
   textarea.addEventListener("input", () => {
-    charCount.textContent = textarea.value.length;
+    const length = textarea.value.length;
+    charCount.textContent = length;
+
+    // Update visual feedback
+    if (length >= MIN_REASON_LENGTH) {
+      charCountContainer.classList.remove("char-count-warning");
+      charCountContainer.classList.add("char-count-valid");
+      confirmBtn.disabled = false;
+    } else {
+      charCountContainer.classList.add("char-count-warning");
+      charCountContainer.classList.remove("char-count-valid");
+      confirmBtn.disabled = true;
+    }
   });
 
   // Close handlers
   const closeModal = () => {
+    // Bug #48: Remove escape handler on any close path
+    document.removeEventListener("keydown", escHandler);
     modal.classList.remove("active");
     setTimeout(() => modal.remove(), 250);
   };
@@ -345,61 +478,60 @@ function showRejectModal(clubId, eventId, eventTitle, onEventUpdated) {
   // Escape key
   const escHandler = (e) => {
     if (e.key === "Escape") {
-      closeModal();
-      document.removeEventListener("keydown", escHandler);
+      closeModal(); // closeModal now handles removing the listener
     }
   };
   document.addEventListener("keydown", escHandler);
 
   // Confirm reject
-  modal
-    .querySelector(".confirm-reject-btn")
-    .addEventListener("click", async () => {
-      const reason = textarea.value.trim();
-      const btn = modal.querySelector(".confirm-reject-btn");
+  confirmBtn.addEventListener("click", async () => {
+    const reason = textarea.value.trim();
 
-      btn.disabled = true;
-      btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Rejecting...`;
+    // Validate minimum length
+    if (reason.length < MIN_REASON_LENGTH) {
+      notificationManager.show(
+        `Rejection reason must be at least ${MIN_REASON_LENGTH} characters.`,
+        "warning"
+      );
+      return;
+    }
 
-      try {
-        const { db } = await import("../../lib/firebase/firebase-config.js");
-        const { doc, updateDoc, serverTimestamp } = await import(
-          "firebase/firestore"
-        );
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Rejecting...`;
 
-        const profile = currentUser.profile?.profile || {};
-        const firstName = profile.firstName || "";
-        const lastName = profile.lastName || "";
+    try {
+      const { db } = await import("../../lib/firebase/firebase-config.js");
+      const { doc, updateDoc, serverTimestamp } = await import(
+        "firebase/firestore"
+      );
 
-        await updateDoc(doc(db, "clubs", clubId, "events", eventId), {
-          status: "rejected",
-          rejectedAt: serverTimestamp(),
-          rejectedBy: currentUser.uid,
-          rejectedByInfo: {
-            name: firstName
-              ? `${firstName} ${lastName || ""}`.trim()
-              : "Moderator",
-            uid: currentUser.uid,
-          },
-          rejectionReason: reason || null,
-        });
+      await updateDoc(doc(db, "clubs", clubId, "events", eventId), {
+        status: "rejected",
+        rejectedAt: serverTimestamp(),
+        rejectedBy: currentUser.uid,
+        rejectedByInfo: {
+          name: presidentName,
+          uid: currentUser.uid,
+        },
+        rejectionReason: reason,
+      });
 
-        notificationManager.show(`"${eventTitle}" has been rejected.`, "info");
-        closeModal();
+      notificationManager.show(`"${eventTitle}" has been rejected.`, "info");
+      closeModal();
 
-        if (onEventUpdated) {
-          await onEventUpdated();
-        }
-      } catch (err) {
-        logManager.error("[ModerateTab] Reject error:", err);
-        notificationManager.show(
-          "Failed to reject event. Please try again.",
-          "error"
-        );
-        btn.disabled = false;
-        btn.innerHTML = `<i class="fas fa-times"></i> Reject Event`;
+      if (onEventUpdated) {
+        await onEventUpdated();
       }
-    });
+    } catch (err) {
+      logManager.error("[ModerateTab] Reject error:", err);
+      notificationManager.show(
+        "Failed to reject event. Please try again.",
+        "error"
+      );
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = `<i class="fas fa-times"></i> Reject Event`;
+    }
+  });
 
   // Focus textarea
   textarea.focus();
@@ -413,6 +545,22 @@ function escapeHtml(s) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+// Helper to escape values for safe use in HTML attributes (src, href, etc.)
+function escapeAttr(value) {
+  if (value == null) return "";
+  const str = String(value);
+  const lower = str.toLowerCase().trim();
+  if (lower.startsWith("javascript:") || lower.startsWith("data:text/html")) {
+    return "";
+  }
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function truncate(str, len) {

@@ -541,14 +541,24 @@ export class FriendsManager {
    * - Handle: prefix match on `handles` collection by documentId, limit 3.
    * - ID: exact match on users.universityInfo.studentId within viewer's university.
    */
-  async searchStudentsHandleAware(rawTerm) {
+  async searchStudentsHandleAware(rawTerm, options = {}) {
+    const allowAllUniversities = options.allowAllUniversities === true;
+    const includeFriends = options.includeFriends === true;
+    const allowMissingProfile = options.allowMissingProfile === true;
+    const respectViewerUniversity = options.respectViewerUniversity !== false; // default true
+    const bypassSearchable = options.bypassSearchable === true; // for admin flows
     const term = (rawTerm || "").trim();
     if (term.length < 1) return [];
 
-    const viewerProfile =
+    let viewerProfile =
       (await currentUser.waitForProfileWithTimeout?.(5000).catch(() => null)) ||
-      (await currentUser.waitForProfile());
-    if (!viewerProfile) return [];
+      (await currentUser.waitForProfile().catch(() => null));
+    if (!viewerProfile && !allowMissingProfile) return [];
+    if (!viewerProfile) {
+      viewerProfile = {
+        universityInfo: {},
+      };
+    }
 
     // Student ID exact (6+ digits)
     if (/^\d{6,}$/.test(term)) {
@@ -558,18 +568,22 @@ export class FriendsManager {
           term,
           1
         );
-        return await this.filterSearchResults(results);
+        return await this.filterSearchResults(results, { includeFriends });
       } catch (error) {
         console.error("❌ Student ID lookup error:", error);
         return [];
       }
     }
 
-    // Handle prefix (3+ chars, optional @)
+    // Handle prefix (2+ chars, optional @)
     const normalized = term.startsWith("@")
       ? term.slice(1).toLowerCase()
       : term.toLowerCase();
-    if (!/^[a-z][a-z0-9_]{2,}$/.test(normalized)) {
+    // Relax: start with letter, then 1+ alphanumeric/underscore chars (2+ total)
+    if (!/^[a-z][a-z0-9_]+$/.test(normalized)) {
+      console.log(
+        `🔍 Search term "${normalized}" did not match handle pattern`
+      );
       return [];
     }
 
@@ -598,39 +612,71 @@ export class FriendsManager {
         limit(3)
       );
       const snap = await getDocs(q);
+      console.log(
+        `🔍 Handle prefix query for "${normalized}": ${snap.size} docs found`
+      );
       if (snap.empty) return [];
 
       const viewerUniversityId = viewerProfile?.universityInfo?.university;
       const viewerUniversityName =
         viewerProfile?.universityInfo?.universityName?.toLowerCase?.();
+      console.log(
+        `🔍 Search options: allowAllUniversities=${allowAllUniversities}, respectViewerUniversity=${respectViewerUniversity}, bypassSearchable=${bypassSearchable}`
+      );
 
       const candidates = [];
       for (const d of snap.docs) {
         const userId = d.data()?.userId;
-        if (!userId) continue;
+        const handleDoc = d.id;
+        if (!userId) {
+          console.log(`🔍 Handle doc ${handleDoc}: no userId`);
+          continue;
+        }
         const userRef = doc(db, "users", userId);
         const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) continue;
+        if (!userSnap.exists()) {
+          console.log(`🔍 Handle doc ${handleDoc}: user ${userId} not found`);
+          continue;
+        }
         const userData = userSnap.data();
-        if (!userData?.socialInfo?.searchable) continue;
+        // Skip users who have disabled search unless bypassSearchable is set (admin flow)
+        if (!bypassSearchable && !userData?.socialInfo?.searchable) {
+          console.log(
+            `🔍 Handle doc ${handleDoc}: user ${userId} not searchable (bypassSearchable=${bypassSearchable})`
+          );
+          continue;
+        }
 
         // Enforce same university until cross-university is supported
         const targetUniversityId = userData?.universityInfo?.university;
         const targetUniversityName =
           userData?.universityInfo?.universityName?.toLowerCase?.();
-        const sameUniversityById =
-          viewerUniversityId &&
-          targetUniversityId &&
-          viewerUniversityId === targetUniversityId;
-        const sameUniversityByName =
-          viewerUniversityName &&
-          targetUniversityName &&
-          viewerUniversityName === targetUniversityName;
-        if (!(sameUniversityById || sameUniversityByName)) continue;
+        if (!allowAllUniversities && respectViewerUniversity) {
+          const sameUniversityById =
+            viewerUniversityId &&
+            targetUniversityId &&
+            viewerUniversityId === targetUniversityId;
+          const sameUniversityByName =
+            viewerUniversityName &&
+            targetUniversityName &&
+            viewerUniversityName === targetUniversityName;
+          if (!(sameUniversityById || sameUniversityByName)) {
+            console.log(
+              `🔍 Handle doc ${handleDoc}: user ${userId} not same university (viewer=${viewerUniversityId}, target=${targetUniversityId})`
+            );
+            continue;
+          }
+        }
+        console.log(
+          `🔍 Handle doc ${handleDoc}: user ${userId} passed all filters, adding to candidates`
+        );
 
         candidates.push({
           id: userId,
           profile: {
+            firstName: userData.profile?.firstName || null,
+            lastName: userData.profile?.lastName || null,
+            displayName: userData.profile?.displayName || null,
             handle: userData.profile?.handle,
             handle_lower: userData.profile?.handle_lower,
             major: userData.profile?.major,
@@ -675,7 +721,7 @@ export class FriendsManager {
       });
 
       // Filter out existing friends and incoming pending requests
-      return await this.filterSearchResults(candidates);
+      return await this.filterSearchResults(candidates, { includeFriends });
     } catch (error) {
       console.error("❌ Handle prefix search error:", error);
       return [];
@@ -685,11 +731,19 @@ export class FriendsManager {
   /**
    * �🚫 Filter out existing friends and pending requests from search results
    * @param {Array} searchResults - Raw search results from database
+   * @param {Object} opts
+   * @param {boolean} opts.includeFriends - if true, do NOT filter out friends
    * @returns {Promise<Array>} Filtered results ready for display
    */
-  async filterSearchResults(searchResults) {
+  async filterSearchResults(searchResults, opts = {}) {
+    const includeFriends = opts.includeFriends === true;
     if (!searchResults || searchResults.length === 0) {
       return [];
+    }
+
+    // When includeFriends is true, skip all friend filtering entirely (just exclude self)
+    if (includeFriends) {
+      return searchResults.filter((student) => student.id !== currentUser.uid);
     }
 
     // Cache key for filtering data
@@ -724,14 +778,17 @@ export class FriendsManager {
       }
     }
 
-    console.log(
-      `📊 Excluding: ${filterData.friendIds.size} friends, ${filterData.incomingRequestIds.size} incoming requests`
-    );
+    if (filterData) {
+      console.log(
+        `📊 Excluding: ${filterData.friendIds.size} friends, ${filterData.incomingRequestIds.size} incoming requests`
+      );
+    }
 
     // Filter out unwanted results
     const filteredResults = searchResults.filter((student) => {
+      if (student.id === currentUser.uid) return false;
+      if (!filterData) return true;
       return (
-        student.id !== currentUser.uid &&
         !filterData.friendIds.has(student.id) &&
         !filterData.incomingRequestIds.has(student.id)
       );
@@ -748,9 +805,9 @@ export class FriendsManager {
    * @param {string} searchTerm - Search term
    * @returns {Promise<Array>} Search results (cached when possible)
    */
-  async searchStudentsWithCache(searchTerm) {
+  async searchStudentsWithCache(searchTerm, options = {}) {
     // Handle-aware path; caching for other modes removed as we only support handle/ID
-    return this.searchStudentsHandleAware(searchTerm);
+    return this.searchStudentsHandleAware(searchTerm, options);
   }
 
   /**

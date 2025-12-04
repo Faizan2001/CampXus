@@ -115,15 +115,6 @@ class SPARouter {
         requiresAuth: true,
         indexable: false,
       },
-      groups: {
-        title: "Clubs - MeetchuThere",
-        template: "/templates/clubs.html",
-        cssFiles: ["/src/css/styles.css", "/src/css/clubs/index.css"],
-        jsImporters: [() => import("/src/js/pages/ClubsPage.js")],
-        description: "Campus clubs and events",
-        requiresAuth: true,
-        indexable: false,
-      },
       clubs: {
         title: "Clubs - MeetchuThere",
         template: "/templates/clubs.html",
@@ -180,6 +171,15 @@ class SPARouter {
         requiresSuperAdmin: true, // 🔐 Special flag for super admin only routes
         indexable: false,
       },
+      saf: {
+        title: "SAF Moderation - MeetchuThere",
+        template: "/templates/saf.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/admin.css"],
+        jsImporters: [() => import("/src/js/pages/SafModeratePage.js")],
+        description: "Student Affairs event moderation dashboard",
+        requiresAuth: true,
+        indexable: false,
+      },
     };
 
     this.currentPage = "landing"; // Default page now landing
@@ -212,11 +212,23 @@ class SPARouter {
   /**
    * Extract the route name from a location hash, ignoring query params.
    * Example: "#user?id=123" -> "user" if defined in routes.
+   * Also handles legacy route redirects (e.g., "groups" -> "clubs")
    */
   _parseRouteName(rawHash) {
     try {
       const raw = String(rawHash || "").replace(/^#/, "");
-      const name = raw.split("?")[0];
+      let name = raw.split("?")[0];
+
+      // Legacy redirect: "groups" route is now "clubs"
+      if (name === "groups") {
+        name = "clubs";
+        // Update the URL silently to avoid confusion
+        const queryPart = raw.includes("?")
+          ? raw.substring(raw.indexOf("?"))
+          : "";
+        window.history.replaceState(null, "", `#clubs${queryPart}`);
+      }
+
       if (name && this.routes[name]) return name;
       return this.routes[raw] ? raw : "home";
     } catch (_) {
@@ -860,8 +872,8 @@ class SPARouter {
     this._lastNavigation = { route, ts: now };
 
     // 🛡️ Authentication Check with proper ES6 imports!
-	    const routeConfig = this.routes[route];
-	    if (routeConfig.requiresAuth) {
+    const routeConfig = this.routes[route];
+    if (routeConfig.requiresAuth) {
       // Use Firebase auth currentUser as the source of truth (avoid optimistic store hydration)
       let isAuthenticated = !!authManager?.auth?.currentUser;
 
@@ -889,7 +901,7 @@ class SPARouter {
       // can unlock protected routes even if Firebase hasn't populated
       // auth.currentUser yet. This lets returning users see their schedule
       // immediately from local cache while auth/network hydrate in the background.
-	      if (!isAuthenticated) {
+      if (!isAuthenticated) {
         const hasSessionHint =
           !!authManager?.auth?.currentUser ||
           !!profileCache.peek() ||
@@ -923,32 +935,32 @@ class SPARouter {
         return;
       }
 
-	      // 🧭 Profile Completion Gate: ensure users complete setup before using protected routes
-	      // If navigating to any protected route other than 'profile', verify setup completion.
-	      // This covers first-login flow and direct hash navigation.
-	      if (route !== "profile") {
-	        const redirected = await this._ensureProfileCompletionGate(
-	          updateHistory
-	        );
-	        if (redirected) {
-	          if (this._pendingRoute === route) this._pendingRoute = null;
-	          return; // navigation has been redirected to profile setup
-	        }
-	      }
+      // 🧭 Profile Completion Gate: ensure users complete setup before using protected routes
+      // If navigating to any protected route other than 'profile', verify setup completion.
+      // This covers first-login flow and direct hash navigation.
+      if (route !== "profile") {
+        const redirected = await this._ensureProfileCompletionGate(
+          updateHistory
+        );
+        if (redirected) {
+          if (this._pendingRoute === route) this._pendingRoute = null;
+          return; // navigation has been redirected to profile setup
+        }
+      }
 
-	      // 🔐 Super Admin Gate: check if route requires super admin privileges
-	      if (routeConfig.requiresSuperAdmin) {
-	        const isSuperAdmin = await this._checkSuperAdmin();
-	        if (!isSuperAdmin) {
-	          logManager.auth.warn(
-	            `🚫 Super admin access denied for route: ${route}`
-	          );
-	          this.navigateTo("home", updateHistory);
-	          if (this._pendingRoute === route) this._pendingRoute = null;
-	          return;
-	        }
-	      }
-	    }
+      // 🔐 Super Admin Gate: check if route requires super admin privileges
+      if (routeConfig.requiresSuperAdmin) {
+        const isSuperAdmin = await this._checkSuperAdmin();
+        if (!isSuperAdmin) {
+          logManager.auth.warn(
+            `🚫 Super admin access denied for route: ${route}`
+          );
+          this.navigateTo("home", updateHistory);
+          if (this._pendingRoute === route) this._pendingRoute = null;
+          return;
+        }
+      }
+    }
 
     // 🛡️ If authenticated user tries to access landing page, redirect to home
     if (route === "landing") {
@@ -1660,8 +1672,8 @@ class SPARouter {
     // Treat certain routes as aliases in the navigation so the correct
     // tab remains highlighted even when legacy hashes are used elsewhere.
     const resolveActiveNavRoutes = (route) => {
-      if (route === "clubs") return ["clubs", "groups"];
-      if (route === "groups") return ["groups", "clubs"];
+      // Legacy 'groups' route should highlight 'clubs' tab
+      if (route === "groups") return ["clubs"];
       return [route];
     };
 

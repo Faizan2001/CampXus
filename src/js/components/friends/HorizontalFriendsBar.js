@@ -198,7 +198,10 @@ export class HorizontalFriendsBar {
           cachedQuickAccessUsed = true;
         }
       } catch (e) {
-        console.warn("[HorizontalFriendsBar] Failed to hydrate cached Quick Access (non-fatal)", e);
+        console.warn(
+          "[HorizontalFriendsBar] Failed to hydrate cached Quick Access (non-fatal)",
+          e
+        );
       }
       // Lightweight loading placeholder for friends while we fetch fresh data (only if no cache)
       if (!cachedQuickAccessUsed) {
@@ -2263,7 +2266,8 @@ export class HorizontalFriendsBar {
     const now = new Date();
     this.enrichFriendsWithScheduleStatus(now)
       .then(() => {
-        this._updateAvatarPresencePills();
+        this.sortQuickAccessFriendsForDisplay();
+        this._reRenderFriendsPreservingState();
         this.hidePresencePillsLoading();
       })
       .catch((error) => {
@@ -2295,7 +2299,8 @@ export class HorizontalFriendsBar {
       const now = new Date();
       this.enrichFriendsWithScheduleStatus(now)
         .then(() => {
-          this._updateAvatarPresencePills();
+          this.sortQuickAccessFriendsForDisplay();
+          this._reRenderFriendsPreservingState();
         })
         .catch((error) => {
           console.warn(
@@ -2658,7 +2663,8 @@ export class HorizontalFriendsBar {
       const now = new Date();
       this.enrichFriendsWithScheduleStatus(now)
         .then(() => {
-          this._updateAvatarPresencePills();
+          this.sortQuickAccessFriendsForDisplay();
+          this._reRenderFriendsPreservingState();
         })
         .catch((error) => {
           console.warn(
@@ -4819,31 +4825,44 @@ export class HorizontalFriendsBar {
   }
 
   /**
-   * Sort friends for display: green (on campus) → red (off campus) → grey (no sharing/unknown),
-   * then by most recent activity within each group.
+   * Sort friends for display based on schedule presence status:
+   * 1. FREE (green) - available to hang out
+   * 2. IN CLASS (blue) - busy in class
+   * 3. CLASS SOON/LATER (grey) - has class coming up, likely on campus
+   * 4. OFF CAMPUS (red) - not on campus
+   * 5. NO CLASSES (grey) - done for the day, may have left
+   * 6. NO DATA / PRIVATE (grey) - no schedule info
+   * Within each group, sort by most recent activity, then alphabetically.
    */
   sortQuickAccessFriendsForDisplay() {
     try {
+      // Priority based on schedule presence state (lower = higher priority)
       const presencePriority = (f) => {
-        // Determine effective sharing/visibility (mutual required)
-        const canSee =
-          f?.hasLocationSharing === true || f?.canSeeLocation === true;
-        if (!canSee) return 2; // grey when not mutually shared
+        const status = f?.schedulePresenceStatus;
+        const state = status?.state;
+        const pillText = status?.pillText;
 
-        // Respect the same recency rules as PresenceDot (<= 12h)
-        const d = normalizeTimestampForSort(f?.lastActive);
-        if (!d) return 2; // missing timestamp → grey
-        const minutesAgo = Math.floor((Date.now() - d.getTime()) / (1000 * 60));
-        if (minutesAgo > 12 * 60) return 2; // stale activity → grey
-
-        // Status-based grouping (only after recency check)
-        const status = f?.lastKnownLocation?.campusStatus;
-        if (status === "on_campus") return 0; // green first
-        if (status === "off_campus") return 1; // red second
-
-        // Unknown status → grey group
-        return 2;
+        // Use schedule-based presence state for sorting
+        switch (state) {
+          case "FREE_ON_CAMPUS":
+            return 0; // Free friends first (green)
+          case "IN_CLASS":
+            return 1; // In class second (blue)
+          case "NO_CLASSES":
+            // Differentiate between "class later/soon" vs "no classes today"
+            if (pillText === "CLASS SOON" || pillText === "CLASS LATER") {
+              return 2; // Has class coming up - likely on campus waiting
+            }
+            return 4; // Done for the day - may have left campus
+          case "OFF_CAMPUS":
+            return 3; // Off campus (red)
+          case "UNKNOWN_NO_DATA":
+          case "UNKNOWN_PRIVATE":
+          default:
+            return 5; // No data / private last (grey)
+        }
       };
+
       const ageMs = (f) => {
         try {
           const d = normalizeTimestampForSort(f?.lastActive);
@@ -4852,6 +4871,7 @@ export class HorizontalFriendsBar {
           return Number.POSITIVE_INFINITY;
         }
       };
+
       this.quickAccessFriends.sort((a, b) => {
         const p = presencePriority(a) - presencePriority(b);
         if (p !== 0) return p;

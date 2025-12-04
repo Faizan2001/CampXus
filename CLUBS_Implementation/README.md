@@ -23,7 +23,7 @@ Welcome to the Clubs Feature implementation documentation for MeetchuThere!
 
 ## 🎯 Key Decisions Summary
 
-- **Location**: Clubs live inside Groups tab as a secondary tab (`Classes | Clubs`)
+- **Location**: Clubs is a top-level navigation item (shown as "Clubs" in nav, routes via `#clubs`)
 - **Focus**: Events only (no announcements) — keeping it action-oriented
 - **Permissions**: Admin → SAF Moderators → Club Presidents → Officials → Students
 - **Storage**: 90-day event retention, 1 hero image per event
@@ -52,7 +52,9 @@ const encoder = new TextEncoder();
 const data = encoder.encode(pin);
 crypto.subtle.digest("SHA-256", data).then((hash) => {
   const hashArray = Array.from(new Uint8Array(hash));
-  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  const hashHex = hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
   console.log("PIN Hash:", hashHex);
 });
 ```

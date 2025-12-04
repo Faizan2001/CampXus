@@ -56,6 +56,11 @@ let _messagesHasUnread = false;
 let _messagesSpacesCache = []; // Cache for recalculation on view
 let _messagesUserId = null; // Track which user's spaces are cached
 
+// Clubs notification indicator
+let clubsNotifUnsub = null;
+let activeClubsNotifUid = null;
+let _clubsHasAlert = false; // any unread club notifications
+
 // 🎯 CRITICAL FIX: Initialize immediately when module loads (for SPA compatibility)
 // Don't wait for DOMContentLoaded in SPA mode - initialize when script loads
 initializeMenuSystem();
@@ -96,6 +101,9 @@ function initializeInteractiveElements() {
 
   // Initialize notifications nav indicator (real-time)
   initializeNotificationsIndicator();
+
+  // Initialize clubs nav indicator (real-time club notifications)
+  initializeClubsIndicator();
 
   // Initialize Messages button and indicator (class spaces entry)
   initializeMessagesEntry();
@@ -1086,12 +1094,23 @@ function initializeMobileBottomNav() {
           try {
             const url = getAvatarUrl(info);
             if (url) {
-              sheetAvatar.innerHTML = `<img src="${url}" alt="User Avatar">`;
+              // Render avatar image via DOM APIs to avoid innerHTML injection
+              sheetAvatar.innerHTML = "";
+              const img = document.createElement("img");
+              img.src = url;
+              img.alt = "User Avatar";
+              sheetAvatar.appendChild(img);
             } else {
-              sheetAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+              sheetAvatar.innerHTML = "";
+              const icon = document.createElement("i");
+              icon.className = "fas fa-user-circle";
+              sheetAvatar.appendChild(icon);
             }
           } catch {
-            sheetAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+            sheetAvatar.innerHTML = "";
+            const icon = document.createElement("i");
+            icon.className = "fas fa-user-circle";
+            sheetAvatar.appendChild(icon);
           }
         }
       }
@@ -1138,12 +1157,26 @@ function updateMobileUserAvatar(userData) {
   try {
     const avatarUrl = getAvatarUrl(userData);
     if (avatarUrl) {
-      mobileUserAvatar.innerHTML = `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img" style="width: 24px; height: 24px; border-radius: 50%;">`;
+      mobileUserAvatar.innerHTML = "";
+      const img = document.createElement("img");
+      img.src = avatarUrl;
+      img.alt = "User Avatar";
+      img.className = "user-avatar-img";
+      img.style.width = "24px";
+      img.style.height = "24px";
+      img.style.borderRadius = "50%";
+      mobileUserAvatar.appendChild(img);
     } else {
-      mobileUserAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+      mobileUserAvatar.innerHTML = "";
+      const icon = document.createElement("i");
+      icon.className = "fas fa-user-circle";
+      mobileUserAvatar.appendChild(icon);
     }
   } catch (error) {
-    mobileUserAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+    mobileUserAvatar.innerHTML = "";
+    const icon = document.createElement("i");
+    icon.className = "fas fa-user-circle";
+    mobileUserAvatar.appendChild(icon);
   }
 }
 
@@ -1341,6 +1374,91 @@ function toggleNotificationsDot(show) {
 
 function recomputeNotificationsDot() {
   toggleNotificationsDot(_notifDocsHasAlert || _pendingFriendHasAlert);
+}
+
+// =========================
+// Clubs Nav Indicator
+// =========================
+// Shows red dot on Clubs nav when there are unread club notifications
+
+function initializeClubsIndicator() {
+  try {
+    if (currentUser && typeof currentUser.subscribe === "function") {
+      currentUser.subscribe(() => {
+        const uid = currentUser.uid;
+        // Only (re)setup listeners when UID changes
+        if (uid === activeClubsNotifUid) {
+          return;
+        }
+
+        activeClubsNotifUid = uid || null;
+        if (!uid) {
+          teardownClubsIndicator();
+          toggleClubsDot(false);
+          return;
+        }
+        setupClubsIndicatorListener(uid);
+      });
+    }
+  } catch (e) {
+    console.warn("⚠️ Failed to initialize clubs indicator:", e);
+  }
+}
+
+async function setupClubsIndicatorListener(userId) {
+  try {
+    teardownClubsIndicator();
+    const dm = await getMenuDataManager();
+    if (!dm) {
+      console.warn("Menu: DataService unavailable; clubs indicator disabled");
+      return;
+    }
+
+    // Listen to user's notifications for unread club notifications
+    clubsNotifUnsub = dm.setupNotificationsListener(userId, (notifications) => {
+      // Check for any unread club notifications (type starts with "club_")
+      _clubsHasAlert = notifications.some((n) => {
+        const isUnseen =
+          !n.readAt &&
+          !n.dismissedAt &&
+          n.status !== "read" &&
+          n.status !== "dismissed";
+        const isClubType =
+          typeof n.type === "string" && n.type.startsWith("club_");
+        return isUnseen && isClubType;
+      });
+      toggleClubsDot(_clubsHasAlert);
+    });
+  } catch (e) {
+    console.warn("⚠️ Could not set clubs indicator listener:", e);
+  }
+}
+
+function teardownClubsIndicator() {
+  if (clubsNotifUnsub && typeof clubsNotifUnsub === "function") {
+    try {
+      clubsNotifUnsub();
+    } catch (_) {}
+  }
+  clubsNotifUnsub = null;
+}
+
+function toggleClubsDot(show) {
+  // Desktop nav - Clubs tab
+  const desktopLink = document.querySelector(
+    '.nav-link[data-spa-route="clubs"]'
+  );
+  if (desktopLink) {
+    desktopLink.classList.toggle("has-alert", !!show);
+  }
+
+  // Mobile bottom nav
+  const mobileLink = document.querySelector(
+    '.mobile-nav-item[data-spa-route="clubs"]'
+  );
+  if (mobileLink) {
+    mobileLink.classList.toggle("has-alert", !!show);
+  }
 }
 
 // =========================

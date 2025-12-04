@@ -5,6 +5,7 @@
  */
 
 import { currentUser } from "../../store/userStore.js";
+import { showModal } from "../modals/Modal.js";
 import { notificationManager } from "../../services/realtime/NotificationService.js";
 import { logManager } from "../../utils/debug/LogManager.js";
 
@@ -19,6 +20,7 @@ export class EventDetailModal {
 
     this.overlay = null;
     this.countdownInterval = null;
+    this.escHandler = null; // Bug #47: Initialize for proper cleanup
   }
 
   /**
@@ -285,7 +287,40 @@ export class EventDetailModal {
       return `<span class="event-detail-status pending"><i class="fas fa-clock"></i> Pending Approval</span>`;
     }
     if (this.event.status === "rejected") {
-      return `<span class="event-detail-status rejected"><i class="fas fa-times-circle"></i> Rejected</span>`;
+      const isSafRejection = this.event.safRejected === true;
+      const rejectorName = this.event.rejectedByInfo?.firstName
+        ? `${this.event.rejectedByInfo.firstName} ${
+            this.event.rejectedByInfo.lastName || ""
+          }`.trim()
+        : this.event.rejectedByInfo?.name || "Moderator";
+      const rejectionReason = this.event.rejectionReason || "";
+      const rejectionSource = isSafRejection
+        ? "SAF Moderation"
+        : "Club Official";
+      const rejectionIcon = isSafRejection ? "fa-shield-alt" : "fa-user-tie";
+      const statusClass = isSafRejection ? "rejected saf-rejected" : "rejected";
+      return `
+        <div class="event-rejection-info ${
+          isSafRejection ? "saf-rejection" : ""
+        }">
+          <span class="event-detail-status ${statusClass}"><i class="fas fa-times-circle"></i> Rejected${
+        isSafRejection ? " by SAF" : ""
+      }</span>
+          <div class="rejection-details">
+            <p class="rejection-source"><i class="fas ${rejectionIcon}"></i> ${rejectionSource}</p>
+            <p class="rejection-by">Rejected by <strong>${escapeHtml(
+              rejectorName
+            )}</strong></p>
+            ${
+              rejectionReason
+                ? `<p class="rejection-reason"><i class="fas fa-comment-alt"></i> "${escapeHtml(
+                    rejectionReason
+                  )}"</p>`
+                : ""
+            }
+          </div>
+        </div>
+      `;
     }
     if (this.event.status === "cancelled") {
       return `<span class="event-detail-status cancelled"><i class="fas fa-ban"></i> Cancelled</span>`;
@@ -382,7 +417,7 @@ export class EventDetailModal {
           <div class="event-hero-container">
             <img src="${e.imageUrl}" alt="${escapeHtml(
         e.title
-      )}" class="event-hero-image" />
+      )}" class="event-hero-image" loading="lazy" />
             
             <div class="event-hero-overlay">
               <div class="event-hero-content">
@@ -735,14 +770,55 @@ export class EventDetailModal {
   }
 
   /**
+   * Show styled confirmation modal using the shared modal API
+   */
+  showConfirmationModal({
+    title,
+    message,
+    hint,
+    confirmText,
+    confirmClass,
+    onConfirm,
+  }) {
+    // Build HTML content from message and hint
+    const content = `
+      <p>${message}</p>
+      ${
+        hint
+          ? `<p class="modal-hint"><i class="fas fa-info-circle"></i> ${hint}</p>`
+          : ""
+      }
+    `;
+
+    showModal({
+      title,
+      content,
+      isHtmlContent: true,
+      showConfirmationButtons: true,
+      confirmText: confirmText || "Confirm",
+      cancelText: "Cancel",
+      onConfirm,
+    });
+  }
+
+  /**
    * Handle End Event button click - Mark event as no longer live
    */
   async handleEndEvent() {
-    const confirmed = confirm(
-      `End "${this.event.title}"?\n\nThe event will no longer appear as live.`
-    );
-    if (!confirmed) return;
+    this.showConfirmationModal({
+      title: "End Event",
+      message: `End "${this.event.title}"?`,
+      hint: "The event will no longer appear as live.",
+      confirmText: "End Event",
+      confirmClass: "warning",
+      onConfirm: () => this.executeEndEvent(),
+    });
+  }
 
+  /**
+   * Execute the end event action after confirmation
+   */
+  async executeEndEvent() {
     const btn = this.overlay.querySelector("#endEventBtn");
     if (btn) {
       btn.disabled = true;
@@ -790,11 +866,20 @@ export class EventDetailModal {
    * Confirm and delete the event
    */
   async confirmDelete() {
-    const confirmed = confirm(
-      `Delete "${this.event.title}"?\n\nThis cannot be undone.`
-    );
-    if (!confirmed) return;
+    this.showConfirmationModal({
+      title: "Delete Event",
+      message: `Delete "${this.event.title}"?`,
+      hint: "This action cannot be undone.",
+      confirmText: "Delete",
+      confirmClass: "danger",
+      onConfirm: () => this.executeDelete(),
+    });
+  }
 
+  /**
+   * Execute the delete action after confirmation
+   */
+  async executeDelete() {
     const deleteBtn = this.overlay.querySelector("#deleteEventBtn");
     if (deleteBtn) {
       deleteBtn.disabled = true;
@@ -804,6 +889,22 @@ export class EventDetailModal {
     try {
       const { db } = await import("../../lib/firebase/firebase-config.js");
       const { doc, deleteDoc } = await import("firebase/firestore");
+
+      // Bug #30: Delete associated image first (if any)
+      if (this.event.imageUrl) {
+        try {
+          const { deleteEventImage } = await import(
+            "../../services/clubs/ClubImageService.js"
+          );
+          await deleteEventImage(this.clubData.id, this.event.id);
+        } catch (imgErr) {
+          // Log but don't fail the delete - image cleanup is best-effort
+          logManager.warn(
+            "[EventDetailModal] Failed to delete event image:",
+            imgErr
+          );
+        }
+      }
 
       await deleteDoc(
         doc(db, "clubs", this.clubData.id, "events", this.event.id)

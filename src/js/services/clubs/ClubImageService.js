@@ -1,7 +1,7 @@
 /**
  * ClubImageService - Handles image processing and upload for clubs/events
  * Follows the same pattern as ProfilePhotoService
- * 
+ *
  * SECURITY: File paths include ownerUid prefix to enforce storage rules
  * Format: {ownerUid}_hero.webp - rules verify request.auth.uid matches prefix
  */
@@ -45,7 +45,7 @@ function resizeToFit(img, maxWidth = 1200, maxHeight = 675) {
 
   // Calculate scale to fit within max dimensions
   const scale = Math.min(maxWidth / srcW, maxHeight / srcH, 1);
-  
+
   const newW = Math.round(srcW * scale);
   const newH = Math.round(srcH * scale);
 
@@ -55,9 +55,9 @@ function resizeToFit(img, maxWidth = 1200, maxHeight = 675) {
   // Use high-quality image rendering
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  
+
   ctx.drawImage(img, 0, 0, newW, newH);
-  
+
   return canvas;
 }
 
@@ -79,7 +79,7 @@ function centerCropToSquare(img, size) {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
-  
+
   return canvas;
 }
 
@@ -88,11 +88,7 @@ function centerCropToSquare(img, size) {
  */
 async function canvasToWebPBlob(canvas, quality = 0.85) {
   return new Promise((resolve) => {
-    canvas.toBlob(
-      (blob) => resolve(blob),
-      "image/webp",
-      quality
-    );
+    canvas.toBlob((blob) => resolve(blob), "image/webp", quality);
   });
 }
 
@@ -117,9 +113,13 @@ export async function processEventImage(file) {
   const img = await fileToImage(file);
   const canvas = resizeToFit(img, 1200, 675);
   const blob = await canvasToWebPBlob(canvas, 0.85);
-  
-  logManager.debug(`[ClubImageService] Processed event image: ${Math.round(blob.size / 1024)}KB`);
-  
+
+  logManager.debug(
+    `[ClubImageService] Processed event image: ${Math.round(
+      blob.size / 1024
+    )}KB`
+  );
+
   return blob;
 }
 
@@ -130,51 +130,78 @@ export async function processEventImage(file) {
  * Returns the download URL
  */
 export async function uploadEventImage(clubId, eventId, blob) {
-  const storage = await getStorageInstance();
-  const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
-  
   const ownerUid = currentUser?.uid;
   if (!ownerUid) {
     throw new Error("Must be authenticated to upload event images");
   }
-  
-  // Filename includes ownerUid prefix for storage rule validation
-  const filename = `${ownerUid}_hero.webp`;
-  const path = `clubEvents/${clubId}/${eventId}/${filename}`;
-  const imageRef = ref(storage, path);
-  
-  await uploadBytes(imageRef, blob, { contentType: "image/webp" });
-  const url = await getDownloadURL(imageRef);
-  
-  logManager.info(`[ClubImageService] Uploaded event image: ${path}`);
-  
-  return url;
+
+  try {
+    const storage = await getStorageInstance();
+    const { ref, uploadBytes, getDownloadURL } = await import(
+      "firebase/storage"
+    );
+
+    // Filename includes ownerUid prefix for storage rule validation
+    const filename = `${ownerUid}_hero.webp`;
+    const path = `clubEvents/${clubId}/${eventId}/${filename}`;
+    const imageRef = ref(storage, path);
+
+    await uploadBytes(imageRef, blob, { contentType: "image/webp" });
+    const url = await getDownloadURL(imageRef);
+
+    logManager.info(`[ClubImageService] Uploaded event image: ${path}`);
+
+    return url;
+  } catch (err) {
+    logManager.error(`[ClubImageService] Failed to upload event image:`, err);
+    throw new Error(
+      `Failed to upload image: ${err.message || "Unknown error"}`
+    );
+  }
 }
 
 /**
  * Delete event image from Storage
- * Note: Can only delete images you uploaded (filename must match your UID)
+ *
+ * LIMITATION: Can only delete images you uploaded (filename must match your UID).
+ * If a different user uploaded the image, it will remain as an orphan.
+ * For complete cleanup, use a Cloud Function with admin privileges.
+ *
+ * @param {string} clubId - The club ID
+ * @param {string} eventId - The event ID
  */
 export async function deleteEventImage(clubId, eventId) {
+  const ownerUid = currentUser?.uid;
+  if (!ownerUid) {
+    logManager.warn(
+      "[ClubImageService] Cannot delete event image: not authenticated"
+    );
+    return;
+  }
+
   try {
     const storage = await getStorageInstance();
-    const { ref, deleteObject, listAll } = await import("firebase/storage");
-    
-    const ownerUid = currentUser?.uid;
-    if (!ownerUid) {
-      throw new Error("Must be authenticated to delete event images");
-    }
-    
+    const { ref, deleteObject } = await import("firebase/storage");
+
     // Try to delete with current user's UID prefix
     const filename = `${ownerUid}_hero.webp`;
     const path = `clubEvents/${clubId}/${eventId}/${filename}`;
     const imageRef = ref(storage, path);
-    
+
     await deleteObject(imageRef);
     logManager.info(`[ClubImageService] Deleted event image: ${path}`);
   } catch (err) {
-    // Ignore if file doesn't exist or permission denied (someone else uploaded it)
-    if (err.code !== "storage/object-not-found") {
+    // Ignore if file doesn't exist (normal case) or permission denied (someone else uploaded it)
+    if (err.code === "storage/object-not-found") {
+      // File doesn't exist - this is fine, might have been uploaded by someone else
+      logManager.debug(
+        `[ClubImageService] Event image not found (may have been uploaded by different user): ${clubId}/${eventId}`
+      );
+    } else if (err.code === "storage/unauthorized") {
+      logManager.debug(
+        `[ClubImageService] Cannot delete event image (uploaded by different user): ${clubId}/${eventId}`
+      );
+    } else {
       logManager.warn(`[ClubImageService] Failed to delete event image:`, err);
     }
   }
@@ -191,9 +218,11 @@ export async function processClubLogo(file) {
   const img = await fileToImage(file);
   const canvas = centerCropToSquare(img, 256);
   const blob = await canvasToWebPBlob(canvas, 0.85);
-  
-  logManager.debug(`[ClubImageService] Processed club logo: ${Math.round(blob.size / 1024)}KB`);
-  
+
+  logManager.debug(
+    `[ClubImageService] Processed club logo: ${Math.round(blob.size / 1024)}KB`
+  );
+
   return blob;
 }
 
@@ -204,9 +233,13 @@ export async function processClubBanner(file) {
   const img = await fileToImage(file);
   const canvas = resizeToFit(img, 1200, 400);
   const blob = await canvasToWebPBlob(canvas, 0.85);
-  
-  logManager.debug(`[ClubImageService] Processed club banner: ${Math.round(blob.size / 1024)}KB`);
-  
+
+  logManager.debug(
+    `[ClubImageService] Processed club banner: ${Math.round(
+      blob.size / 1024
+    )}KB`
+  );
+
   return blob;
 }
 
@@ -215,24 +248,31 @@ export async function processClubBanner(file) {
  * Path: clubAssets/{clubId}/{ownerUid}_logo.webp
  */
 export async function uploadClubLogo(clubId, blob) {
-  const storage = await getStorageInstance();
-  const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
-  
   const ownerUid = currentUser?.uid;
   if (!ownerUid) {
     throw new Error("Must be authenticated to upload club logo");
   }
-  
-  const filename = `${ownerUid}_logo.webp`;
-  const path = `clubAssets/${clubId}/${filename}`;
-  const imageRef = ref(storage, path);
-  
-  await uploadBytes(imageRef, blob, { contentType: "image/webp" });
-  const url = await getDownloadURL(imageRef);
-  
-  logManager.info(`[ClubImageService] Uploaded club logo: ${path}`);
-  
-  return url;
+
+  try {
+    const storage = await getStorageInstance();
+    const { ref, uploadBytes, getDownloadURL } = await import(
+      "firebase/storage"
+    );
+
+    const filename = `${ownerUid}_logo.webp`;
+    const path = `clubAssets/${clubId}/${filename}`;
+    const imageRef = ref(storage, path);
+
+    await uploadBytes(imageRef, blob, { contentType: "image/webp" });
+    const url = await getDownloadURL(imageRef);
+
+    logManager.info(`[ClubImageService] Uploaded club logo: ${path}`);
+
+    return url;
+  } catch (err) {
+    logManager.error(`[ClubImageService] Failed to upload club logo:`, err);
+    throw new Error(`Failed to upload logo: ${err.message || "Unknown error"}`);
+  }
 }
 
 /**
@@ -240,22 +280,31 @@ export async function uploadClubLogo(clubId, blob) {
  * Path: clubAssets/{clubId}/{ownerUid}_banner.webp
  */
 export async function uploadClubBanner(clubId, blob) {
-  const storage = await getStorageInstance();
-  const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
-  
   const ownerUid = currentUser?.uid;
   if (!ownerUid) {
     throw new Error("Must be authenticated to upload club banner");
   }
-  
-  const filename = `${ownerUid}_banner.webp`;
-  const path = `clubAssets/${clubId}/${filename}`;
-  const imageRef = ref(storage, path);
-  
-  await uploadBytes(imageRef, blob, { contentType: "image/webp" });
-  const url = await getDownloadURL(imageRef);
-  
-  logManager.info(`[ClubImageService] Uploaded club banner: ${path}`);
-  
-  return url;
+
+  try {
+    const storage = await getStorageInstance();
+    const { ref, uploadBytes, getDownloadURL } = await import(
+      "firebase/storage"
+    );
+
+    const filename = `${ownerUid}_banner.webp`;
+    const path = `clubAssets/${clubId}/${filename}`;
+    const imageRef = ref(storage, path);
+
+    await uploadBytes(imageRef, blob, { contentType: "image/webp" });
+    const url = await getDownloadURL(imageRef);
+
+    logManager.info(`[ClubImageService] Uploaded club banner: ${path}`);
+
+    return url;
+  } catch (err) {
+    logManager.error(`[ClubImageService] Failed to upload club banner:`, err);
+    throw new Error(
+      `Failed to upload banner: ${err.message || "Unknown error"}`
+    );
+  }
 }

@@ -6,20 +6,22 @@ This document defines the Firebase Cloud Functions required for the Clubs featur
 
 ## 📋 Functions Overview
 
-| Function                  | Trigger        | Purpose                    |
-| ------------------------- | -------------- | -------------------------- |
-| `onClubFollow`            | Firestore      | Update follower counts     |
-| `onClubUnfollow`          | Firestore      | Update follower counts     |
-| `promoteToOfficial`       | HTTPS Callable | Role management            |
-| `demoteOfficial`          | HTTPS Callable | Role management            |
-| `assignPresident`         | HTTPS Callable | President assignment       |
-| `onEventCreated`          | Firestore      | Notify president           |
-| `onEventStatusChanged`    | Firestore      | Notify creator & followers |
-| `onEventStarted`          | Firestore      | Notify followers           |
-| `sendEventReminders`      | Scheduled      | 15-min reminders           |
-| `cleanupOldEvents`        | Scheduled      | 90-day retention           |
-| `cleanupExpiredAnnouncements` | Scheduled  | 24-hour TTL                |
-| `updateWeeklyEventCounts` | Scheduled      | Stats refresh              |
+| Function                      | Trigger        | Purpose                    |
+| ----------------------------- | -------------- | -------------------------- |
+| `onClubFollow`                | Firestore      | Update follower counts     |
+| `onClubUnfollow`              | Firestore      | Update follower counts     |
+| `promoteToOfficial`           | HTTPS Callable | Role management            |
+| `demoteOfficial`              | HTTPS Callable | Role management            |
+| `assignPresident`             | HTTPS Callable | President assignment       |
+| `onEventCreated`              | Firestore      | Notify president           |
+| `onEventStatusChanged`        | Firestore      | Notify creator & followers |
+| `onEventStarted`              | Firestore      | Notify followers           |
+| `sendEventReminders`          | Scheduled      | 15-min reminders           |
+| `cleanupOldEvents`            | Scheduled      | 90-day retention           |
+| `cleanupExpiredAnnouncements` | Scheduled      | 24-hour TTL                |
+| `updateWeeklyEventCounts`     | Scheduled      | Stats refresh              |
+| `manualCleanupOldEvents`      | HTTPS Callable | Dev testing for cleanup    |
+| `verifyOrphanedImages`        | HTTPS Callable | Check orphaned images      |
 
 ---
 
@@ -610,16 +612,20 @@ exports.onEventStarted = functions.firestore
       const club = clubDoc.data();
 
       // Create "Event is now live!" announcement
-      await db.collection(`clubs/${clubId}/events/${eventId}/announcements`).add({
-        content: "Event is now live! 🎉",
-        postedBy: after.startedBy,
-        posterInfo: after.startedByInfo,
-        type: "event_live",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        expiresAt: after.lastSlotEnd
-          ? new Date(after.lastSlotEnd.toDate().getTime() + 24 * 60 * 60 * 1000)
-          : new Date(Date.now() + 48 * 60 * 60 * 1000),
-      });
+      await db
+        .collection(`clubs/${clubId}/events/${eventId}/announcements`)
+        .add({
+          content: "Event is now live! 🎉",
+          postedBy: after.startedBy,
+          posterInfo: after.startedByInfo,
+          type: "event_live",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          expiresAt: after.lastSlotEnd
+            ? new Date(
+                after.lastSlotEnd.toDate().getTime() + 24 * 60 * 60 * 1000
+              )
+            : new Date(Date.now() + 48 * 60 * 60 * 1000),
+        });
 
       // Notify followers
       await notifyClubFollowers(clubId, {
@@ -763,10 +769,12 @@ exports.cleanupOldEvents = functions.pubsub
           // (Implementation depends on your storage structure)
         }
 
-        // Delete live chat subcollection first
-        const liveChatDocs = await eventDoc.ref.collection("liveChat").get();
+        // Delete announcements subcollection first
+        const announcementDocs = await eventDoc.ref
+          .collection("announcements")
+          .get();
         const batch = db.batch();
-        liveChatDocs.docs.forEach((doc) => batch.delete(doc.ref));
+        announcementDocs.docs.forEach((doc) => batch.delete(doc.ref));
         await batch.commit();
 
         // Delete event document
@@ -1010,6 +1018,133 @@ exports.cleanupOldClubNotifications = functions.pubsub
     console.log(`Deleted ${totalDeleted} old club notifications`);
     return null;
   });
+
+/**
+ * Manual Cleanup for Dev Testing (R21)
+ * Allows super admins to trigger cleanup with custom parameters
+ */
+exports.manualCleanupOldEvents = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Authentication required");
+  }
+
+  // Verify super admin
+  const superAdminsDoc = await db.doc("admin/superAdmins").get();
+  const superAdminUids = superAdminsDoc.exists
+    ? superAdminsDoc.data()?.uids || []
+    : [];
+  if (!superAdminUids.includes(uid)) {
+    throw new HttpsError("permission-denied", "Super admin access required");
+  }
+
+  const { daysOld = 90, dryRun = true } = request.data || {};
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+  let eventsFound = 0;
+  let eventsDeleted = 0;
+  const eventsList = [];
+
+  const clubsSnap = await db.collection("clubs").get();
+
+  for (const clubDoc of clubsSnap.docs) {
+    const clubId = clubDoc.id;
+    const clubName = clubDoc.data()?.name || clubId;
+
+    const eventsSnap = await db
+      .collection("clubs")
+      .doc(clubId)
+      .collection("events")
+      .get();
+
+    for (const eventDoc of eventsSnap.docs) {
+      const event = eventDoc.data();
+      const lastSlotEnd = event.lastSlotEnd?.toDate?.();
+
+      if (lastSlotEnd && lastSlotEnd < cutoffDate) {
+        eventsFound++;
+        eventsList.push({
+          clubName,
+          eventId: eventDoc.id,
+          title: event.title || "Untitled",
+          endDate: lastSlotEnd.toISOString(),
+        });
+
+        if (!dryRun) {
+          // Delete announcements first
+          const announcementsSnap = await eventDoc.ref
+            .collection("announcements")
+            .get();
+          const batch = db.batch();
+          announcementsSnap.docs.forEach((doc) => batch.delete(doc.ref));
+          await batch.commit();
+
+          await eventDoc.ref.delete();
+          eventsDeleted++;
+        }
+      }
+    }
+  }
+
+  return {
+    success: true,
+    dryRun,
+    daysOld,
+    eventsFound,
+    eventsDeleted,
+    events: eventsList.slice(0, 50), // Limit response size
+  };
+});
+
+/**
+ * Orphaned Image Verification (R20)
+ * Lists all event image URLs to verify against Storage
+ */
+exports.verifyOrphanedImages = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Authentication required");
+  }
+
+  // Verify super admin
+  const superAdminsDoc = await db.doc("admin/superAdmins").get();
+  const superAdminUids = superAdminsDoc.exists
+    ? superAdminsDoc.data()?.uids || []
+    : [];
+  if (!superAdminUids.includes(uid)) {
+    throw new HttpsError("permission-denied", "Super admin access required");
+  }
+
+  const existingImageUrls = [];
+  const clubsSnap = await db.collection("clubs").get();
+
+  for (const clubDoc of clubsSnap.docs) {
+    const eventsSnap = await db
+      .collection("clubs")
+      .doc(clubDoc.id)
+      .collection("events")
+      .get();
+
+    for (const eventDoc of eventsSnap.docs) {
+      const imageUrl = eventDoc.data()?.imageUrl;
+      if (imageUrl) {
+        existingImageUrls.push({
+          clubId: clubDoc.id,
+          eventId: eventDoc.id,
+          imageUrl,
+        });
+      }
+    }
+  }
+
+  return {
+    success: true,
+    totalEventsWithImages: existingImageUrls.size,
+    images: existingImageUrls.slice(0, 100), // Limit response
+    message: "Compare against Storage bucket listing to find orphans",
+  };
+});
 ```
 
 ---

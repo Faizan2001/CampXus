@@ -36,6 +36,8 @@ export class LiveEventsSection {
     this.events = { live: [], upcoming: [], past: [] };
     this.clubs = new Map(); // Cache club data
     this.refreshInterval = null;
+    this.isDestroyed = false; // Flag to prevent updates after destroy
+    this.isLoading = false; // Bug #25: Flag to prevent concurrent loadEvents calls
 
     // Dropdown state
     this.upcomingExpanded = false;
@@ -56,6 +58,10 @@ export class LiveEventsSection {
    * Load events that are live, happening now, upcoming, or recently past
    */
   async loadEvents() {
+    // Bug #25: Prevent concurrent loadEvents calls
+    if (this.isLoading) return;
+    this.isLoading = true;
+
     try {
       const { db } = await import("../../lib/firebase/firebase-config.js");
       const { collection, query, where, getDocs, orderBy, Timestamp } =
@@ -69,11 +75,22 @@ export class LiveEventsSection {
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
       // First, get all clubs for this university
-      const clubsQuery = query(
+      // Try universityCode first, then fallback to university field
+      let clubsSnap;
+      const clubsQueryByCode = query(
         collection(db, "clubs"),
         where("universityCode", "==", this.universityCode)
       );
-      const clubsSnap = await getDocs(clubsQuery);
+      clubsSnap = await getDocs(clubsQueryByCode);
+
+      // If no clubs found by universityCode, try university field as fallback
+      if (clubsSnap.empty) {
+        const clubsQueryByName = query(
+          collection(db, "clubs"),
+          where("university", "==", this.universityCode)
+        );
+        clubsSnap = await getDocs(clubsQueryByName);
+      }
 
       this.clubs.clear();
       const allEvents = [];
@@ -116,6 +133,8 @@ export class LiveEventsSection {
         error
       );
       this.events = { live: [], upcoming: [], past: [] };
+    } finally {
+      this.isLoading = false; // Bug #25: Reset loading flag
     }
   }
 
@@ -136,13 +155,15 @@ export class LiveEventsSection {
       const { isInTimeWindow, hasEnded, firstStart, lastEnd } =
         this.getEventTimeInfo(event, now);
 
-      // Check if officially ended by an official
+      // Check if officially ended by an official OR explicitly stopped (e.g., edited while live)
       const isOfficiallyEnded = !!event.endedAt;
+      const wasLiveStopped = !!event.liveStoppedAt;
 
       // Event is past if:
       // 1. Officially ended by an official, OR
-      // 2. Its scheduled end time has passed
-      const isPast = isOfficiallyEnded || hasEnded;
+      // 2. Explicitly stopped (liveStoppedAt is set), OR
+      // 3. Its scheduled end time has passed
+      const isPast = isOfficiallyEnded || wasLiveStopped || hasEnded;
 
       if (isPast) {
         // Only show past events from last 7 days
@@ -184,7 +205,8 @@ export class LiveEventsSection {
 
   /**
    * Get time information for an event
-   * Handles overnight events where endTime < startTime (ends next day)
+   * R25: For multi-day events, only mark as live when now is within one of the
+   * specific day/time ranges, NOT as a continuous window from first start to last end.
    */
   getEventTimeInfo(event, now) {
     if (!event.timeSlots || event.timeSlots.length === 0) {
@@ -202,14 +224,29 @@ export class LiveEventsSection {
     const firstStart = new Date(`${firstSlot.date}T${firstSlot.startTime}`);
     let lastEnd = new Date(`${lastSlot.date}T${lastSlot.endTime}`);
 
-    // Handle overnight events: if end time is before start time, it means the event
-    // ends the next day (e.g., 10PM to 1AM)
+    // Handle overnight events for last slot
     if (lastSlot.endTime < lastSlot.startTime) {
       lastEnd.setDate(lastEnd.getDate() + 1);
     }
 
-    // Event is "in time window" when current time is between start and end
-    const isInTimeWindow = now >= firstStart && now <= lastEnd;
+    // R25: Check each time slot individually - event is only "in time window"
+    // when current time is within one of the defined day/time ranges
+    let isInTimeWindow = false;
+    for (const slot of event.timeSlots) {
+      const slotStart = new Date(`${slot.date}T${slot.startTime}`);
+      let slotEnd = new Date(`${slot.date}T${slot.endTime}`);
+
+      // Handle overnight: if end time is before start time, event ends next day
+      if (slot.endTime < slot.startTime) {
+        slotEnd.setDate(slotEnd.getDate() + 1);
+      }
+
+      if (now >= slotStart && now <= slotEnd) {
+        isInTimeWindow = true;
+        break;
+      }
+    }
+
     const hasEnded = now > lastEnd;
 
     return { isInTimeWindow, hasEnded, firstStart, lastEnd };
@@ -407,7 +444,7 @@ export class LiveEventsSection {
           event.imageUrl
             ? `
           <div class="live-event-image">
-            <img src="${event.imageUrl}" alt="${title}" loading="lazy" />
+            <img src="${this.escapeAttr(event.imageUrl)}" alt="${title}" loading="lazy" />
           </div>
         `
             : ""
@@ -419,7 +456,7 @@ export class LiveEventsSection {
           <div class="live-event-club">
             ${
               club?.logoUrl
-                ? `<img src="${club.logoUrl}" alt="${club.name}" class="club-mini-logo" />`
+                ? `<img src="${this.escapeAttr(club.logoUrl)}" alt="${this.escapeHtml(club.name)}" class="club-mini-logo" loading="lazy" />`
                 : `<div class="club-mini-logo placeholder" style="background: ${
                     club?.accentColor || "#8b7de8"
                   }">
@@ -478,7 +515,7 @@ export class LiveEventsSection {
           event.imageUrl
             ? `
           <div class="dropdown-event-thumb">
-            <img src="${event.imageUrl}" alt="${title}" loading="lazy" />
+            <img src="${this.escapeAttr(event.imageUrl)}" alt="${title}" loading="lazy" />
           </div>
         `
             : `
@@ -628,13 +665,23 @@ export class LiveEventsSection {
     }
 
     this.refreshInterval = setInterval(async () => {
-      // If container is no longer in the DOM, stop refreshing
-      if (!this.container || !document.body.contains(this.container)) {
+      // If container is no longer in the DOM or destroyed, stop refreshing
+      if (
+        this.isDestroyed ||
+        !this.container ||
+        !document.body.contains(this.container)
+      ) {
         this.stopAutoRefresh();
         return;
       }
 
       await this.loadEvents();
+
+      // Check again after async operation (race condition fix)
+      if (this.isDestroyed || !this.container) {
+        return;
+      }
+
       this.render();
       this.bindEvents();
     }, 60000); // 60 seconds
@@ -654,6 +701,7 @@ export class LiveEventsSection {
    * Cleanup
    */
   destroy() {
+    this.isDestroyed = true; // Mark as destroyed to prevent race conditions
     this.stopAutoRefresh();
     if (this.container) {
       this.container.innerHTML = "";
@@ -667,6 +715,24 @@ export class LiveEventsSection {
     const div = document.createElement("div");
     div.textContent = str;
     return div.innerHTML;
+  }
+
+  /**
+   * Escape value for safe use in HTML attributes (src, href, etc.)
+   */
+  escapeAttr(value) {
+    if (value == null) return "";
+    const str = String(value);
+    const lower = str.toLowerCase().trim();
+    if (lower.startsWith("javascript:") || lower.startsWith("data:text/html")) {
+      return "";
+    }
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
   }
 }
 

@@ -39,14 +39,16 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email_verified == true;
     }
 
-    // Get user document
+    // Get user document (with null safety)
     function getUserDoc(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
+      return exists(/databases/$(database)/documents/users/$(userId))
+        ? get(/databases/$(database)/documents/users/$(userId)).data
+        : null;
     }
 
-    // Get current user's document
+    // Get current user's document (with null safety)
     function getCurrentUserDoc() {
-      return getUserDoc(request.auth.uid);
+      return request.auth != null ? getUserDoc(request.auth.uid) : null;
     }
 
     // Check if user is super admin
@@ -57,44 +59,48 @@ service cloud.firestore {
     }
 
     // Check if user is SAF moderator for a university
+    // SAF moderators are stored in /safModerators/{uid} collection
     function isSafModeratorFor(university) {
       return isAuthenticated() && (
         isSuperAdmin() ||
         (
-          exists(/databases/$(database)/documents/admin/safModerators) &&
-          university in get(/databases/$(database)/documents/admin/safModerators).data &&
-          request.auth.uid in get(/databases/$(database)/documents/admin/safModerators).data[university].moderators[*].uid
+          exists(/databases/$(database)/documents/safModerators/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/safModerators/$(request.auth.uid)).data.universityId == university
         )
       );
     }
 
-    // Check if user is SAF moderator (based on user doc)
+    // Check if user is SAF moderator (any university)
     function isSafModerator() {
-      let userDoc = getCurrentUserDoc();
-      return userDoc != null &&
-        'safModeratorFor' in userDoc &&
-        userDoc.safModeratorFor.size() > 0;
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/safModerators/$(request.auth.uid));
     }
 
-    // Get club document
+    // Get club document (with null safety)
     function getClubDoc(clubId) {
-      return get(/databases/$(database)/documents/clubs/$(clubId)).data;
+      return exists(/databases/$(database)/documents/clubs/$(clubId))
+        ? get(/databases/$(database)/documents/clubs/$(clubId)).data
+        : null;
     }
 
-    // Check if user is president of a club
+    // Check if user is president of a club (with null safety)
     function isClubPresident(clubId) {
       let club = getClubDoc(clubId);
-      return isAuthenticated() && club.presidentId == request.auth.uid;
+      return isAuthenticated() &&
+        club != null &&
+        club.presidentId == request.auth.uid;
     }
 
     // Check if user is official (or higher) of a club
     function isClubOfficial(clubId) {
       let userDoc = getCurrentUserDoc();
-      return isAuthenticated() && (
+      let club = getClubDoc(clubId);
+      return isAuthenticated() && club != null && (
         isSuperAdmin() ||
-        isSafModeratorFor(getClubDoc(clubId).university) ||
+        isSafModeratorFor(club.university) ||
         isClubPresident(clubId) ||
         (
+          userDoc != null &&
           'clubRoles' in userDoc &&
           clubId in userDoc.clubRoles &&
           userDoc.clubRoles[clubId].role in ['official', 'president']
@@ -338,11 +344,11 @@ Each level inherits permissions from levels below.
 - Only President/SAF/Admin can change status to `approved`
 - Editing an approved event requires re-approval
 
-### 4. Live Chat Protection
+### 4. Announcements Protection
 
-- Only officials can CREATE messages
-- Messages cannot be updated (immutable)
-- Messages cannot be deleted by clients (TTL cleanup via Cloud Function)
+- Only officials/president can CREATE announcements
+- Announcements cannot be updated (immutable)
+- Announcements cannot be deleted by clients (TTL cleanup via Cloud Function - 24h after event ends)
 
 ### 5. Role Assignment Protection
 
@@ -382,8 +388,8 @@ These operations MUST go through Cloud Functions (not direct client writes):
    - Increments/decrements club's `followerCount`
    - Must be atomic (batch write)
 
-5. **Deleting expired live chat messages**
-   - Scheduled function
+5. **Deleting expired announcements**
+   - Scheduled function (24h after event ends)
    - Queries `expiresAt < now`
    - Batch deletes
 
@@ -399,14 +405,14 @@ These operations MUST go through Cloud Functions (not direct client writes):
 - [ ] Cannot create events
 - [ ] Can read approved events
 - [ ] Cannot read pending events
-- [ ] Cannot post in live chat
+- [ ] Cannot post announcements
 
 ### Official Tests
 
 - [ ] Can create events (status: pending_president)
 - [ ] Cannot self-approve events
 - [ ] Can edit own pending events
-- [ ] Can post in live chat
+- [ ] Can post announcements
 - [ ] Can mark event as started
 
 ### President Tests

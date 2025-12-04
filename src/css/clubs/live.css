@@ -21,21 +21,19 @@
     rgba(30, 30, 45, 0.98) 100%
   );
   border: 1px solid rgba(239, 68, 68, 0.3);
-  box-shadow: 
-    0 8px 32px rgba(239, 68, 68, 0.15),
+  box-shadow: 0 8px 32px rgba(239, 68, 68, 0.15),
     inset 0 0 0 1px rgba(239, 68, 68, 0.1);
   animation: motherCardPulse 3s ease-in-out infinite;
 }
 
 @keyframes motherCardPulse {
-  0%, 100% {
-    box-shadow: 
-      0 8px 32px rgba(239, 68, 68, 0.15),
+  0%,
+  100% {
+    box-shadow: 0 8px 32px rgba(239, 68, 68, 0.15),
       inset 0 0 0 1px rgba(239, 68, 68, 0.1);
   }
   50% {
-    box-shadow: 
-      0 12px 40px rgba(239, 68, 68, 0.25),
+    box-shadow: 0 12px 40px rgba(239, 68, 68, 0.25),
       inset 0 0 0 2px rgba(239, 68, 68, 0.2);
   }
 }
@@ -94,7 +92,8 @@
 }
 
 @keyframes statusPulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
     opacity: 1;
   }
@@ -105,7 +104,8 @@
 }
 
 @keyframes dotPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
   }
@@ -457,13 +457,14 @@
 }
 
 @keyframes liveCardBorder {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 4px 20px rgba(239, 68, 68, 0.15),
-                inset 0 0 0 1px rgba(239, 68, 68, 0.2);
+      inset 0 0 0 1px rgba(239, 68, 68, 0.2);
   }
   50% {
     box-shadow: 0 8px 32px rgba(239, 68, 68, 0.25),
-                inset 0 0 0 2px rgba(239, 68, 68, 0.35);
+      inset 0 0 0 2px rgba(239, 68, 68, 0.35);
   }
 }
 
@@ -512,13 +513,14 @@
 }
 
 @keyframes officialLiveCardBorder {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 4px 20px rgba(16, 185, 129, 0.15),
-                inset 0 0 0 1px rgba(16, 185, 129, 0.2);
+      inset 0 0 0 1px rgba(16, 185, 129, 0.2);
   }
   50% {
     box-shadow: 0 8px 32px rgba(16, 185, 129, 0.25),
-                inset 0 0 0 2px rgba(16, 185, 129, 0.35);
+      inset 0 0 0 2px rgba(16, 185, 129, 0.35);
   }
 }
 
@@ -531,7 +533,8 @@
 }
 
 @keyframes badgeDotPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -804,50 +807,50 @@
   .events-mother-card {
     border-radius: 16px;
   }
-  
+
   .mother-card-header {
     padding: 0.85rem 1rem;
   }
-  
+
   .status-text {
     font-size: 0.85rem;
   }
-  
+
   .live-events-carousel {
     padding: 0 1rem 0.85rem 1rem;
     gap: 0.75rem;
   }
-  
+
   .live-event-card {
     flex: 0 0 240px;
   }
-  
+
   .live-event-image {
     height: 100px;
   }
-  
+
   .live-event-content {
     padding: 0.85rem;
   }
-  
+
   .dropdown-toggle {
     padding: 0.75rem 1rem;
   }
-  
+
   .dropdown-events-list {
     padding: 0.5rem 0.85rem 0.85rem 0.85rem;
     gap: 0.6rem;
   }
-  
+
   .dropdown-event-thumb {
     width: 48px;
     height: 48px;
   }
-  
+
   .dropdown-event-title {
     font-size: 0.82rem;
   }
-  
+
   .clubs-section-title {
     font-size: 1rem;
   }
@@ -965,4 +968,233 @@ body:not(.dark-mode) .live-event-meta span {
 
 body:not(.dark-mode) .clubs-section-title {
   color: #1a1a2e;
+}
+
+/* ========================================
+   MOBILE & PWA ENHANCEMENTS - LIVE EVENTS
+======================================== */
+
+@media (max-width: 600px) {
+  /* Mother card */
+  .events-mother-card {
+    margin-bottom: 1rem;
+    border-radius: 16px;
+  }
+
+  .mother-card-header {
+    padding: 0.85rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .mother-card-status {
+    gap: 0.5rem;
+  }
+
+  .status-indicator {
+    width: 12px;
+    height: 12px;
+  }
+
+  .status-indicator.live .status-dot,
+  .status-indicator.dormant .status-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .status-text {
+    font-size: 0.9rem;
+  }
+
+  .status-text .live-count {
+    font-size: 1rem;
+  }
+
+  .mother-card-badge {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.65rem;
+  }
+
+  /* No live events */
+  .no-live-events {
+    padding: 1.5rem 1rem;
+  }
+
+  .no-live-events i {
+    font-size: 1.75rem;
+  }
+
+  .no-live-events p {
+    font-size: 0.8rem;
+  }
+
+  /* Dropdowns */
+  .dropdown-toggle {
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    min-height: 44px;
+  }
+
+  .dropdown-count {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+  }
+
+  .dropdown-content {
+    padding: 0.5rem 0.75rem 0.75rem;
+  }
+
+  .dropdown-events {
+    gap: 0.5rem;
+  }
+
+  /* Dropdown event cards */
+  .dropdown-event-card {
+    padding: 0.65rem;
+    gap: 0.5rem;
+  }
+
+  .dropdown-event-date-badge {
+    width: 40px;
+    padding: 0.35rem;
+  }
+
+  .dropdown-event-date-badge .date-month {
+    font-size: 0.55rem;
+  }
+
+  .dropdown-event-date-badge .date-day {
+    font-size: 0.95rem;
+  }
+
+  .dropdown-event-info {
+    gap: 0.15rem;
+  }
+
+  .dropdown-event-title {
+    font-size: 0.85rem;
+  }
+
+  .event-club-name {
+    font-size: 0.7rem;
+  }
+
+  /* Live event cards */
+  .live-event-card {
+    padding: 0.85rem;
+    gap: 0.65rem;
+  }
+
+  .live-event-avatar {
+    width: 44px;
+    height: 44px;
+  }
+
+  .live-event-title {
+    font-size: 0.95rem;
+  }
+
+  .live-event-club .club-name {
+    font-size: 0.75rem;
+  }
+
+  .live-event-meta {
+    font-size: 0.7rem;
+  }
+
+  .btn-join-live {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.75rem;
+    min-height: 38px;
+  }
+
+  /* Section titles */
+  .clubs-section-title {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 380px) {
+  .mother-card-header {
+    padding: 0.75rem;
+  }
+
+  .status-text {
+    font-size: 0.85rem;
+  }
+
+  .dropdown-toggle {
+    padding: 0.65rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .dropdown-event-card {
+    padding: 0.55rem;
+  }
+
+  .dropdown-event-title {
+    font-size: 0.8rem;
+  }
+
+  .live-event-card {
+    padding: 0.75rem;
+  }
+
+  .live-event-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .live-event-title {
+    font-size: 0.9rem;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .dropdown-toggle {
+    min-height: 48px;
+  }
+
+  .dropdown-event-card:hover {
+    background: var(--surface-secondary, rgba(255, 255, 255, 0.05));
+  }
+
+  .dropdown-event-card:active {
+    background: var(--surface-hover, rgba(255, 255, 255, 0.08));
+    transform: scale(0.98);
+  }
+
+  .live-event-card:hover {
+    transform: none;
+  }
+
+  .live-event-card:active {
+    transform: scale(0.98);
+  }
+
+  .btn-join-live {
+    min-height: 44px;
+  }
+}
+
+/* Landscape mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+  .events-mother-card {
+    margin-bottom: 0.75rem;
+  }
+
+  .mother-card-header {
+    padding: 0.65rem 1rem;
+  }
+
+  .no-live-events {
+    padding: 1rem;
+  }
+
+  .dropdown-toggle {
+    padding: 0.5rem 1rem;
+  }
 }

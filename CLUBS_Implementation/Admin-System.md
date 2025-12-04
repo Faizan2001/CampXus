@@ -425,8 +425,8 @@ class AdminPage {
 │ └─────────────────────────────────────────────────────────┘ │
 │                                                             │
 │ ┌─────────────────────────────────────────────────────────┐ │
-│ │ 🗑️ Clear Expired Live Chat                               │ │
-│ │ Delete all live chat messages past their expiry time     │ │
+│ │ 🗑️ Clear Expired Announcements                           │ │
+│ │ Delete all announcements past their expiry time          │ │
 │ │                                           [Run Cleanup]  │ │
 │ └─────────────────────────────────────────────────────────┘ │
 │                                                             │
@@ -508,6 +508,7 @@ exports.verifyAdminPin = functions.https.onCall(async (data, context) => {
 
 /**
  * Add SAF moderator
+ * SAF moderator documents are stored at /safModerators/{uid} (not under /admin/)
  */
 exports.addSafModerator = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
@@ -528,23 +529,15 @@ exports.addSafModerator = functions.https.onCall(async (data, context) => {
 
   const { university, userId, name, email } = data;
 
-  // Update admin/safModerators
-  const safRef = db.doc("admin/safModerators");
-  await safRef.set(
-    {
-      [university]: {
-        moderators: admin.firestore.FieldValue.arrayUnion({
-          uid: userId,
-          name,
-          email,
-          assignedAt: new Date(),
-          assignedBy: context.auth.uid,
-        }),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-    },
-    { merge: true }
-  );
+  // Create SAF moderator document at /safModerators/{uid}
+  await db.doc(`safModerators/${userId}`).set({
+    uid: userId,
+    displayName: name,
+    email,
+    universityId: university,
+    addedAt: admin.firestore.FieldValue.serverTimestamp(),
+    addedBy: context.auth.uid,
+  });
 
   // Update user's safModeratorFor
   await db.doc(`users/${userId}`).update({
@@ -556,6 +549,7 @@ exports.addSafModerator = functions.https.onCall(async (data, context) => {
 
 /**
  * Remove SAF moderator
+ * SAF moderator documents are stored at /safModerators/{uid}
  */
 exports.removeSafModerator = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
@@ -575,16 +569,8 @@ exports.removeSafModerator = functions.https.onCall(async (data, context) => {
 
   const { university, userId } = data;
 
-  // Get current moderators
-  const safDoc = await db.doc("admin/safModerators").get();
-  const currentMods = safDoc.data()?.[university]?.moderators || [];
-  const updatedMods = currentMods.filter((m) => m.uid !== userId);
-
-  // Update admin/safModerators
-  await db.doc("admin/safModerators").update({
-    [`${university}.moderators`]: updatedMods,
-    [`${university}.updatedAt`]: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  // Delete SAF moderator document at /safModerators/{uid}
+  await db.doc(`safModerators/${userId}`).delete();
 
   // Update user's safModeratorFor
   await db.doc(`users/${userId}`).update({
@@ -765,8 +751,8 @@ exports.runManualCleanup = functions.https.onCall(async (data, context) => {
       // Call the cleanup function logic directly
       // (Similar to cleanupOldEvents scheduled function)
       break;
-    case "liveChat":
-      // Call the live chat cleanup logic
+    case "announcements":
+      // Call the announcements cleanup logic
       break;
     default:
       throw new functions.https.HttpsError(

@@ -452,13 +452,14 @@ body:not(.dark-mode) .events-placeholder {
 }
 
 @keyframes liveCardGlow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 4px 20px rgba(16, 185, 129, 0.15),
-                0 0 0 1px rgba(16, 185, 129, 0.2);
+      0 0 0 1px rgba(16, 185, 129, 0.2);
   }
   50% {
     box-shadow: 0 8px 32px rgba(16, 185, 129, 0.25),
-                0 0 0 2px rgba(16, 185, 129, 0.3);
+      0 0 0 2px rgba(16, 185, 129, 0.3);
   }
 }
 
@@ -488,7 +489,7 @@ body:not(.dark-mode) .events-placeholder {
 }
 
 .event-live-badge::before {
-  content: '';
+  content: "";
   width: 6px;
   height: 6px;
   background: white;
@@ -497,7 +498,8 @@ body:not(.dark-mode) .events-placeholder {
 }
 
 @keyframes liveDot {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
@@ -526,5 +528,186 @@ body:not(.dark-mode) .event-card.live-event {
 
 body:not(.dark-mode) .event-card.live-event:hover {
   box-shadow: 0 12px 32px rgba(16, 185, 129, 0.15),
-              0 4px 12px rgba(0, 0, 0, 0.08);
+    0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Load More Events Button (R26: pagination) --- */
+.events-load-more {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 0;
+  margin-top: 1rem;
+}
+
+.events-load-more .btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.events-load-more .btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.events-load-more .btn i.fa-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ========================================
+   MOBILE & PWA ENHANCEMENTS - EVENTS
+======================================== */
+
+@media (max-width: 600px) {
+  /* Events section */
+  .events-section {
+    margin-bottom: 1.25rem;
+  }
+
+  .events-section-title {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .events-section-toggle {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.85rem;
+    min-height: 44px;
+  }
+
+  /* Events list */
+  .events-list {
+    gap: 0.65rem;
+  }
+
+  /* Event cards */
+  .event-card {
+    border-radius: 14px;
+  }
+
+  .event-card .event-image-container {
+    height: 120px;
+  }
+
+  .event-card .event-content {
+    padding: 0.85rem;
+  }
+
+  .event-card .event-title {
+    font-size: 1rem;
+  }
+
+  .event-card .event-details {
+    font-size: 0.8rem;
+    gap: 0.3rem;
+  }
+
+  .event-card .event-actions {
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 0.65rem;
+  }
+
+  .event-card .event-actions .btn {
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  /* Status badges */
+  .event-status-badge {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  /* Date badges */
+  .event-date-badge {
+    padding: 0.4rem 0.5rem;
+  }
+
+  .event-date-badge .date-month {
+    font-size: 0.6rem;
+  }
+
+  .event-date-badge .date-day {
+    font-size: 1rem;
+  }
+
+  /* Load more button */
+  .events-load-more {
+    padding: 1rem 0;
+  }
+
+  .events-load-more .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 48px;
+  }
+
+  /* Empty state */
+  .events-empty {
+    padding: 2rem 1rem;
+  }
+
+  .events-empty i {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .event-card .event-content {
+    padding: 0.75rem;
+  }
+
+  .event-card .event-title {
+    font-size: 0.95rem;
+  }
+
+  .event-card .event-details {
+    font-size: 0.75rem;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .event-card:hover {
+    transform: none;
+  }
+
+  .event-card:active {
+    transform: scale(0.98);
+  }
+
+  .event-card .event-actions .btn {
+    min-height: 48px;
+  }
+
+  .events-section-toggle {
+    min-height: 48px;
+  }
+}
+
+/* Landscape mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+  .event-card .event-image-container {
+    height: 100px;
+  }
+
+  .events-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem;
+  }
 }

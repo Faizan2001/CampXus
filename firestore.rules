@@ -6,6 +6,13 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email_verified == true;
     }
 
+    // Check if user is a SAF (Student Activities and Facilities) Moderator
+    // SAF moderators can create/delete clubs and approve events for their university
+    function isSafModerator() {
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/safModerators/$(request.auth.uid));
+    }
+
     // --- Class Spaces (dev testing + read access) ---
     // Reads: allow authenticated users (spaces are university-visible in app logic)
     // Writes: disable for clients except a narrow dev-testing path to create/clear spaces you own.
@@ -62,18 +69,21 @@ service cloud.firestore {
 
 	    // --- Clubs (/clubs) ---
     // Clubs are read by any authenticated user. Writes are restricted:
-    // - Verified users may create clubs (real users)
+    // - Only SAF moderators or super admins may create clubs (production)
     // - Dev-only test clubs may be created/edited/deleted by their owner when marked devTest
 	    match /clubs/{clubId} {
 	      allow read: if request.auth != null;
 
-	      // Create: allow verified users to create clubs, or allow devTest clubs created by their owner,
-	      // or super admins (via admin dashboard).
+	      // Create: only SAF moderators or super admins can create clubs (controlled creation)
+	      // SECURITY: DevTest clubs can ONLY be created by super admins (not any authenticated user)
 	      // NOTE: followerCount is server-managed; clients must not set it to a non-zero value.
 	      allow create: if request.auth != null &&
 	        (
 	          isSuperAdmin() ||
-	          isVerified() || (
+	          isSafModerator() ||
+	          // SECURITY FIX: DevTest clubs restricted to super admins only
+	          (
+	            isSuperAdmin() &&
 	            request.resource.data.devTest == true &&
 	            request.resource.data.devOwnerUid == request.auth.uid
 	          )
@@ -166,10 +176,11 @@ service cloud.firestore {
 	          )
 	        );
 
-	      // Delete: allow creator to delete if verified, or owner to delete devTest clubs,
-	      // or super admins (for global moderation/cleanup)
+	      // Delete: SAF moderators, super admins, creator (if verified), or devTest owner
+	      // SAF moderators can delete any club for moderation purposes
 	      allow delete: if request.auth != null && (
 	        isSuperAdmin() ||
+	        isSafModerator() ||
 	        (resource.data.createdBy == request.auth.uid && isVerified()) ||
 	        (resource.data.devTest == true && resource.data.devOwnerUid == request.auth.uid)
 	      );
@@ -317,8 +328,9 @@ service cloud.firestore {
     // --- Handles Mapping (/handles) ---
     // Provides global uniqueness for user handles
     // NOTE: Weekly cooldown & advanced validations enforced client-side for MVP.
+    // SECURITY: Only authenticated users can look up handles to prevent enumeration attacks
     match /handles/{handle} {
-      allow read: if true; // Public lookup
+      allow read: if request.auth != null; // Authenticated lookup only
       function isReserved() {
         // Sync with client reservedHandles in handleUtils.js
         return handle in ['admin','system','support','root','null','undefined','iub'];
@@ -420,10 +432,12 @@ service cloud.firestore {
 
     // --- Notifications (/notifications) - Campus Presence 2025 ---
     match /notifications/{notificationId} {
-      // Users can read notifications sent TO them or FROM them
+      // Users can read notifications sent TO them or FROM them.
+      // Guard field access so legacy/system notifications without userId/fromUserId
+      // do not cause evaluation errors.
       allow read: if request.auth != null && (
-        resource.data.userId == request.auth.uid ||
-        resource.data.fromUserId == request.auth.uid
+        (('userId' in resource.data) && resource.data.userId == request.auth.uid) ||
+        (('fromUserId' in resource.data) && resource.data.fromUserId == request.auth.uid)
       );
       
       // Users can create notifications they are sending (FROM them) if verified OR dev email
@@ -433,7 +447,7 @@ service cloud.firestore {
       
       // Users can update/delete notifications sent TO them (mark as read, dismiss) if verified OR dev email
       allow update, delete: if request.auth != null && 
-        resource.data.userId == request.auth.uid &&
+        (('userId' in resource.data) && resource.data.userId == request.auth.uid) &&
         (isVerified() || isDevEmail());
     }
 
@@ -491,6 +505,14 @@ service cloud.firestore {
 	      allow read, write: if isSuperAdmin();
 	    }
 
+	    // --- Admin Activity Log (/adminActivity) ---
+	    // Lightweight audit trail for admin actions surfaced in the dashboard.
+	    // Only super admins may read or write these documents from the client.
+	    match /adminActivity/{activityId} {
+	      allow read, create: if isSuperAdmin();
+	      allow update, delete: if false;
+	    }
+
     // --- Helper Functions ---
     function canViewFriendSchedule(viewerUserId, scheduleOwnerUserId) {
       // Note: Firestore rules do not support 'let' variables.
@@ -520,10 +542,19 @@ service cloud.firestore {
         (!('scheduleVisibility' in request.resource.data) ||
          (
            // User can only modify their own visibility setting
-           request.resource.data.scheduleVisibility.keys().hasAll([request.auth.uid]) ||
-           // Or if updating the full object, it must contain both users and only change their own setting
-           (request.resource.data.scheduleVisibility.keys().hasAll(resource.data.users) &&
-            resource.data.users.hasAll(request.resource.data.scheduleVisibility.keys()))
+           request.resource.data.scheduleVisibility.keys().hasAll([request.auth.uid]) &&
+           // If friend's key exists in update, their value MUST remain unchanged
+           (
+             // Either friend's key is not in the update at all (single-field update)
+             request.resource.data.scheduleVisibility.keys().size() == 1 ||
+             // Or if friend's key IS included, their value must match the existing value
+             (resource.data.users.toSet().difference([request.auth.uid].toSet()).size() == 1 &&
+              request.resource.data.scheduleVisibility[
+                resource.data.users.removeAll([request.auth.uid])[0]
+              ] == resource.data.scheduleVisibility[
+                resource.data.users.removeAll([request.auth.uid])[0]
+              ])
+           )
          )) &&
 
         // Condition 5: User can only update their own location visibility (Campus Presence 2025)
@@ -531,10 +562,19 @@ service cloud.firestore {
         (!('locationVisibility' in request.resource.data) ||
          (
            // User can only modify their own location visibility setting
-           request.resource.data.locationVisibility.keys().hasAll([request.auth.uid]) ||
-           // Or if updating the full object, it must contain both users and only change their own setting
-           (request.resource.data.locationVisibility.keys().hasAll(resource.data.users) &&
-            resource.data.users.hasAll(request.resource.data.locationVisibility.keys()))
+           request.resource.data.locationVisibility.keys().hasAll([request.auth.uid]) &&
+           // If friend's key exists in update, their value MUST remain unchanged
+           (
+             // Either friend's key is not in the update at all (single-field update)
+             request.resource.data.locationVisibility.keys().size() == 1 ||
+             // Or if friend's key IS included, their value must match the existing value
+             (resource.data.users.toSet().difference([request.auth.uid].toSet()).size() == 1 &&
+              request.resource.data.locationVisibility[
+                resource.data.users.removeAll([request.auth.uid])[0]
+              ] == resource.data.locationVisibility[
+                resource.data.users.removeAll([request.auth.uid])[0]
+              ])
+           )
          )) &&
 
         // Condition 6: If locationSharingMetadata is being updated, user must be correctly attributed

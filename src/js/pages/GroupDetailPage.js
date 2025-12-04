@@ -144,24 +144,27 @@ export class GroupDetailPage {
     const loadOlderBtn = document.getElementById("loadOlderBtn");
 
     console.log("[GroupDetailPage] Mount called with spaceId:", this.spaceId);
-    
+
     // If returning from a member profile, restore Members tab
     try {
       const returnTab = sessionStorage.getItem("group:returnTab");
-      console.log("[GroupDetailPage] Checking returnTab session value:", returnTab);
+      console.log(
+        "[GroupDetailPage] Checking returnTab session value:",
+        returnTab
+      );
       if (returnTab === "members") {
         console.log("[GroupDetailPage] Restoring members tab view");
         if (tabMembers) tabMembers.classList.add("active");
         if (tabChat) tabChat.classList.remove("active");
         if (membersPane) membersPane.classList.remove("hidden");
         if (chatPane) chatPane.classList.add("hidden");
-        
+
         // Defer removal until after first render cycle so a second mount in same tick still sees it
         setTimeout(() => {
           try {
             sessionStorage.removeItem("group:returnTab");
             console.log("[GroupDetailPage] Cleared returnTab session value");
-          } catch(e) {}
+          } catch (e) {}
         }, 100);
       } else {
         console.log("[GroupDetailPage] No returnTab set, defaulting to chat");
@@ -171,7 +174,10 @@ export class GroupDetailPage {
     }
 
     if (!this.spaceId) {
-      logManager.dev.debug("[GroupDetailPage] Missing spaceId before metadata load", { stored: sessionStorage.getItem("group:spaceId") });
+      logManager.dev.debug(
+        "[GroupDetailPage] Missing spaceId before metadata load",
+        { stored: sessionStorage.getItem("group:spaceId") }
+      );
       titleEl.textContent = "Group not found";
       return;
     }
@@ -192,7 +198,7 @@ export class GroupDetailPage {
         window.location.hash = "#messages";
       }
     };
-    
+
     // Insert back button before title
     if (titleEl && titleEl.parentNode) {
       titleEl.parentNode.insertBefore(backBtn, titleEl);
@@ -223,7 +229,10 @@ export class GroupDetailPage {
       unreadTracker.markAsViewed(this.spaceId, myUid);
     }
 
-    logManager.dev.debug("[GroupDetailPage] Rendering members list", { spaceId: this.spaceId, memberCount: Array.isArray(space.memberIds) ? space.memberIds.length : 0 });
+    logManager.dev.debug("[GroupDetailPage] Rendering members list", {
+      spaceId: this.spaceId,
+      memberCount: Array.isArray(space.memberIds) ? space.memberIds.length : 0,
+    });
     // Members list (with avatar chips + block/unblock actions)
     const memberIds = Array.isArray(space.memberIds) ? space.memberIds : [];
     const memberInfo = space.memberInfo || {};
@@ -291,7 +300,9 @@ export class GroupDetailPage {
       })
       .join("");
 
-    logManager.dev.debug("[GroupDetailPage] Members list HTML rendered", { spaceId: this.spaceId });
+    logManager.dev.debug("[GroupDetailPage] Members list HTML rendered", {
+      spaceId: this.spaceId,
+    });
     // Bind report buttons for members
     const reportBtns = membersList.querySelectorAll(".member-report-btn");
     reportBtns.forEach((btn) => {
@@ -339,7 +350,9 @@ export class GroupDetailPage {
       });
     });
 
-    logManager.dev.debug("[GroupDetailPage] Binding member action buttons", { spaceId: this.spaceId });
+    logManager.dev.debug("[GroupDetailPage] Binding member action buttons", {
+      spaceId: this.spaceId,
+    });
     // Bind add-friend buttons
     const addFriendBtns = membersList.querySelectorAll(".member-add-btn");
     addFriendBtns.forEach((btn) => {
@@ -696,6 +709,9 @@ function escapeHtml(str) {
 // Wire to SPA lifecycle
 let currentPageInstance = null;
 document.addEventListener("spa:page:unload", (e) => {
+  // Only handle unload for our route
+  const route = e?.detail?.route;
+  if (route !== "group") return;
   if (currentPageInstance) {
     currentPageInstance.destroy();
     currentPageInstance = null;

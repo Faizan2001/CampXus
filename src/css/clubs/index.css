@@ -5,17 +5,19 @@
  * Import this single file in app.js to get all clubs styles.
  * 
  * Structure:
- * - base.css      → Page layout, grids, cards, club detail page
- * - buttons.css   → Button system (primary, secondary, danger)
- * - events.css    → Event cards, list, status badges
- * - modals.css    → Create event & event detail modals
- * - live.css      → Live events section on Clubs tab
- * - members.css   → Members tab & Moderate tab
+ * - base.css         → Page layout, grids, cards, club detail page
+ * - buttons.css      → Button system (primary, secondary, danger)
+ * - events.css       → Event cards, list, status badges
+ * - modals.css       → Create event & event detail modals
+ * - club-creator.css → Club creation modal with image cropping
+ * - live.css         → Live events section on Clubs tab
+ * - members.css      → Members tab & Moderate tab
  */
 
 @import "./base.css";
 @import "./buttons.css";
 @import "./events.css";
 @import "./modals.css";
+@import "./club-creator.css";
 @import "./live.css";
 @import "./members.css";

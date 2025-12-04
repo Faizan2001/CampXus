@@ -283,7 +283,7 @@ class UserProfilePage {
         ]);
       }
       // Double check auth state
-  if (currentUser?.isLoggedIn && !currentUser.isLoggedIn()) {
+      if (currentUser?.isLoggedIn && !currentUser.isLoggedIn()) {
         logManager.dev.debug(
           "[UserProfilePage] User not logged in, waiting for profile..."
         );
@@ -355,7 +355,7 @@ class UserProfilePage {
         "[UserProfilePage] Trying waitForProfileWithTimeout fallback..."
       );
       try {
-  if (currentUser?.waitForProfileWithTimeout) {
+        if (currentUser?.waitForProfileWithTimeout) {
           await currentUser.waitForProfileWithTimeout(1500).catch(() => {});
           targetProfile = currentUser?.profile || null;
           logManager.dev.debug(
@@ -1008,7 +1008,12 @@ class UserProfilePage {
 }
 
 let instance = null;
-document.addEventListener("spa:page:unload", () => {
+
+document.addEventListener("spa:page:unload", (event) => {
+  const route = event?.detail?.route;
+  // Only unmount if we're leaving user profile page
+  if (route !== "user") return;
+
   if (instance) {
     instance.destroy();
     instance = null;

@@ -19,6 +19,11 @@ export default class ClubDetailPage {
     this.members = [];
     this.activeTab = "events";
     this.initialEventId = null;
+    // Pagination state (R26)
+    this.eventsPageSize = 10;
+    this.eventsLastDoc = null;
+    this.hasMoreEvents = true;
+    this.eventsLoading = false;
   }
 
   async mount() {
@@ -121,10 +126,7 @@ export default class ClubDetailPage {
           if (isModeratorView || targetEvent.status === "approved") {
             this.openEventDetailModal(targetEvent);
           } else {
-            notificationManager.show(
-              "This event is not available.",
-              "warning"
-            );
+            notificationManager.show("This event is not available.", "warning");
           }
         }
       }
@@ -167,14 +169,16 @@ export default class ClubDetailPage {
         <div class="club-hero">
           ${
             c.bannerUrl
-              ? `<img src="${c.bannerUrl}" alt="Banner" class="club-banner" />`
+              ? `<img src="${escapeAttr(c.bannerUrl)}" alt="Banner" class="club-banner" loading="lazy" />`
               : `<div class="club-banner-placeholder"></div>`
           }
           <div class="club-hero-content">
             <div class="club-logo-large">
               ${
                 c.logoUrl
-                  ? `<img src="${c.logoUrl}" alt="${escapeHtml(c.name)}" />`
+                  ? `<img src="${escapeAttr(c.logoUrl)}" alt="${escapeHtml(
+                      c.name
+                    )}" loading="lazy" />`
                   : `<i class="fas fa-flag"></i>`
               }
             </div>
@@ -295,13 +299,19 @@ export default class ClubDetailPage {
    * Render the Moderate tab using the ModerateTab component
    */
   renderModerateTabContent(container) {
-    renderModerateTab(container, this.clubData, this.events, async () => {
-      // Callback when event is approved/rejected - reload events
-      await this.loadEvents();
-      this.renderModerateTabContent(container);
-      // Also update pending count badge
-      this.updatePendingBadge();
-    });
+    renderModerateTab(
+      container,
+      this.clubData,
+      this.events,
+      async () => {
+        // Callback when event is approved/rejected - reload events
+        await this.loadEvents();
+        this.renderModerateTabContent(container);
+        // Also update pending count badge
+        this.updatePendingBadge();
+      },
+      this.members
+    );
   }
 
   /**
@@ -350,12 +360,21 @@ export default class ClubDetailPage {
     }
   }
 
-  async loadEvents() {
+  async loadEvents(reset = true) {
+    if (this.eventsLoading) return;
+    this.eventsLoading = true;
+
     try {
       const { db } = await import("../lib/firebase/firebase-config.js");
-      const { collection, query, orderBy, where, getDocs } = await import(
-        "firebase/firestore"
-      );
+      const { collection, query, orderBy, where, getDocs, limit, startAfter } =
+        await import("firebase/firestore");
+
+      // Reset pagination state if requested (initial load or refresh)
+      if (reset) {
+        this.events = [];
+        this.eventsLastDoc = null;
+        this.hasMoreEvents = true;
+      }
 
       // Determine viewer role for query scoping:
       // - Presidents/dev owners can see all events
@@ -372,43 +391,80 @@ export default class ClubDetailPage {
         : false;
 
       const eventsRef = collection(db, "clubs", this.clubId, "events");
-      const q =
-        isPresident || isOfficial
-          ? query(eventsRef, orderBy("firstSlotStart", "asc"))
-          : query(
-              eventsRef,
-              where("status", "==", "approved"),
-              orderBy("firstSlotStart", "asc")
-            );
+
+      // Build query with pagination (R26: 10 events at a time)
+      let constraints = [];
+      if (!(isPresident || isOfficial)) {
+        constraints.push(where("status", "==", "approved"));
+      }
+      constraints.push(orderBy("firstSlotStart", "asc"));
+      constraints.push(limit(this.eventsPageSize));
+
+      if (this.eventsLastDoc) {
+        constraints.push(startAfter(this.eventsLastDoc));
+      }
+
+      const q = query(eventsRef, ...constraints);
       const snapshot = await getDocs(q);
 
-      this.events = snapshot.docs.map((doc) => ({
+      const newEvents = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
 
-      logManager.debug(`[ClubDetailPage] Loaded ${this.events.length} events`);
+      // Update pagination state
+      if (snapshot.docs.length > 0) {
+        this.eventsLastDoc = snapshot.docs[snapshot.docs.length - 1];
+      }
+      this.hasMoreEvents = snapshot.docs.length === this.eventsPageSize;
+
+      // Append to existing events
+      this.events = [...this.events, ...newEvents];
+
+      logManager.debug(
+        `[ClubDetailPage] Loaded ${newEvents.length} events (total: ${this.events.length})`
+      );
     } catch (err) {
       logManager.error("[ClubDetailPage] Failed to load events:", err);
-      this.events = [];
+      if (reset) {
+        this.events = [];
+      }
+    } finally {
+      this.eventsLoading = false;
+    }
+  }
+
+  async loadMoreEvents() {
+    if (!this.hasMoreEvents || this.eventsLoading) return;
+
+    await this.loadEvents(false);
+
+    // Re-render events tab
+    const tabContent = this.container?.querySelector(
+      '.tab-content[data-tab="events"]'
+    );
+    if (tabContent) {
+      this.renderEventsTab(tabContent);
     }
   }
 
   renderEventsTab(container) {
     const now = new Date();
+    const uid = currentUser?.uid;
 
     // Determine viewer role
     const isPresident =
-      (this.clubData?.devTest &&
-        this.clubData?.devOwnerUid === currentUser?.uid) ||
-      this.clubData?.presidentId === currentUser?.uid ||
-      this.clubData?.createdBy === currentUser?.uid;
+      uid &&
+      ((this.clubData?.devTest && this.clubData?.devOwnerUid === uid) ||
+        this.clubData?.presidentId === uid ||
+        this.clubData?.createdBy === uid);
 
     const isOfficial =
-      this.clubData?.officialIds?.includes(currentUser?.uid) ||
-      (this.members || []).some(
-        (m) => m.uid === currentUser?.uid && m.role === "official"
-      );
+      uid &&
+      (this.clubData?.officialIds?.includes(uid) ||
+        (this.members || []).some(
+          (m) => m.uid === uid && m.role === "official"
+        ));
 
     // For regular visitors, only show approved events.
     // Presidents/officials can see all events (including pending/rejected).
@@ -504,6 +560,17 @@ export default class ClubDetailPage {
       </div>`;
     }
 
+    // Load More button (R26: pagination)
+    if (this.hasMoreEvents) {
+      html += `
+        <div class="events-load-more">
+          <button class="btn secondary" id="loadMoreEventsBtn">
+            <i class="fas fa-plus-circle"></i> Load More Events
+          </button>
+        </div>
+      `;
+    }
+
     // Show message if no upcoming events
     if (upcoming.length === 0 && past.length > 0) {
       html =
@@ -530,6 +597,16 @@ export default class ClubDetailPage {
         icon.classList.replace("fa-chevron-up", "fa-chevron-down");
       }
     });
+
+    // Bind Load More button (R26)
+    container
+      .querySelector("#loadMoreEventsBtn")
+      ?.addEventListener("click", async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+        await this.loadMoreEvents();
+      });
 
     // Bind create event button
     if (canCreate) {
@@ -666,7 +743,7 @@ export default class ClubDetailPage {
         }
         ${
           hasImage
-            ? `<div class="event-image-container"><img src="${event.imageUrl}" alt="${title}" class="event-image" loading="lazy" /></div>`
+            ? `<div class="event-image-container"><img src="${escapeAttr(event.imageUrl)}" alt="${title}" class="event-image" loading="lazy" /></div>`
             : ""
         }
         <div class="event-card-content">
@@ -741,8 +818,10 @@ export default class ClubDetailPage {
       if (this.clubData) {
         // Optimistically adjust follower count locally;
         // actual persistent value is managed by Cloud Functions.
-        this.clubData.followerCount =
-          (this.clubData.followerCount || 0) + (wasFollowing ? -1 : 1);
+        // R24: Ensure follower count never goes below 0
+        const currentCount = this.clubData.followerCount || 0;
+        const newCount = currentCount + (wasFollowing ? -1 : 1);
+        this.clubData.followerCount = Math.max(0, newCount);
         const countEl = this.container.querySelector("#followerCount");
         if (countEl) countEl.textContent = this.clubData.followerCount;
       }
@@ -773,12 +852,36 @@ function escapeHtml(s) {
   return String(s || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// Helper to escape values for safe use in HTML attributes (src, href, etc.)
+function escapeAttr(value) {
+  if (value == null) return "";
+  const str = String(value);
+  // Block javascript: and data: URIs that could execute code
+  const lower = str.toLowerCase().trim();
+  if (lower.startsWith("javascript:") || lower.startsWith("data:text/html")) {
+    return "";
+  }
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
 
 // Wire to SPA lifecycle
 let currentClubInstance = null;
-document.addEventListener("spa:page:unload", () => {
+
+document.addEventListener("spa:page:unload", (event) => {
+  const route = event?.detail?.route;
+  // Only unmount if we're leaving club detail page
+  if (route !== "club") return;
+
   if (currentClubInstance) {
     currentClubInstance.destroy();
     currentClubInstance = null;
@@ -788,6 +891,14 @@ document.addEventListener("spa:page:unload", () => {
 document.addEventListener("spa:page:load", async (event) => {
   const route = event?.detail?.route;
   if (route !== "club") return;
-  currentClubInstance = new ClubDetailPage();
-  await currentClubInstance.mount();
+
+  // Wait a tick for DOM to be ready after template injection
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  try {
+    currentClubInstance = new ClubDetailPage();
+    await currentClubInstance.mount();
+  } catch (error) {
+    console.error("[ClubDetailPage] Mount failed:", error);
+  }
 });

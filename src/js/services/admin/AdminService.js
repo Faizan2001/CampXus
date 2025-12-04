@@ -18,6 +18,7 @@ import {
   updateDoc,
   deleteDoc,
   collection,
+  addDoc,
   query,
   where,
   writeBatch,
@@ -26,6 +27,42 @@ import {
   limit,
 } from "firebase/firestore";
 import { logManager } from "../../utils/debug/LogManager.js";
+import { currentUser } from "../../store/userStore.js";
+
+/**
+ * Internal helper: log an admin activity event to Firestore so the
+ * dashboard Overview / SAF tabs can render a recent activity feed.
+ *
+ * This is intentionally lightweight and only callable by super admins
+ * (enforced by Firestore rules on /adminActivity).
+ *
+ * @param {string} type - Activity type, e.g. 'club_created'
+ * @param {Object} details - Additional context to store
+ */
+async function logAdminActivity(type, details = {}) {
+  try {
+    const actorUid =
+      details.actorUid ||
+      currentUser?.profile?.uid ||
+      currentUser?.user?.uid ||
+      null;
+
+    const payload = {
+      type,
+      actorUid,
+      ...details,
+      createdAt: serverTimestamp(),
+    };
+
+    await addDoc(collection(db, "adminActivity"), payload);
+  } catch (error) {
+    // This should never block the main operation; log and continue.
+    logManager.warn("Failed to log admin activity", {
+      type,
+      message: error?.message,
+    });
+  }
+}
 
 /**
  * Check if a user is a super admin
@@ -110,6 +147,7 @@ export async function createUniversity(data) {
   });
 
   logManager.info("University created", { code, name });
+  await logAdminActivity("university_created", { code, name, domain });
   return code;
 }
 
@@ -124,6 +162,7 @@ export async function updateUniversity(id, data) {
     updatedAt: serverTimestamp(),
   });
   logManager.info("University updated", { id });
+  await logAdminActivity("university_updated", { id, ...data });
 }
 
 /**
@@ -133,6 +172,7 @@ export async function updateUniversity(id, data) {
 export async function deleteUniversity(id) {
   await deleteDoc(doc(db, "universities", id));
   logManager.info("University deleted", { id });
+  await logAdminActivity("university_deleted", { id });
 }
 
 // ==========================================
@@ -186,6 +226,11 @@ export async function addSafModerator(data) {
   }
 
   logManager.info("SAF moderator added", { uid, universityId });
+  await logAdminActivity("saf_added", {
+    moderatorUid: uid,
+    universityId,
+    addedBy,
+  });
   return uid;
 }
 
@@ -215,6 +260,10 @@ export async function removeSafModerator(uid) {
   }
 
   logManager.info("SAF moderator removed", { uid });
+  await logAdminActivity("saf_removed", {
+    moderatorUid: uid,
+    universityId,
+  });
 }
 
 // ==========================================
@@ -261,18 +310,31 @@ export async function getClubs(filters = {}) {
  * @returns {Promise<string>} - Created club ID
  */
 export async function createClub(data) {
-  const { name, description, universityId, universityName, category, createdBy } = data;
+  const {
+    name,
+    description,
+    universityId,
+    universityName,
+    category,
+    createdBy,
+    clubId: explicitClubId,
+    accentColor,
+    requireSafApproval,
+    logoUrl,
+    bannerUrl,
+  } = data;
   if (!name) throw new Error("Club name is required");
 
   // Generate club ID from name
   const clubId =
+    explicitClubId ||
     name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "")
       .slice(0, 30) +
-    "-" +
-    Date.now().toString(36);
+      "-" +
+      Date.now().toString(36);
 
   await setDoc(doc(db, "clubs", clubId), {
     clubId,
@@ -283,6 +345,10 @@ export async function createClub(data) {
     university: universityName || universityId || null,
     universityCode: universityId || null,
     category: category || "other",
+    accentColor: accentColor || "blue",
+    logoUrl: logoUrl || null,
+    bannerUrl: bannerUrl || null,
+    requireSafApproval: !!requireSafApproval,
     createdAt: serverTimestamp(),
     createdBy: createdBy || null,
     memberCount: 0,
@@ -308,6 +374,11 @@ export async function createClub(data) {
   }
 
   logManager.info("Club created", { clubId, name });
+  await logAdminActivity("club_created", {
+    clubId,
+    name,
+    universityId,
+  });
   return clubId;
 }
 
@@ -322,29 +393,102 @@ export async function updateClub(clubId, data) {
     updatedAt: serverTimestamp(),
   });
   logManager.info("Club updated", { clubId });
+  await logAdminActivity("club_updated", {
+    clubId,
+    ...data,
+  });
 }
 
 /**
- * Delete a club and its subcollections
+ * Delete a club and its subcollections, including all associated images from Storage
  * @param {string} clubId - Club ID
  */
 export async function deleteClub(clubId) {
   const clubDoc = await getDoc(doc(db, "clubs", clubId));
-  const universityId = clubDoc.exists() ? clubDoc.data().universityId : null;
+  const clubData = clubDoc.exists() ? clubDoc.data() : {};
+  const universityId = clubData.universityId || null;
+
+  // Collect image URLs to delete from Storage
+  const imageUrlsToDelete = [];
+
+  // Add club logo and banner if present
+  if (clubData.logoUrl) imageUrlsToDelete.push(clubData.logoUrl);
+  if (clubData.bannerUrl) imageUrlsToDelete.push(clubData.bannerUrl);
 
   // Delete members subcollection
   const membersSnap = await getDocs(collection(db, "clubs", clubId, "members"));
-  const batch = writeBatch(db);
-  membersSnap.docs.forEach((d) => batch.delete(d.ref));
-
-  // Delete events subcollection
   const eventsSnap = await getDocs(collection(db, "clubs", clubId, "events"));
-  eventsSnap.docs.forEach((d) => batch.delete(d.ref));
 
-  // Delete main club document
-  batch.delete(doc(db, "clubs", clubId));
+  // Collect event image URLs and delete event announcements
+  for (const eventDoc of eventsSnap.docs) {
+    const eventData = eventDoc.data();
+    if (eventData.imageUrl) {
+      imageUrlsToDelete.push(eventData.imageUrl);
+    }
 
-  await batch.commit();
+    // Delete announcements subcollection for each event
+    try {
+      const announcementsSnap = await getDocs(
+        collection(db, "clubs", clubId, "events", eventDoc.id, "announcements")
+      );
+      if (!announcementsSnap.empty) {
+        const announcementBatch = writeBatch(db);
+        announcementsSnap.docs.forEach((d) => announcementBatch.delete(d.ref));
+        await announcementBatch.commit();
+      }
+    } catch (e) {
+      logManager.warn("Could not delete event announcements", e);
+    }
+  }
+
+  const docsToDelete = [
+    ...membersSnap.docs.map((d) => d.ref),
+    ...eventsSnap.docs.map((d) => d.ref),
+    doc(db, "clubs", clubId),
+  ];
+
+  if (docsToDelete.length > 0) {
+    const batchSize = 500;
+    for (let i = 0; i < docsToDelete.length; i += batchSize) {
+      const batch = writeBatch(db);
+      const chunk = docsToDelete.slice(i, i + batchSize);
+      chunk.forEach((ref) => batch.delete(ref));
+      await batch.commit();
+    }
+  }
+
+  // Delete images from Firebase Storage
+  if (imageUrlsToDelete.length > 0) {
+    const { getStorage, ref, deleteObject } = await import("firebase/storage");
+    const storage = getStorage();
+
+    for (const imageUrl of imageUrlsToDelete) {
+      try {
+        // Extract storage path from URL (handles gs:// and https:// URLs)
+        let storagePath = imageUrl;
+        if (imageUrl.startsWith("gs://")) {
+          // gs://bucket/path/to/file → path/to/file
+          storagePath = imageUrl.replace(/^gs:\/\/[^/]+\//, "");
+        } else if (imageUrl.includes("firebasestorage.googleapis.com")) {
+          // https://firebasestorage.googleapis.com/.../o/path%2Fto%2Ffile?... → path/to/file
+          const match = imageUrl.match(/\/o\/([^?]+)/);
+          if (match) {
+            storagePath = decodeURIComponent(match[1]);
+          }
+        }
+
+        const imageRef = ref(storage, storagePath);
+        await deleteObject(imageRef);
+        logManager.info("Deleted image from storage", { storagePath });
+      } catch (e) {
+        // Image might already be deleted or path is invalid - log and continue
+        logManager.warn("Could not delete image from storage", {
+          imageUrl,
+          error: e.message,
+        });
+      }
+    }
+  }
 
   // Decrement club count for university
   if (universityId) {
@@ -361,37 +505,48 @@ export async function deleteClub(clubId) {
     }
   }
 
-  logManager.info("Club deleted", { clubId });
+  logManager.info("Club deleted with all images", {
+    clubId,
+    imagesDeleted: imageUrlsToDelete.length,
+  });
+  await logAdminActivity("club_deleted", {
+    clubId,
+    universityId,
+    imagesDeleted: imageUrlsToDelete.length,
+  });
 }
 
 /**
- * Assign a president to a club
+ * Assign a president to a club.
+ *
+ * This calls the Cloud Function `assignClubPresident` which properly:
+ * - Updates presidentId/presidentUid on the club doc
+ * - Updates members array (removes old president, adds new one)
+ * - Updates officialIds array if needed
+ * - Creates/updates the /clubs/{clubId}/members/{uid} doc
+ * - Updates the new president's user.clubRoles
+ * - Clears the old president's clubRoles entry for this club
+ * - Recalculates memberCount correctly
+ *
  * @param {string} clubId - Club ID
  * @param {string} uid - User ID of new president
  */
 export async function assignPresident(clubId, uid) {
-  const batch = writeBatch(db);
-
-  // Update club document
-  batch.update(doc(db, "clubs", clubId), {
-    presidentUid: uid,
-    presidentId: uid,
-    updatedAt: serverTimestamp(),
-  });
-
-  // Add/update membership with president role
-  batch.set(
-    doc(db, "clubs", clubId, "members", uid),
-    {
-      uid,
-      role: "president",
-      joinedAt: serverTimestamp(),
-    },
-    { merge: true }
+  const { callFunction } = await import(
+    "../../utils/firebase/functionsHelper.js"
   );
 
-  await batch.commit();
-  logManager.info("President assigned", { clubId, uid });
+  const result = await callFunction("assignClubPresident", {
+    clubId,
+    userId: uid,
+  });
+
+  if (!result?.data?.success) {
+    throw new Error(result?.data?.error || "Failed to assign president");
+  }
+
+  logManager.info("President assigned via Cloud Function", { clubId, uid });
+  await logAdminActivity("club_president_assigned", { clubId, uid });
 }
 
 // ==========================================
@@ -406,17 +561,25 @@ export async function rebuildClubStats(log = console.log) {
   log("Fetching all clubs...");
   const clubsSnap = await getDocs(collection(db, "clubs"));
 
-  const batch = writeBatch(db);
+  let batch = writeBatch(db);
   let updated = 0;
+  let operationsInBatch = 0;
+  const batchSize = 500;
 
   for (const clubDoc of clubsSnap.docs) {
     const clubId = clubDoc.id;
 
-    // Count members
+    // Count members (only president + officials per data model)
     const membersSnap = await getDocs(
       collection(db, "clubs", clubId, "members")
     );
-    const memberCount = membersSnap.size;
+    let memberCount = 0;
+    membersSnap.docs.forEach((memberDoc) => {
+      const role = memberDoc.data()?.role;
+      if (role === "president" || role === "official") {
+        memberCount++;
+      }
+    });
 
     // Count events in subcollection
     const eventsSubSnap = await getDocs(
@@ -430,16 +593,27 @@ export async function rebuildClubStats(log = console.log) {
       statsUpdatedAt: serverTimestamp(),
     });
 
+    operationsInBatch++;
     updated++;
     log(
       `Updated ${
         clubDoc.data().name
-      }: ${memberCount} members, ${eventCount} events`
+      }: ${memberCount} members (officials+president), ${eventCount} events`
     );
+    if (operationsInBatch === batchSize) {
+      await batch.commit();
+      batch = writeBatch(db);
+      operationsInBatch = 0;
+    }
   }
 
-  await batch.commit();
+  if (operationsInBatch > 0) {
+    await batch.commit();
+  }
   log(`Rebuilt stats for ${updated} clubs`);
+  await logAdminActivity("maintenance_rebuild_stats", {
+    clubsUpdated: updated,
+  });
   return updated;
 }
 
@@ -465,13 +639,21 @@ export async function cleanupOldEvents(daysOld = 30, log = console.log) {
 
   if (oldEvents.length === 0) return 0;
 
-  const batch = writeBatch(db);
-  oldEvents.forEach((event) => {
-    batch.delete(event.ref);
-  });
+  const batchSize = 500;
+  for (let i = 0; i < oldEvents.length; i += batchSize) {
+    const batch = writeBatch(db);
+    const chunk = oldEvents.slice(i, i + batchSize);
+    chunk.forEach((event) => {
+      batch.delete(event.ref);
+    });
+    await batch.commit();
+  }
 
-  await batch.commit();
   log(`Deleted ${oldEvents.length} old events`);
+  await logAdminActivity("maintenance_cleanup_events", {
+    daysOld,
+    deleted: oldEvents.length,
+  });
   return oldEvents.length;
 }
 
@@ -522,6 +704,7 @@ export async function verifyDataIntegrity(log = console.log) {
   }
 
   log(`Verification complete. Found ${issues} issues.`);
+  await logAdminActivity("maintenance_verify_data", { issues });
   return issues;
 }
 
@@ -563,6 +746,10 @@ export async function cleanupOldNotifications(daysOld = 7, log = console.log) {
   }
 
   log(`Deleted ${deleted} old notifications`);
+  await logAdminActivity("maintenance_cleanup_notifications", {
+    daysOld,
+    deleted,
+  });
   return deleted;
 }
 

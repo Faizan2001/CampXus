@@ -373,13 +373,8 @@ export class CreateEventModal {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Helper to format date as YYYY-MM-DD in LOCAL timezone (not UTC!)
-    const formatLocalDate = (date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
-    };
+    // Use class method for consistent date formatting
+    const formatLocalDate = (date) => this.formatLocalDate(date);
 
     // Create date picker modal
     const pickerOverlay = document.createElement("div");
@@ -1688,6 +1683,9 @@ export class CreateEventModal {
       if (this.editMode && this.event?.id) {
         // UPDATE existing event
         const wasRejected = this.event.status === "rejected";
+        const wasLive = this.event.isLive === true;
+        const wasApproved = this.event.status === "approved";
+        const wasPendingSaf = this.event.status === "pending_saf";
         const isPresident = this.isUserPresident();
 
         const updateData = {
@@ -1700,6 +1698,29 @@ export class CreateEventModal {
           updatedAt: Timestamp.now(),
           updatedBy: currentUser?.uid,
         };
+
+        // R7: If a live, approved, or pending_saf event is edited, reset approval workflow
+        // The event must go back through the full approval process (pending_president → pending_saf → approved)
+        // This ensures the president reviews any changes before SAF sees the modified event
+        if (wasLive || wasApproved || wasPendingSaf) {
+          updateData.isLive = false;
+          updateData.status = "pending_president";
+          if (wasLive) {
+            updateData.liveStoppedAt = Timestamp.now();
+            updateData.liveStoppedBy = currentUser?.uid;
+            updateData.liveStopReason = "edited";
+          }
+          // Clear any previous approval data
+          updateData.approvedAt = null;
+          updateData.approvedBy = null;
+          updateData.approvedByInfo = null;
+          // Clear any SAF approval data if it was pending SAF
+          if (wasPendingSaf) {
+            updateData.safApprovedAt = null;
+            updateData.safApprovedBy = null;
+            updateData.safApprovedByInfo = null;
+          }
+        }
 
         // If a non‑president edits a rejected event, treat it as a resubmission:
         // send it back to pending_president and clear rejection metadata so it
@@ -1732,7 +1753,18 @@ export class CreateEventModal {
 
         logManager.info("[CreateEventModal] Updated event:", this.event.id);
 
-        if (
+        // Show appropriate message based on what happened
+        if (wasLive) {
+          notificationManager.show(
+            `Event "${title}" has been stopped and requires re-approval.`,
+            "warning"
+          );
+        } else if (wasApproved) {
+          notificationManager.show(
+            `Event "${title}" updated and requires re-approval.`,
+            "warning"
+          );
+        } else if (
           !isPresident &&
           wasRejected &&
           updateData.status === "pending_president"
@@ -1754,9 +1786,11 @@ export class CreateEventModal {
         const profileLastName = currentUser?.profile?.profile?.lastName || "";
 
         // Determine status based on user role
-        // Presidents and devOwners can auto-approve, officials need approval
+        // SAF approval is mandatory for all events.
+        // Presidents and devOwners can approve, but events still go to pending_saf.
         const isPresident = this.isUserPresident();
-        const eventStatus = isPresident ? "approved" : "pending_president";
+        // SAF approval is now mandatory for ALL clubs
+        const eventStatus = isPresident ? "pending_saf" : "pending_president";
 
         const eventData = {
           title,

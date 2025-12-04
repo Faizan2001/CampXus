@@ -51,6 +51,7 @@ export class ImageCropperModal {
     this.boundMouseUp = this.handleDragEnd.bind(this);
     this.boundTouchMove = this.handleTouchMove.bind(this);
     this.boundTouchEnd = this.handleDragEnd.bind(this);
+    this.escHandler = null; // Will be set in bindEvents()
   }
 
   /**
@@ -61,7 +62,7 @@ export class ImageCropperModal {
       this.img = await this.loadImage(this.file);
       this.render();
       this.bindEvents();
-      
+
       // Wait for DOM to be ready, then initialize
       requestAnimationFrame(() => {
         this.initializeCrop();
@@ -98,7 +99,11 @@ export class ImageCropperModal {
    * Hide and cleanup
    */
   hide() {
-    document.removeEventListener("keydown", this.escHandler);
+    // Only remove escape handler if it was set
+    if (this.escHandler) {
+      document.removeEventListener("keydown", this.escHandler);
+      this.escHandler = null;
+    }
     document.removeEventListener("mousemove", this.boundMouseMove);
     document.removeEventListener("mouseup", this.boundMouseUp);
     document.removeEventListener("touchmove", this.boundTouchMove);
@@ -138,7 +143,9 @@ export class ImageCropperModal {
             ${this.aspectRatios
               .map(
                 (ar, i) => `
-              <button type="button" class="aspect-btn ${i === 0 ? "active" : ""}" 
+              <button type="button" class="aspect-btn ${
+                i === 0 ? "active" : ""
+              }" 
                       data-ratio="${ar.value}" data-id="${ar.id}">
                 <div class="aspect-icon aspect-icon-${ar.id}"></div>
                 <span>${ar.label}</span>
@@ -187,6 +194,14 @@ export class ImageCropperModal {
 
     this.canvas = this.overlay.querySelector("#cropperCanvas");
     this.ctx = this.canvas.getContext("2d");
+
+    // Bug #37: Verify canvas context was created
+    if (!this.ctx) {
+      logManager.error("[ImageCropperModal] Failed to get canvas 2D context");
+      this.hide();
+      this.onCancel();
+      return;
+    }
   }
 
   /**
@@ -195,10 +210,13 @@ export class ImageCropperModal {
   initializeCrop() {
     const wrapper = this.overlay.querySelector(".cropper-canvas-wrapper");
     const wrapperRect = wrapper.getBoundingClientRect();
-    
+
     // Calculate display dimensions that fit within wrapper
     const maxWidth = wrapperRect.width - 16; // Small padding
-    const maxHeight = Math.min(wrapperRect.height - 16, window.innerHeight * 0.45);
+    const maxHeight = Math.min(
+      wrapperRect.height - 16,
+      window.innerHeight * 0.45
+    );
 
     let displayWidth, displayHeight;
 
@@ -244,6 +262,19 @@ export class ImageCropperModal {
    * This is the largest crop that maintains aspect ratio and fits the image
    */
   calculateBaseCrop() {
+    // Bug #36: Guard against zero dimensions
+    if (
+      !this.img.width ||
+      !this.img.height ||
+      this.img.width <= 0 ||
+      this.img.height <= 0
+    ) {
+      logManager.error("[ImageCropperModal] Invalid image dimensions");
+      this.baseCropWidth = 100;
+      this.baseCropHeight = 100 / this.aspectRatio;
+      return;
+    }
+
     const imgAspect = this.img.width / this.img.height;
     const cropAspect = this.aspectRatio;
 
@@ -290,8 +321,8 @@ export class ImageCropperModal {
     cropY = Math.max(0, Math.min(this.img.height - cropHeight, cropY));
 
     // Update pan to reflect clamping
-    this.panX = (cropX + cropWidth / 2) - this.img.width / 2;
-    this.panY = (cropY + cropHeight / 2) - this.img.height / 2;
+    this.panX = cropX + cropWidth / 2 - this.img.width / 2;
+    this.panY = cropY + cropHeight / 2 - this.img.height / 2;
 
     // Store for export
     this.cropRect = {
@@ -431,16 +462,26 @@ export class ImageCropperModal {
     document.addEventListener("mouseup", this.boundMouseUp);
 
     // Canvas drag events (touch)
-    this.canvas.addEventListener("touchstart", (e) => this.handleTouchStart(e), { passive: false });
-    document.addEventListener("touchmove", this.boundTouchMove, { passive: false });
+    this.canvas.addEventListener(
+      "touchstart",
+      (e) => this.handleTouchStart(e),
+      { passive: false }
+    );
+    document.addEventListener("touchmove", this.boundTouchMove, {
+      passive: false,
+    });
     document.addEventListener("touchend", this.boundTouchEnd);
 
     // Mouse wheel zoom
-    this.canvas.addEventListener("wheel", (e) => {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      this.setZoom(this.zoom + delta);
-    }, { passive: false });
+    this.canvas.addEventListener(
+      "wheel",
+      (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        this.setZoom(this.zoom + delta);
+      },
+      { passive: false }
+    );
   }
 
   /**
@@ -535,7 +576,7 @@ export class ImageCropperModal {
     } else if (this.isDragging && e.touches?.length === 1) {
       e.preventDefault();
       const touch = e.touches[0];
-      
+
       const cropWidth = this.baseCropWidth / this.zoom;
       const cropHeight = this.baseCropHeight / this.zoom;
       const scaleX = cropWidth / this.displayWidth;
@@ -575,7 +616,10 @@ export class ImageCropperModal {
 
     try {
       // Calculate output dimensions maintaining aspect ratio
-      const outputWidth = Math.min(this.outputWidth, Math.round(this.cropRect.width));
+      const outputWidth = Math.min(
+        this.outputWidth,
+        Math.round(this.cropRect.width)
+      );
       const outputHeight = Math.round(outputWidth / this.aspectRatio);
 
       // Create output canvas
