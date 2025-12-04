@@ -444,7 +444,9 @@ export class LiveEventsSection {
           event.imageUrl
             ? `
           <div class="live-event-image">
-            <img src="${this.escapeAttr(event.imageUrl)}" alt="${title}" loading="lazy" />
+            <img src="${this.escapeAttr(
+              event.imageUrl
+            )}" alt="${title}" loading="lazy" />
           </div>
         `
             : ""
@@ -456,7 +458,11 @@ export class LiveEventsSection {
           <div class="live-event-club">
             ${
               club?.logoUrl
-                ? `<img src="${this.escapeAttr(club.logoUrl)}" alt="${this.escapeHtml(club.name)}" class="club-mini-logo" loading="lazy" />`
+                ? `<img src="${this.escapeAttr(
+                    club.logoUrl
+                  )}" alt="${this.escapeHtml(
+                    club.name
+                  )}" class="club-mini-logo" loading="lazy" />`
                 : `<div class="club-mini-logo placeholder" style="background: ${
                     club?.accentColor || "#8b7de8"
                   }">
@@ -515,7 +521,9 @@ export class LiveEventsSection {
           event.imageUrl
             ? `
           <div class="dropdown-event-thumb">
-            <img src="${this.escapeAttr(event.imageUrl)}" alt="${title}" loading="lazy" />
+            <img src="${this.escapeAttr(
+              event.imageUrl
+            )}" alt="${title}" loading="lazy" />
           </div>
         `
             : `

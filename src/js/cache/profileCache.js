@@ -26,6 +26,7 @@
  */
 
 import { logManager } from "../utils/debug/LogManager.js";
+import { pwaCache } from "../services/cache/PWACacheService.js";
 
 const CACHE_KEY = "meetchuthere:profileCache:v1";
 const VERSION = 1;
@@ -76,6 +77,14 @@ export const profileCache = {
         profile: fullProfileDoc,
       };
       localStorage.setItem(CACHE_KEY, JSON.stringify(snapshot));
+
+      // 📱 Also save avatar to PWA cache for instant PWA startup
+      const avatarUrl =
+        fullProfileDoc?.profile?.avatarUrl || fullProfileDoc?.avatarUrl;
+      if (avatarUrl) {
+        pwaCache.saveUserAvatar(uid, avatarUrl);
+      }
+
       document.dispatchEvent(
         new CustomEvent("profile:cache:updated", {
           detail: { uid, savedAt: snapshot.savedAt },

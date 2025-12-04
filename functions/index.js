@@ -95,7 +95,11 @@ async function incrementRate(userId, key, limitPerDay) {
  * @param {number} limitPerDay - Maximum actions per day (default: 100)
  */
 async function enforceAdminRateLimit(userId, actionKey, limitPerDay = 100) {
-  const allowed = await incrementRate(userId, `admin_${actionKey}`, limitPerDay);
+  const allowed = await incrementRate(
+    userId,
+    `admin_${actionKey}`,
+    limitPerDay
+  );
   if (!allowed) {
     throw new https.HttpsError(
       "resource-exhausted",
@@ -375,8 +379,9 @@ async function sendToUser(userId, notification, data = {}) {
 async function assertSuperAdmin(context) {
   const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
   // SECURITY: Additional check to ensure we're truly in a development environment
-  const isLocalhost = process.env.GCLOUD_PROJECT === "demo-project" || 
-                      process.env.FIREBASE_CONFIG?.includes("localhost");
+  const isLocalhost =
+    process.env.GCLOUD_PROJECT === "demo-project" ||
+    process.env.FIREBASE_CONFIG?.includes("localhost");
 
   if (!context.auth) {
     // In emulator, be lenient so local admin tools work even if the
@@ -561,10 +566,10 @@ function isStarredBy(recipientUser, actorId) {
 // SAF moderator management via callable functions
 export const addSafModerator = https.onCall(async (data, context) => {
   const { uid: callerUid } = await assertSuperAdmin(context);
-  
+
   // SECURITY: Rate limit admin actions
   await enforceAdminRateLimit(callerUid, "addSafModerator", 50);
-  
+
   const { uid, displayName, universityId } = data || {};
 
   // SECURITY: Validate document ID format to prevent injection
@@ -1190,10 +1195,10 @@ export const rejectClubEventSaf = https.onCall(async (data, context) => {
 
 export const removeSafModerator = https.onCall(async (data, context) => {
   const { uid: callerUid } = await assertSuperAdmin(context);
-  
+
   // SECURITY: Rate limit admin actions
   await enforceAdminRateLimit(callerUid, "removeSafModerator", 50);
-  
+
   const { uid } = data || {};
 
   // SECURITY: Validate document ID format to prevent injection

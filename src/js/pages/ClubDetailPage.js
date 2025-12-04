@@ -169,7 +169,9 @@ export default class ClubDetailPage {
         <div class="club-hero">
           ${
             c.bannerUrl
-              ? `<img src="${escapeAttr(c.bannerUrl)}" alt="Banner" class="club-banner" loading="lazy" />`
+              ? `<img src="${escapeAttr(
+                  c.bannerUrl
+                )}" alt="Banner" class="club-banner" loading="lazy" />`
               : `<div class="club-banner-placeholder"></div>`
           }
           <div class="club-hero-content">
@@ -743,7 +745,9 @@ export default class ClubDetailPage {
         }
         ${
           hasImage
-            ? `<div class="event-image-container"><img src="${escapeAttr(event.imageUrl)}" alt="${title}" class="event-image" loading="lazy" /></div>`
+            ? `<div class="event-image-container"><img src="${escapeAttr(
+                event.imageUrl
+              )}" alt="${title}" class="event-image" loading="lazy" /></div>`
             : ""
         }
         <div class="event-card-content">
