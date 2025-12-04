@@ -184,7 +184,11 @@ function renderPendingEventCard(event, clubData, canApproveReject = true) {
   }
 
   // Creator info
-  const creatorName = event.createdByInfo?.name || "Unknown";
+  const creatorName = event.createdByInfo?.firstName
+    ? `${event.createdByInfo.firstName} ${
+        event.createdByInfo.lastName || ""
+      }`.trim()
+    : event.createdByInfo?.name || "Unknown";
   const createdAt = event.createdAt?.toDate
     ? formatRelativeTime(event.createdAt.toDate())
     : "Unknown";
@@ -214,7 +218,7 @@ function renderPendingEventCard(event, clubData, canApproveReject = true) {
     <div class="pending-event-card" data-event-id="${event.id}">
       ${
         event.imageUrl
-          ? `<div class="pending-event-image"><img src="${event.imageUrl}" alt="${title}" loading="lazy" /></div>`
+          ? `<div class="pending-event-image"><img src="${escapeAttr(event.imageUrl)}" alt="${title}" loading="lazy" /></div>`
           : ""
       }
       <div class="pending-event-content">
@@ -305,7 +309,8 @@ async function handleApprove(clubData, event, btn, onEventUpdated) {
 
     const clubId = clubData.id;
     const eventId = event.id;
-    const requiresSafApproval = clubData.requireSafApproval === true;
+    // SAF approval is now mandatory for all events
+    const requiresSafApproval = true;
 
     // Presidents must not bypass SAF queue; block if event is already pending_saf
     if (event.status === "pending_saf") {
@@ -540,6 +545,22 @@ function escapeHtml(s) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+// Helper to escape values for safe use in HTML attributes (src, href, etc.)
+function escapeAttr(value) {
+  if (value == null) return "";
+  const str = String(value);
+  const lower = str.toLowerCase().trim();
+  if (lower.startsWith("javascript:") || lower.startsWith("data:text/html")) {
+    return "";
+  }
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function truncate(str, len) {

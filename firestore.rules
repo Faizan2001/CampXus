@@ -75,13 +75,15 @@ service cloud.firestore {
 	      allow read: if request.auth != null;
 
 	      // Create: only SAF moderators or super admins can create clubs (controlled creation)
-	      // DevTest clubs can be created by their owner for development purposes.
+	      // SECURITY: DevTest clubs can ONLY be created by super admins (not any authenticated user)
 	      // NOTE: followerCount is server-managed; clients must not set it to a non-zero value.
 	      allow create: if request.auth != null &&
 	        (
 	          isSuperAdmin() ||
 	          isSafModerator() ||
+	          // SECURITY FIX: DevTest clubs restricted to super admins only
 	          (
+	            isSuperAdmin() &&
 	            request.resource.data.devTest == true &&
 	            request.resource.data.devOwnerUid == request.auth.uid
 	          )
@@ -326,8 +328,9 @@ service cloud.firestore {
     // --- Handles Mapping (/handles) ---
     // Provides global uniqueness for user handles
     // NOTE: Weekly cooldown & advanced validations enforced client-side for MVP.
+    // SECURITY: Only authenticated users can look up handles to prevent enumeration attacks
     match /handles/{handle} {
-      allow read: if true; // Public lookup
+      allow read: if request.auth != null; // Authenticated lookup only
       function isReserved() {
         // Sync with client reservedHandles in handleUtils.js
         return handle in ['admin','system','support','root','null','undefined','iub'];
@@ -539,10 +542,19 @@ service cloud.firestore {
         (!('scheduleVisibility' in request.resource.data) ||
          (
            // User can only modify their own visibility setting
-           request.resource.data.scheduleVisibility.keys().hasAll([request.auth.uid]) ||
-           // Or if updating the full object, it must contain both users and only change their own setting
-           (request.resource.data.scheduleVisibility.keys().hasAll(resource.data.users) &&
-            resource.data.users.hasAll(request.resource.data.scheduleVisibility.keys()))
+           request.resource.data.scheduleVisibility.keys().hasAll([request.auth.uid]) &&
+           // If friend's key exists in update, their value MUST remain unchanged
+           (
+             // Either friend's key is not in the update at all (single-field update)
+             request.resource.data.scheduleVisibility.keys().size() == 1 ||
+             // Or if friend's key IS included, their value must match the existing value
+             (resource.data.users.toSet().difference([request.auth.uid].toSet()).size() == 1 &&
+              request.resource.data.scheduleVisibility[
+                resource.data.users.removeAll([request.auth.uid])[0]
+              ] == resource.data.scheduleVisibility[
+                resource.data.users.removeAll([request.auth.uid])[0]
+              ])
+           )
          )) &&
 
         // Condition 5: User can only update their own location visibility (Campus Presence 2025)
@@ -550,10 +562,19 @@ service cloud.firestore {
         (!('locationVisibility' in request.resource.data) ||
          (
            // User can only modify their own location visibility setting
-           request.resource.data.locationVisibility.keys().hasAll([request.auth.uid]) ||
-           // Or if updating the full object, it must contain both users and only change their own setting
-           (request.resource.data.locationVisibility.keys().hasAll(resource.data.users) &&
-            resource.data.users.hasAll(request.resource.data.locationVisibility.keys()))
+           request.resource.data.locationVisibility.keys().hasAll([request.auth.uid]) &&
+           // If friend's key exists in update, their value MUST remain unchanged
+           (
+             // Either friend's key is not in the update at all (single-field update)
+             request.resource.data.locationVisibility.keys().size() == 1 ||
+             // Or if friend's key IS included, their value must match the existing value
+             (resource.data.users.toSet().difference([request.auth.uid].toSet()).size() == 1 &&
+              request.resource.data.locationVisibility[
+                resource.data.users.removeAll([request.auth.uid])[0]
+              ] == resource.data.locationVisibility[
+                resource.data.users.removeAll([request.auth.uid])[0]
+              ])
+           )
          )) &&
 
         // Condition 6: If locationSharingMetadata is being updated, user must be correctly attributed

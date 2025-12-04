@@ -169,14 +169,14 @@ export default class ClubDetailPage {
         <div class="club-hero">
           ${
             c.bannerUrl
-              ? `<img src="${c.bannerUrl}" alt="Banner" class="club-banner" loading="lazy" />`
+              ? `<img src="${escapeAttr(c.bannerUrl)}" alt="Banner" class="club-banner" loading="lazy" />`
               : `<div class="club-banner-placeholder"></div>`
           }
           <div class="club-hero-content">
             <div class="club-logo-large">
               ${
                 c.logoUrl
-                  ? `<img src="${c.logoUrl}" alt="${escapeHtml(
+                  ? `<img src="${escapeAttr(c.logoUrl)}" alt="${escapeHtml(
                       c.name
                     )}" loading="lazy" />`
                   : `<i class="fas fa-flag"></i>`
@@ -743,7 +743,7 @@ export default class ClubDetailPage {
         }
         ${
           hasImage
-            ? `<div class="event-image-container"><img src="${event.imageUrl}" alt="${title}" class="event-image" loading="lazy" /></div>`
+            ? `<div class="event-image-container"><img src="${escapeAttr(event.imageUrl)}" alt="${title}" class="event-image" loading="lazy" /></div>`
             : ""
         }
         <div class="event-card-content">
@@ -857,9 +857,31 @@ function escapeHtml(s) {
     .replace(/'/g, "&#39;");
 }
 
+// Helper to escape values for safe use in HTML attributes (src, href, etc.)
+function escapeAttr(value) {
+  if (value == null) return "";
+  const str = String(value);
+  // Block javascript: and data: URIs that could execute code
+  const lower = str.toLowerCase().trim();
+  if (lower.startsWith("javascript:") || lower.startsWith("data:text/html")) {
+    return "";
+  }
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 // Wire to SPA lifecycle
 let currentClubInstance = null;
-document.addEventListener("spa:page:unload", () => {
+
+document.addEventListener("spa:page:unload", (event) => {
+  const route = event?.detail?.route;
+  // Only unmount if we're leaving club detail page
+  if (route !== "club") return;
+
   if (currentClubInstance) {
     currentClubInstance.destroy();
     currentClubInstance = null;
@@ -869,6 +891,14 @@ document.addEventListener("spa:page:unload", () => {
 document.addEventListener("spa:page:load", async (event) => {
   const route = event?.detail?.route;
   if (route !== "club") return;
-  currentClubInstance = new ClubDetailPage();
-  await currentClubInstance.mount();
+
+  // Wait a tick for DOM to be ready after template injection
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  try {
+    currentClubInstance = new ClubDetailPage();
+    await currentClubInstance.mount();
+  } catch (error) {
+    console.error("[ClubDetailPage] Mount failed:", error);
+  }
 });

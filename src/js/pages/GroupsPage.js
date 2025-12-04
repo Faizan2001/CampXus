@@ -89,8 +89,7 @@ export class GroupsPage {
     }
 
     // Cache groups root
-    this.groupsRoot =
-      document.querySelector("#groups-root") || this.container;
+    this.groupsRoot = document.querySelector("#groups-root") || this.container;
 
     // Render class spaces list
     await this.renderClassesTab(this.groupsRoot);
@@ -293,8 +292,7 @@ export class GroupsPage {
     page.insertBefore(indicator, listEl);
     this.pullState.indicator = indicator;
 
-    const getY = (evt) =>
-      evt?.touches?.[0]?.clientY ?? evt?.clientY ?? 0;
+    const getY = (evt) => evt?.touches?.[0]?.clientY ?? evt?.clientY ?? 0;
 
     const canStart = () => {
       const scrollTop =
@@ -437,14 +435,15 @@ export class GroupsPage {
       const relativeTime = unreadTracker.getRelativeTime(s);
 
       // Dynamic styling based on course code
-      const courseCode = s.courseCode || (s.courseName ? s.courseName.substring(0, 3) : "GEN");
+      const courseCode =
+        s.courseCode || (s.courseName ? s.courseName.substring(0, 3) : "GEN");
       const { hue, icon } = this.getCourseStyle(courseCode);
 
       const card = document.createElement("div");
       card.className = "group-card";
       // Inject hue as CSS variable for the stylesheet to use
       card.style.setProperty("--course-hue", hue);
-      
+
       card.innerHTML = `
         <div class="card-icon-container">
           <i class="fas ${icon}"></i>
@@ -456,21 +455,31 @@ export class GroupsPage {
           </div>
           <h3 class="group-title">${title}</h3>
           <div class="card-meta">
-            <span class="meta-item"><i class="far fa-clock"></i> ${this.slotToDisplay(s)}</span>
-            <span class="meta-item"><i class="fas fa-map-marker-alt"></i> ${s.classroom || "TBD"}</span>
+            <span class="meta-item"><i class="far fa-clock"></i> ${this.slotToDisplay(
+              s
+            )}</span>
+            <span class="meta-item"><i class="fas fa-map-marker-alt"></i> ${
+              s.classroom || "TBD"
+            }</span>
           </div>
           <div class="card-footer">
             <div class="preview-text">${preview}</div>
             <div class="member-info">
               <i class="fas fa-user-friends"></i> ${members}
-              ${relativeTime ? `<span class="time-ago">• ${relativeTime}</span>` : ""}
+              ${
+                relativeTime
+                  ? `<span class="time-ago">• ${relativeTime}</span>`
+                  : ""
+              }
             </div>
           </div>
         </div>
       `;
 
       card.addEventListener("click", async () => {
-        logManager.dev.debug("[GroupsPage] Group card clicked", { spaceId: s.spaceId });
+        logManager.dev.debug("[GroupsPage] Group card clicked", {
+          spaceId: s.spaceId,
+        });
         try {
           const { navigateTo } = await import("../app.js");
           try {
@@ -524,7 +533,7 @@ export class GroupsPage {
       }
       hue = Math.abs(hash % 360);
     }
-    
+
     return { hue, icon };
   }
 
@@ -672,7 +681,11 @@ export default GroupsPage;
 // Wire to SPA router lifecycle
 let _groupsPageInstance = null;
 
-document.addEventListener("spa:page:unload", () => {
+document.addEventListener("spa:page:unload", (event) => {
+  const route = event?.detail?.route;
+  // Only unmount if we're leaving messages page
+  if (route !== "messages") return;
+
   if (_groupsPageInstance) {
     _groupsPageInstance.unmount();
     _groupsPageInstance = null;
@@ -682,9 +695,23 @@ document.addEventListener("spa:page:unload", () => {
 document.addEventListener("spa:page:load", async (event) => {
   const route = event?.detail?.route;
   if (route !== "messages") return;
+
+  // Wait a tick for DOM to be ready after template injection
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
   const root =
     document.querySelector("#groups-root") ||
     document.querySelector(".main-content");
-  _groupsPageInstance = new GroupsPage();
-  await _groupsPageInstance.mount(root);
+
+  if (!root) {
+    console.error("[GroupsPage] Root element not found!");
+    return;
+  }
+
+  try {
+    _groupsPageInstance = new GroupsPage();
+    await _groupsPageInstance.mount(root);
+  } catch (error) {
+    console.error("[GroupsPage] Mount failed:", error);
+  }
 });

@@ -54,7 +54,9 @@ firestore/
   },
 
   // === Settings ===
-  requireSafApproval: false,                 // If true: Official → President → SAF → Live
+  // NOTE: requireSafApproval is DEPRECATED - SAF approval is now mandatory for ALL events
+  // This field may still exist on legacy clubs but is no longer used
+  requireSafApproval: true,                  // DEPRECATED: Always true now (SAF approval mandatory)
   isActive: true,                            // Can be deactivated by SAF/Admin
 
   // === Stats (denormalized for performance) ===
@@ -155,6 +157,9 @@ clubs: university ASC, nextEventDate ASC
 
   // === Flags ===
   isUniversityAnnouncement: false,           // SAF/Admin bypass badge
+
+  // === Reminder Tracking (for multi-day events) ===
+  remindersSentForSlots: ["2025-12-01_17:00", "2025-12-03_17:00"],  // Slot keys for which reminders have been sent
 
   // === Authorship ===
   createdBy: "official_uid",

@@ -444,7 +444,7 @@ export class LiveEventsSection {
           event.imageUrl
             ? `
           <div class="live-event-image">
-            <img src="${event.imageUrl}" alt="${title}" loading="lazy" />
+            <img src="${this.escapeAttr(event.imageUrl)}" alt="${title}" loading="lazy" />
           </div>
         `
             : ""
@@ -456,7 +456,7 @@ export class LiveEventsSection {
           <div class="live-event-club">
             ${
               club?.logoUrl
-                ? `<img src="${club.logoUrl}" alt="${club.name}" class="club-mini-logo" loading="lazy" />`
+                ? `<img src="${this.escapeAttr(club.logoUrl)}" alt="${this.escapeHtml(club.name)}" class="club-mini-logo" loading="lazy" />`
                 : `<div class="club-mini-logo placeholder" style="background: ${
                     club?.accentColor || "#8b7de8"
                   }">
@@ -515,7 +515,7 @@ export class LiveEventsSection {
           event.imageUrl
             ? `
           <div class="dropdown-event-thumb">
-            <img src="${event.imageUrl}" alt="${title}" loading="lazy" />
+            <img src="${this.escapeAttr(event.imageUrl)}" alt="${title}" loading="lazy" />
           </div>
         `
             : `
@@ -715,6 +715,24 @@ export class LiveEventsSection {
     const div = document.createElement("div");
     div.textContent = str;
     return div.innerHTML;
+  }
+
+  /**
+   * Escape value for safe use in HTML attributes (src, href, etc.)
+   */
+  escapeAttr(value) {
+    if (value == null) return "";
+    const str = String(value);
+    const lower = str.toLowerCase().trim();
+    if (lower.startsWith("javascript:") || lower.startsWith("data:text/html")) {
+      return "";
+    }
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
   }
 }
 

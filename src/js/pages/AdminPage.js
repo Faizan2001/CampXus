@@ -30,7 +30,6 @@ import {
 import { logManager } from "../utils/debug/LogManager.js";
 import {
   createClub,
-  updateClub as adminUpdateClub,
   assignPresident as adminAssignPresident,
   deleteClub as adminDeleteClub,
   createUniversity as adminCreateUniversity,
@@ -45,11 +44,10 @@ import {
 } from "../services/admin/AdminService.js";
 import { renderUserSearchAssign } from "../components/shared/UserSearchAssign.js";
 import {
-  processClubLogo,
-  processClubBanner,
   uploadClubLogo,
   uploadClubBanner,
 } from "../services/clubs/ClubImageService.js";
+import { ClubCreatorModal } from "../components/clubs/ClubCreatorModal.js";
 
 export class AdminPage {
   constructor() {
@@ -145,15 +143,17 @@ export class AdminPage {
   renderAccessDenied(reason) {
     const container = this.rootEl;
     container.innerHTML = `
-      <div class="admin-access-denied">
-        <div class="denied-icon">
-          <i class="fas fa-shield-alt"></i>
+      <div class="admin-page admin-super">
+        <div class="admin-access-denied">
+          <div class="denied-icon">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <h2>Access Denied</h2>
+          <p>${reason}</p>
+          <a href="/" class="btn-primary">
+            <i class="fas fa-home"></i> Return Home
+          </a>
         </div>
-        <h2>Access Denied</h2>
-        <p>${reason}</p>
-        <a href="/" class="btn-primary">
-          <i class="fas fa-home"></i> Return Home
-        </a>
       </div>
     `;
   }
@@ -164,13 +164,14 @@ export class AdminPage {
   renderPinVerification() {
     const container = this.rootEl;
     container.innerHTML = `
-      <div class="admin-pin-screen">
-        <div class="pin-container glass-card">
-          <div class="pin-header">
-            <i class="fas fa-lock"></i>
-            <h2>Admin Verification</h2>
-            <p>Enter your 6-digit PIN to continue</p>
-          </div>
+      <div class="admin-page admin-super">
+        <div class="admin-pin-screen">
+          <div class="pin-container glass-card">
+            <div class="pin-header">
+              <i class="fas fa-lock"></i>
+              <h2>Admin Verification</h2>
+              <p>Enter your 6-digit PIN to continue</p>
+            </div>
           
           <div class="pin-input-group">
             <input type="password" 
@@ -193,6 +194,7 @@ export class AdminPage {
           <button class="btn-verify-pin" disabled>
             <i class="fas fa-unlock"></i> Verify PIN
           </button>
+          </div>
         </div>
       </div>
     `;
@@ -390,41 +392,47 @@ export class AdminPage {
   async renderDashboard() {
     const container = this.rootEl;
     container.innerHTML = `
-      <div class="admin-dashboard">
-        <header class="admin-header">
-          <div class="admin-title">
-            <i class="fas fa-crown"></i>
-            <h1>Super Admin Dashboard</h1>
-          </div>
-          <div class="admin-user">
-            <span>${currentUser.profile?.displayName || "Admin"}</span>
-            <div class="admin-badge">
-              <i class="fas fa-shield-alt"></i> Super Admin
+      <div class="admin-page admin-super">
+        <div class="admin-dashboard">
+          <header class="admin-header">
+            <!-- Back button for mobile (visible when top-nav is hidden) -->
+            <a href="#clubs" class="admin-back-btn" aria-label="Back to Clubs">
+              <i class="fas fa-arrow-left"></i>
+            </a>
+            <div class="admin-title">
+              <i class="fas fa-crown"></i>
+              <h1>Super Admin Dashboard</h1>
             </div>
+            <div class="admin-user">
+              <span>${currentUser.profile?.displayName || "Admin"}</span>
+              <div class="admin-badge">
+                <i class="fas fa-shield-alt"></i> <span>Super Admin</span>
+              </div>
+            </div>
+          </header>
+
+          <nav class="admin-tabs" data-active-tab="overview">
+            <button class="admin-tab active" data-tab="overview">
+              <i class="fas fa-chart-pie"></i>
+              <span>Overview</span>
+            </button>
+            <button class="admin-tab" data-tab="universities">
+              <i class="fas fa-university"></i>
+              <span>Universities</span>
+            </button>
+            <button class="admin-tab" data-tab="saf">
+              <i class="fas fa-user-shield"></i>
+              <span>SAF Mods</span>
+            </button>
+            <button class="admin-tab" data-tab="clubs">
+              <i class="fas fa-users"></i>
+              <span>Clubs</span>
+            </button>
+          </nav>
+
+          <div class="admin-content">
+            <!-- Tab content loaded here -->
           </div>
-        </header>
-
-        <nav class="admin-tabs">
-          <button class="admin-tab active" data-tab="overview">
-            <i class="fas fa-chart-pie"></i>
-            <span>Overview</span>
-          </button>
-          <button class="admin-tab" data-tab="universities">
-            <i class="fas fa-university"></i>
-            <span>Universities</span>
-          </button>
-          <button class="admin-tab" data-tab="saf">
-            <i class="fas fa-user-shield"></i>
-            <span>SAF Mods</span>
-          </button>
-          <button class="admin-tab" data-tab="clubs">
-            <i class="fas fa-users"></i>
-            <span>Clubs</span>
-          </button>
-        </nav>
-
-        <div class="admin-content">
-          <!-- Tab content loaded here -->
         </div>
       </div>
     `;
@@ -444,6 +452,12 @@ export class AdminPage {
         // Update active state
         tabs.forEach((t) => t.classList.remove("active"));
         tab.classList.add("active");
+
+        // Update data-active-tab for pill animation
+        const tabsNav = container.querySelector(".admin-tabs");
+        if (tabsNav) {
+          tabsNav.dataset.activeTab = tab.dataset.tab;
+        }
 
         // Load tab content
         const tabName = tab.dataset.tab;
@@ -1149,7 +1163,7 @@ export class AdminPage {
                       profile.lastName || ""
                     }`.trim() || null,
                   universityId: uniId,
-                  addedBy: currentUser.profile?.uid,
+                  addedBy: currentUser.uid,
                 });
                 await this.loadTabContent("saf");
               },
@@ -1228,16 +1242,18 @@ export class AdminPage {
             </thead>
             <tbody>
               ${clubs
-                .map(
-                  (club) => `
-                <tr data-id="${club.id}" data-club-name="${
-                    club.name || ""
-                  }" data-university-id="${
+                .map((club) => {
+                  // Escape quotes in data attributes to prevent XSS, but keep raw value for comparisons
+                  const safeAttr = (val) => (val || "").replace(/"/g, "&quot;");
+                  return `
+                <tr data-id="${club.id}" data-club-name="${safeAttr(
+                    club.name
+                  )}" data-university-id="${safeAttr(
                     club.universityId ||
-                    club.universityCode ||
-                    club.university ||
-                    ""
-                  }" data-president-id="${club.presidentId || ""}">
+                      club.universityCode ||
+                      club.university ||
+                      ""
+                  )}" data-president-id="${club.presidentId || ""}">
                   <td>
                     <div class="club-name-cell">
                       ${
@@ -1270,8 +1286,8 @@ export class AdminPage {
                     </button>
                   </td>
                 </tr>
-              `
-                )
+              `;
+                })
                 .join("")}
             </tbody>
           </table>
@@ -1339,119 +1355,30 @@ export class AdminPage {
       );
     }
 
-    const optionsHtml =
-      universities.length > 0
-        ? universities
-            .map((u) => `<option value="${u.id}">${u.name || u.id}</option>`)
-            .join("")
-        : "";
+    const modal = new ClubCreatorModal({
+      universities,
+      onConfirm: async (clubData) => {
+        const {
+          name,
+          description,
+          universityId,
+          universityName,
+          category,
+          accentColor,
+          requireSafApproval,
+          logoBlob,
+          bannerBlob,
+        } = clubData;
 
-    this.showModal({
-      title: "Create New Club",
-      content: `
-        <form class="admin-form" id="create-club-form">
-          <div class="form-group">
-            <label>Club Name *</label>
-            <input type="text" name="name" required placeholder="Enter club name">
-          </div>
-          <div class="form-group">
-            <label>Description</label>
-            <textarea name="description" rows="3" placeholder="Brief description"></textarea>
-          </div>
-          <div class="form-group">
-            <label>University *</label>
-            <select name="universityId" required>
-              <option value="">Select university</option>
-              ${optionsHtml}
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Category</label>
-            <select name="category">
-              <option value="academic">Academic</option>
-              <option value="social">Social</option>
-              <option value="sports">Sports</option>
-              <option value="arts">Arts & Culture</option>
-              <option value="tech">Technology</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Accent Color</label>
-            <div class="accent-color-options">
-              <button type="button" class="color-option" data-color="blue">Blue</button>
-              <button type="button" class="color-option" data-color="purple">Purple</button>
-              <button type="button" class="color-option" data-color="green">Green</button>
-              <button type="button" class="color-option" data-color="orange">Orange</button>
-              <button type="button" class="color-option" data-color="pink">Pink</button>
-            </div>
-            <input type="hidden" name="accentColor" value="blue" />
-          </div>
-          <div class="form-group">
-            <label>Logo (optional)</label>
-            <input type="file" name="logo" accept="image/*" />
-          </div>
-          <div class="form-group">
-            <label>Banner (optional)</label>
-            <input type="file" name="banner" accept="image/*" />
-          </div>
-          <div class="form-group">
-            <label>
-              <input type="checkbox" name="requireSafApproval" />
-              Require SAF approval for events
-            </label>
-          </div>
-        </form>
-      `,
-      confirmText: "Create Club",
-      onConfirm: async () => {
-        const form = document.getElementById("create-club-form");
-        const formData = new FormData(form);
-
-        const name = formData.get("name");
-        const description = formData.get("description") || "";
-        const universityId = formData.get("universityId");
-        const category = formData.get("category");
-        const accentColor = formData.get("accentColor") || "blue";
-        const requireSafApproval = formData.get("requireSafApproval") === "on";
-
-        const logoInput = form.querySelector('input[name="logo"]');
-        const bannerInput = form.querySelector('input[name="banner"]');
-        const logoFile = logoInput?.files?.[0] || null;
-        const bannerFile = bannerInput?.files?.[0] || null;
-
-        const selectedUniversity =
-          universities.find((u) => u.id === universityId) || null;
-        const universityName =
-          selectedUniversity?.name || selectedUniversity?.id || universityId;
-
-        // Generate a stable clubId so we can upload assets before creating the document
+        // Generate a stable clubId
         const clubId = this.generateClubId(name);
-
-        let logoUrl = null;
-        let bannerUrl = null;
-
-        try {
-          if (logoFile) {
-            const logoBlob = await processClubLogo(logoFile);
-            logoUrl = await uploadClubLogo(clubId, logoBlob);
-          }
-          if (bannerFile) {
-            const bannerBlob = await processClubBanner(bannerFile);
-            bannerUrl = await uploadClubBanner(clubId, bannerBlob);
-          }
-        } catch (imageError) {
-          logManager.warn(
-            "AdminPage: Failed to upload one or more club images",
-            imageError
-          );
-        }
 
         logManager.info("AdminPage: Creating club via dashboard", {
           name,
           universityId,
         });
 
+        // Create the club FIRST so storage rules can verify club exists
         await createClub({
           clubId,
           name,
@@ -1459,12 +1386,44 @@ export class AdminPage {
           universityId,
           universityName,
           category,
-          createdBy: currentUser.profile?.uid,
+          createdBy: currentUser.uid,
           accentColor,
           requireSafApproval,
-          logoUrl,
-          bannerUrl,
+          logoUrl: null,
+          bannerUrl: null,
         });
+
+        // Small delay to ensure Firestore document is available for Storage rules check
+        // (Emulator cross-service consistency can have slight delays)
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Now upload images AFTER club exists (storage rules require club doc to exist)
+        let logoUrl = null;
+        let bannerUrl = null;
+
+        try {
+          if (logoBlob) {
+            logoUrl = await uploadClubLogo(clubId, logoBlob);
+          }
+          if (bannerBlob) {
+            bannerUrl = await uploadClubBanner(clubId, bannerBlob);
+          }
+          // Update the club with image URLs if any were uploaded
+          if (logoUrl || bannerUrl) {
+            const { updateClub } = await import(
+              "../services/admin/AdminService.js"
+            );
+            await updateClub(clubId, {
+              ...(logoUrl && { logoUrl }),
+              ...(bannerUrl && { bannerUrl }),
+            });
+          }
+        } catch (imageError) {
+          logManager.warn(
+            "AdminPage: Failed to upload one or more club images",
+            imageError
+          );
+        }
 
         logManager.info("AdminPage: Club created via dashboard", {
           name,
@@ -1475,21 +1434,7 @@ export class AdminPage {
       },
     });
 
-    // Wire up accent color picker buttons inside the modal
-    const formEl = document.getElementById("create-club-form");
-    if (formEl) {
-      const colorButtons = formEl.querySelectorAll(".color-option");
-      const hiddenInput = formEl.querySelector('input[name="accentColor"]');
-      colorButtons.forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const color = btn.dataset.color;
-          if (hiddenInput) hiddenInput.value = color;
-          colorButtons.forEach((b) =>
-            b.classList.toggle("selected", b === btn)
-          );
-        });
-      });
-    }
+    await modal.show();
   }
 
   generateClubId(name) {
@@ -1504,101 +1449,104 @@ export class AdminPage {
     );
   }
 
-  openEditClubModal(clubId) {
-    this.showModal({
-      title: "Edit Club",
-      content: `
-        <form class="admin-form" id="edit-club-form">
-          <div class="form-group">
-            <label>Club Name *</label>
-            <input type="text" name="name" required placeholder="Club name">
-          </div>
-          <div class="form-group">
-            <label>Description</label>
-            <textarea name="description" rows="3" placeholder="Brief description"></textarea>
-          </div>
-          <div class="form-group">
-            <label>Category</label>
-            <select name="category">
-              <option value="academic">Academic</option>
-              <option value="social">Social</option>
-              <option value="sports">Sports</option>
-              <option value="arts">Arts & Culture</option>
-              <option value="tech">Technology</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Status</label>
-            <label class="inline-checkbox">
-              <input type="checkbox" name="isActive" checked />
-              Active (visible in Clubs UI)
-            </label>
-          </div>
-          <div class="form-group">
-            <label>
-              <input type="checkbox" name="requireSafApproval" />
-              Require SAF approval for events
-            </label>
-          </div>
-        </form>
-      `,
-      confirmText: "Save Changes",
-      onConfirm: async () => {
-        const form = document.getElementById("edit-club-form");
-        const formData = new FormData(form);
-        const name = formData.get("name");
-        const description = formData.get("description") || "";
-        const category = formData.get("category");
-        const isActive = formData.get("isActive") === "on";
-        const requireSafApproval = formData.get("requireSafApproval") === "on";
+  async openEditClubModal(clubId) {
+    // Fetch current club data
+    let clubData;
+    try {
+      const clubSnap = await getDoc(doc(db, "clubs", clubId));
+      if (!clubSnap.exists()) {
+        logManager.error("AdminPage: Club not found for edit", { clubId });
+        alert("Club not found.");
+        return;
+      }
+      clubData = { id: clubSnap.id, ...clubSnap.data() };
+    } catch (error) {
+      logManager.error("AdminPage: Failed to load club for edit", {
+        clubId,
+        error,
+      });
+      alert("Failed to load club data.");
+      return;
+    }
 
-        logManager.info("AdminPage: Updating club from dashboard", {
-          clubId,
-          name,
-          isActive,
-          requireSafApproval,
-        });
+    // Fetch universities for the dropdown
+    let universities = [];
+    try {
+      universities = await this.fetchUniversities();
+    } catch (error) {
+      logManager.error(
+        "AdminPage: Failed to fetch universities for edit club modal",
+        error
+      );
+    }
 
-        await adminUpdateClub(clubId, {
+    const modal = new ClubCreatorModal({
+      universities,
+      presetUniversityId: clubData.universityId || clubData.universityCode,
+      presetUniversityName: clubData.universityName,
+      editMode: true,
+      existingClub: clubData,
+      existingLogoUrl: clubData.logoUrl || null,
+      existingBannerUrl: clubData.bannerUrl || null,
+      onConfirm: async (formData) => {
+        const {
           name,
           description,
           category,
-          isActive,
+          accentColor,
           requireSafApproval,
+          logoBlob,
+          bannerBlob,
+        } = formData;
+
+        logManager.info("AdminPage: Updating club via dashboard", {
+          clubId,
+          name,
         });
 
-        await this.loadTabContent("clubs");
+        try {
+          // Upload new images if provided
+          let logoUrl = clubData.logoUrl; // Keep existing if no new upload
+          let bannerUrl = clubData.bannerUrl;
+
+          if (logoBlob) {
+            logoUrl = await uploadClubLogo(clubId, logoBlob);
+          }
+          if (bannerBlob) {
+            bannerUrl = await uploadClubBanner(clubId, bannerBlob);
+          }
+
+          // Update the club
+          const { updateClub } = await import(
+            "../services/admin/AdminService.js"
+          );
+          await updateClub(clubId, {
+            name,
+            description,
+            category,
+            accentColor,
+            requireSafApproval,
+            ...(logoUrl && { logoUrl }),
+            ...(bannerUrl && { bannerUrl }),
+          });
+
+          logManager.info("AdminPage: Club updated via dashboard", {
+            clubId,
+            name,
+          });
+
+          await this.loadTabContent("clubs");
+        } catch (error) {
+          logManager.error("AdminPage: Failed to update club", {
+            clubId,
+            error,
+          });
+          alert("Failed to update club. Please try again.");
+        }
       },
     });
 
-    // Populate current values asynchronously
-    (async () => {
-      try {
-        const clubSnap = await getDoc(doc(db, "clubs", clubId));
-        const data = clubSnap.data() || {};
-        const form = document.getElementById("edit-club-form");
-        if (!form) return;
-
-        form.elements.name.value = data.name || "";
-        form.elements.description.value = data.description || "";
-        if (form.elements.category) {
-          form.elements.category.value = data.category || "other";
-        }
-        if (form.elements.isActive) {
-          form.elements.isActive.checked = data.isActive !== false;
-        }
-        if (form.elements.requireSafApproval) {
-          form.elements.requireSafApproval.checked =
-            data.requireSafApproval === true;
-        }
-      } catch (error) {
-        logManager.error("AdminPage: Failed to load club for edit", {
-          clubId,
-          error,
-        });
-      }
-    })();
+    await modal.show();
   }
 
   async openAssignPresidentModal(clubId, opts = {}) {

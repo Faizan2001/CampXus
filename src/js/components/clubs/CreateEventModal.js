@@ -1685,6 +1685,7 @@ export class CreateEventModal {
         const wasRejected = this.event.status === "rejected";
         const wasLive = this.event.isLive === true;
         const wasApproved = this.event.status === "approved";
+        const wasPendingSaf = this.event.status === "pending_saf";
         const isPresident = this.isUserPresident();
 
         const updateData = {
@@ -1698,18 +1699,27 @@ export class CreateEventModal {
           updatedBy: currentUser?.uid,
         };
 
-        // R7: If a live event is edited, stop it and require re-approval
-        // The event must go back through the approval process
-        if (wasLive || wasApproved) {
+        // R7: If a live, approved, or pending_saf event is edited, reset approval workflow
+        // The event must go back through the full approval process (pending_president → pending_saf → approved)
+        // This ensures the president reviews any changes before SAF sees the modified event
+        if (wasLive || wasApproved || wasPendingSaf) {
           updateData.isLive = false;
           updateData.status = "pending_president";
-          updateData.liveStoppedAt = Timestamp.now();
-          updateData.liveStoppedBy = currentUser?.uid;
-          updateData.liveStopReason = "edited";
+          if (wasLive) {
+            updateData.liveStoppedAt = Timestamp.now();
+            updateData.liveStoppedBy = currentUser?.uid;
+            updateData.liveStopReason = "edited";
+          }
           // Clear any previous approval data
           updateData.approvedAt = null;
           updateData.approvedBy = null;
           updateData.approvedByInfo = null;
+          // Clear any SAF approval data if it was pending SAF
+          if (wasPendingSaf) {
+            updateData.safApprovedAt = null;
+            updateData.safApprovedBy = null;
+            updateData.safApprovedByInfo = null;
+          }
         }
 
         // If a non‑president edits a rejected event, treat it as a resubmission:
@@ -1776,15 +1786,11 @@ export class CreateEventModal {
         const profileLastName = currentUser?.profile?.profile?.lastName || "";
 
         // Determine status based on user role
-        // Presidents and devOwners can auto-approve unless SAF approval is required,
-        // in which case events move to pending_saf after president review.
+        // SAF approval is mandatory for all events.
+        // Presidents and devOwners can approve, but events still go to pending_saf.
         const isPresident = this.isUserPresident();
-        const requiresSafApproval = this.clubData?.requireSafApproval === true;
-        const eventStatus = isPresident
-          ? requiresSafApproval
-            ? "pending_saf"
-            : "approved"
-          : "pending_president";
+        // SAF approval is now mandatory for ALL clubs
+        const eventStatus = isPresident ? "pending_saf" : "pending_president";
 
         const eventData = {
           title,

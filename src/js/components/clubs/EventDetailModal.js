@@ -287,13 +287,28 @@ export class EventDetailModal {
       return `<span class="event-detail-status pending"><i class="fas fa-clock"></i> Pending Approval</span>`;
     }
     if (this.event.status === "rejected") {
-      const rejectorName = this.event.rejectedByInfo?.name || "Moderator";
+      const isSafRejection = this.event.safRejected === true;
+      const rejectorName = this.event.rejectedByInfo?.firstName
+        ? `${this.event.rejectedByInfo.firstName} ${
+            this.event.rejectedByInfo.lastName || ""
+          }`.trim()
+        : this.event.rejectedByInfo?.name || "Moderator";
       const rejectionReason = this.event.rejectionReason || "";
+      const rejectionSource = isSafRejection
+        ? "SAF Moderation"
+        : "Club Official";
+      const rejectionIcon = isSafRejection ? "fa-shield-alt" : "fa-user-tie";
+      const statusClass = isSafRejection ? "rejected saf-rejected" : "rejected";
       return `
-        <div class="event-rejection-info">
-          <span class="event-detail-status rejected"><i class="fas fa-times-circle"></i> Rejected</span>
+        <div class="event-rejection-info ${
+          isSafRejection ? "saf-rejection" : ""
+        }">
+          <span class="event-detail-status ${statusClass}"><i class="fas fa-times-circle"></i> Rejected${
+        isSafRejection ? " by SAF" : ""
+      }</span>
           <div class="rejection-details">
-            <p class="rejection-by"><i class="fas fa-user-tie"></i> Rejected by <strong>${escapeHtml(
+            <p class="rejection-source"><i class="fas ${rejectionIcon}"></i> ${rejectionSource}</p>
+            <p class="rejection-by">Rejected by <strong>${escapeHtml(
               rejectorName
             )}</strong></p>
             ${

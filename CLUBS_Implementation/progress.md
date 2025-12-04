@@ -226,7 +226,54 @@ SAF approves → approved
 
 ### Requirements Complete
 
-All 27 requirements from initial review implemented. See `Requirements_Goals.md` for full checklist.
+All 29 requirements from initial review implemented. See `Requirements_Goals.md` for full checklist.
+
+---
+
+## Recent Changes (2025-12-04 - Session 2)
+
+### Critical Bug Fixes
+
+- **ClubsPage.js**: Fixed duplicate code block that was floating outside any function (syntax error)
+- **EventDetailModal.js**: Fixed `rejectedByInfo.name` → now supports both `firstName/lastName` and legacy `name` field
+- **ModerateTab.js**: Fixed `createdByInfo.name` → now supports both `firstName/lastName` and legacy `name` field
+- **Follower Count Floor (R24)**: Cloud Function now uses transaction with `Math.max(0, count)` for unfollows
+
+### SAF Approval Now Mandatory (R28)
+
+- SAF approval is now **mandatory for ALL events** (no longer optional per club)
+- Updated `CreateEventModal.js`: President-created events go directly to `pending_saf`
+- Updated `ModerateTab.js`: Removed `requireSafApproval` check, always routes to `pending_saf`
+- Updated `Data-Model.md`: Marked `requireSafApproval` field as DEPRECATED
+
+### SAF University Scoping Fix
+
+- Fixed `approveClubEventSaf` to check `club.university` or `club.universityCode` (not just `club.universityId`)
+- Clubs use `university` field but moderators use `universityId` - now properly matched
+
+### Reminder Timing & Multi-Day Support (R10, Q3)
+
+- Changed reminder timing from **15 minutes to 30 minutes** before event start
+- Updated `sendClubEventReminders` to send reminders for **EACH time slot** individually
+- Added `remindersSentForSlots` field to track which slots have received reminders
+
+### Club Creation Cleanup (R29)
+
+- Removed "Create Test Club" button from `ClubsPage.js`
+- Clubs can only be created via Admin/SAF dashboard
+- DevTest clubs are only created via Firebase emulators
+
+### Image Cleanup Improvements (R20, Q6)
+
+- **`deleteClub`**: Now deletes all associated images from Firebase Storage (logos, banners, event images)
+- **`verifyOrphanedImages`**: Now actually lists Storage files, compares with DB references, and can delete orphans
+- Added `dryRun` option (default: true) for safe testing
+
+### Storage Rules Verification (Q1)
+
+- Verified `storage.rules` already has proper club event image paths
+- Path: `clubEvents/{clubId}/{eventId}/{uid}_{file}` with official verification
+- Path: `clubAssets/{clubId}/{uid}_{file}` for logos and banners
 
 ---
 

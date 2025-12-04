@@ -94,6 +94,7 @@
 
 - **Requirement**: Go Live button appears **30 minutes before event start** for all events.
 - Officials/President can click it to make event Live even if start time is still 30 mins away.
+- Event reminders are sent **30 minutes before EACH time slot** for multi-day events.
 - **Status**: ✅ Implemented
 
 ### R11: Notification Batching
@@ -153,10 +154,11 @@
 ### R20: Orphaned Image Cleanup
 
 - **Requirement**:
-  - Double-check method to delete orphaned images when event is deleted
-  - Scheduled job as backup for auto-cleanup
+  - Verify and delete orphaned images when event/club is deleted
+  - `verifyOrphanedImages` callable function can list and optionally delete orphans
+  - `deleteClub` function now deletes all associated images from Storage
 - **Status**: ✅ Implemented
-- **Action**: verifyOrphanedImages callable function added for super admins.
+- **Action**: verifyOrphanedImages callable with dryRun option, deleteClub with Storage cleanup.
 
 ### R21: Event Retention Period
 
@@ -184,7 +186,7 @@
 
 - **Requirement**: Follower count can **never go below 0**.
 - **Status**: ✅ Implemented
-- **Action**: Math.max(0, count) logic added.
+- **Action**: Cloud Function uses transaction with Math.max(0, count) for unfollows.
 
 ### R25: Multi-Day Event Live Behavior
 
@@ -204,6 +206,23 @@
 - **Requirement**: Implement best practice (lazy loading / thumbnails).
 - **Status**: ✅ Implemented
 - **Action**: Lazy loading added for all club images.
+
+### R28: Mandatory SAF Approval
+
+- **Requirement**: **ALL events must be approved by SAF moderators** before becoming visible to users.
+- Event flow: Official creates → `pending_president` → President approves → `pending_saf` → SAF approves → `approved`
+- President-created events skip directly to `pending_saf`.
+- The `requireSafApproval` field is deprecated; SAF approval is now mandatory.
+- **Status**: ✅ Implemented
+- **Action**: CreateEventModal.js, ModerateTab.js updated to enforce mandatory SAF approval.
+
+### R29: Club Creation via Admin/SAF Only
+
+- **Requirement**: Clubs can ONLY be created via Admin or SAF dashboard.
+- The "Create Test Club" button was removed from ClubsPage.
+- DevTest clubs are only created via Firebase emulators.
+- **Status**: ✅ Implemented
+- **Action**: Removed createTestClub button from ClubsPage.js.
 
 ---
 
@@ -324,6 +343,18 @@ All changes to this document and related implementation should be logged here.
 | 2025-12-04 | Agent  | Updated Data-Model.md with live stop fields (liveStoppedBy, liveStopReason)          | D5                  |
 | 2025-12-04 | Agent  | Updated Admin-System.md to use /safModerators/{uid} storage path                     | R23                 |
 | 2025-12-04 | Agent  | Synced all Core Requirements status flags with Implementation Checklist              | All                 |
+| 2025-12-04 | Agent  | Fixed ClubsPage.js duplicate code block syntax error                                 | Bug Fix             |
+| 2025-12-04 | Agent  | Fixed rejectedByInfo/createdByInfo name field handling (firstName+lastName support)  | R5                  |
+| 2025-12-04 | Agent  | Made SAF approval mandatory for ALL events (R28)                                     | R28                 |
+| 2025-12-04 | Agent  | Removed Create Test Club button from ClubsPage (R29)                                 | R29                 |
+| 2025-12-04 | Agent  | Changed event reminders from 15 to 30 minutes before start                           | R10                 |
+| 2025-12-04 | Agent  | Updated reminders to send for EACH time slot in multi-day events                     | R10                 |
+| 2025-12-04 | Agent  | Fixed followerCount floor using transaction (R24)                                    | R24                 |
+| 2025-12-04 | Agent  | Fixed SAF approval universityId field matching (club.university vs universityId)     | R28                 |
+| 2025-12-04 | Agent  | Added deleteClub image cleanup from Firebase Storage                                 | R20                 |
+| 2025-12-04 | Agent  | Made verifyOrphanedImages actually list and delete orphan files                      | R20                 |
+| 2025-12-04 | Agent  | Deprecated requireSafApproval field in Data-Model.md                                 | R28                 |
+| 2025-12-04 | Agent  | Added remindersSentForSlots field to Event model for multi-day tracking              | R10                 |
 
 ---
 

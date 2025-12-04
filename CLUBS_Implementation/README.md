@@ -23,7 +23,7 @@ Welcome to the Clubs Feature implementation documentation for MeetchuThere!
 
 ## 🎯 Key Decisions Summary
 
-- **Location**: Clubs is a top-level navigation item (shown as "Clubs" in nav, routes via `#groups` or `#clubs`)
+- **Location**: Clubs is a top-level navigation item (shown as "Clubs" in nav, routes via `#clubs`)
 - **Focus**: Events only (no announcements) — keeping it action-oriented
 - **Permissions**: Admin → SAF Moderators → Club Presidents → Officials → Students
 - **Storage**: 90-day event retention, 1 hero image per event

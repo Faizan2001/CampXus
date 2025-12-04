@@ -1444,9 +1444,9 @@ function teardownClubsIndicator() {
 }
 
 function toggleClubsDot(show) {
-  // Desktop nav - Clubs uses data-spa-route="groups"
+  // Desktop nav - Clubs tab
   const desktopLink = document.querySelector(
-    '.nav-link[data-spa-route="groups"]'
+    '.nav-link[data-spa-route="clubs"]'
   );
   if (desktopLink) {
     desktopLink.classList.toggle("has-alert", !!show);
@@ -1454,7 +1454,7 @@ function toggleClubsDot(show) {
 
   // Mobile bottom nav
   const mobileLink = document.querySelector(
-    '.mobile-nav-item[data-spa-route="groups"]'
+    '.mobile-nav-item[data-spa-route="clubs"]'
   );
   if (mobileLink) {
     mobileLink.classList.toggle("has-alert", !!show);

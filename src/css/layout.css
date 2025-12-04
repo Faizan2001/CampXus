@@ -118,6 +118,17 @@ body.immersive-profile-mode {
     height: 100%;
     max-height: 100%;
   }
+
+  /* SAF & Admin pages in standalone mode - ensure proper safe area handling */
+  body.page-saf,
+  body.page-admin {
+    padding-top: 0 !important;
+  }
+
+  body.page-saf .main-content,
+  body.page-admin .main-content {
+    padding-top: env(safe-area-inset-top, 0px) !important;
+  }
 }
 
 /* Immersive Chat Mode Overrides */
@@ -134,6 +145,16 @@ body.immersive-chat-mode .main-content {
   min-height: 100dvh !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
+}
+
+/* ==========================================
+   SAF & ADMIN DASHBOARD - LAYOUT OVERRIDES
+   These pages have their own layout in admin.css
+   ========================================== */
+body.page-saf .main-content,
+body.page-admin .main-content {
+  padding: 0 !important;
+  overflow-x: hidden;
 }
 
 /* ===== TOP NAVIGATION ===== */
@@ -1686,6 +1707,59 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
   body.page-user .main-content {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Clubs and SAF pages: remove main-content padding for full-bleed layouts */
+  body.page-clubs .main-content,
+  body.page-saf .main-content,
+  body.page-admin .main-content {
+    padding: 0 !important;
+    padding-bottom: var(--bottom-offset) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Clubs section should fill full height */
+  body.page-clubs .content-grid,
+  body.page-saf .content-grid,
+  body.page-admin .content-grid {
+    flex: 1 1 auto;
+    min-height: 100%;
+    padding-bottom: 0;
+  }
+
+  body.page-clubs .clubs-section,
+  body.page-clubs .club-section {
+    flex: 1 1 auto;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ==========================================
+     SAF & ADMIN DASHBOARD - HIDE TOP NAV ON MOBILE
+     Full-screen immersive mode for dashboard pages
+     ========================================== */
+
+  /* Hide top nav on SAF and Admin pages on mobile */
+  body.page-saf .top-nav,
+  body.page-admin .top-nav {
+    display: none !important;
+  }
+
+  /* Remove top padding since nav is hidden */
+  body.page-saf .app-container,
+  body.page-admin .app-container {
+    padding-top: 0 !important;
+  }
+
+  /* Extend main-content to top, accounting for safe area */
+  body.page-saf .main-content,
+  body.page-admin .main-content {
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    min-height: 100dvh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
   }
 
   /* sheet-as-dropdown option on mobile */

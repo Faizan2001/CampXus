@@ -19,6 +19,33 @@ const db = getFirestore();
 const messaging = getMessaging();
 
 // -----------------------------
+// Security: Input Validation Helpers
+// -----------------------------
+// SECURITY: Validate document IDs to prevent injection attacks
+const VALID_DOC_ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
+
+/**
+ * Validates a Firestore document ID format
+ * @param {string} id - The document ID to validate
+ * @param {string} fieldName - Name of the field for error messages
+ * @throws {HttpsError} If the ID is invalid
+ */
+function validateDocumentId(id, fieldName = "id") {
+  if (!id || typeof id !== "string") {
+    throw new https.HttpsError(
+      "invalid-argument",
+      `${fieldName} is required and must be a string`
+    );
+  }
+  if (!VALID_DOC_ID_PATTERN.test(id)) {
+    throw new https.HttpsError(
+      "invalid-argument",
+      `${fieldName} contains invalid characters. Only alphanumeric, underscore, and hyphen are allowed.`
+    );
+  }
+}
+
+// -----------------------------
 // Helpers
 // -----------------------------
 function getYyyyMmDd(date = new Date()) {
@@ -58,6 +85,23 @@ async function incrementRate(userId, key, limitPerDay) {
     tx.set(ref, { [today]: dayObj }, { merge: true });
   });
   return allowed;
+}
+
+/**
+ * SECURITY: Rate limit helper for admin/moderator actions
+ * Prevents abuse even from privileged accounts
+ * @param {string} userId - The user performing the action
+ * @param {string} actionKey - Unique key for this action type
+ * @param {number} limitPerDay - Maximum actions per day (default: 100)
+ */
+async function enforceAdminRateLimit(userId, actionKey, limitPerDay = 100) {
+  const allowed = await incrementRate(userId, `admin_${actionKey}`, limitPerDay);
+  if (!allowed) {
+    throw new https.HttpsError(
+      "resource-exhausted",
+      `Rate limit exceeded for ${actionKey}. Please try again tomorrow.`
+    );
+  }
 }
 
 // Utility: collect all subcollection docs (shallow) and batch delete
@@ -330,14 +374,18 @@ async function sendToUser(userId, notification, data = {}) {
 
 async function assertSuperAdmin(context) {
   const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
+  // SECURITY: Additional check to ensure we're truly in a development environment
+  const isLocalhost = process.env.GCLOUD_PROJECT === "demo-project" || 
+                      process.env.FIREBASE_CONFIG?.includes("localhost");
 
   if (!context.auth) {
     // In emulator, be lenient so local admin tools work even if the
     // client fails to attach an ID token correctly. In production we
     // still require a valid authenticated context.
-    if (isEmulator) {
+    // SECURITY FIX: Require BOTH emulator flag AND localhost check
+    if (isEmulator && isLocalhost) {
       logger.warn(
-        "assertSuperAdmin: missing auth in emulator, allowing call for local development"
+        "assertSuperAdmin: missing auth in emulator (localhost verified), allowing call for local development"
       );
       return { uid: "emulator-dev", config: {} };
     }
@@ -513,13 +561,16 @@ function isStarredBy(recipientUser, actorId) {
 // SAF moderator management via callable functions
 export const addSafModerator = https.onCall(async (data, context) => {
   const { uid: callerUid } = await assertSuperAdmin(context);
+  
+  // SECURITY: Rate limit admin actions
+  await enforceAdminRateLimit(callerUid, "addSafModerator", 50);
+  
   const { uid, displayName, universityId } = data || {};
 
-  if (!uid) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "Parameter 'uid' is required"
-    );
+  // SECURITY: Validate document ID format to prevent injection
+  validateDocumentId(uid, "uid");
+  if (universityId) {
+    validateDocumentId(universityId, "universityId");
   }
 
   const safRef = db.collection("safModerators").doc(uid);
@@ -560,16 +611,16 @@ export const promoteClubOfficial = https.onCall(async (data, context) => {
     throw new https.HttpsError("unauthenticated", "Must be logged in");
   }
 
+  // SECURITY: Rate limit club management actions
+  await enforceAdminRateLimit(callerUid, "clubMemberManagement", 200);
+
   const clubId = String(data?.clubId || "").trim();
   const userId = String(data?.userId || "").trim();
   const roleTitle = typeof data?.roleTitle === "string" ? data.roleTitle : null;
 
-  if (!clubId || !userId) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "Parameters 'clubId' and 'userId' are required"
-    );
-  }
+  // SECURITY: Validate document ID format to prevent injection
+  validateDocumentId(clubId, "clubId");
+  validateDocumentId(userId, "userId");
 
   const clubRef = db.collection("clubs").doc(clubId);
   const clubSnap = await clubRef.get();
@@ -665,15 +716,15 @@ export const demoteClubOfficial = https.onCall(async (data, context) => {
     throw new https.HttpsError("unauthenticated", "Must be logged in");
   }
 
+  // SECURITY: Rate limit club management actions
+  await enforceAdminRateLimit(callerUid, "clubMemberManagement", 200);
+
   const clubId = String(data?.clubId || "").trim();
   const userId = String(data?.userId || "").trim();
 
-  if (!clubId || !userId) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "Parameters 'clubId' and 'userId' are required"
-    );
-  }
+  // SECURITY: Validate document ID format to prevent injection
+  validateDocumentId(clubId, "clubId");
+  validateDocumentId(userId, "userId");
 
   const clubRef = db.collection("clubs").doc(clubId);
   const clubSnap = await clubRef.get();
@@ -743,15 +794,15 @@ export const assignClubPresident = https.onCall(async (data, context) => {
     throw new https.HttpsError("unauthenticated", "Must be logged in");
   }
 
+  // SECURITY: Rate limit club management actions
+  await enforceAdminRateLimit(callerUid, "clubMemberManagement", 200);
+
   const clubId = String(data?.clubId || "").trim();
   const userId = String(data?.userId || "").trim();
 
-  if (!clubId || !userId) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "Parameters 'clubId' and 'userId' are required"
-    );
-  }
+  // SECURITY: Validate document ID format to prevent injection
+  validateDocumentId(clubId, "clubId");
+  validateDocumentId(userId, "userId");
 
   const clubRef = db.collection("clubs").doc(clubId);
   const clubSnap = await clubRef.get();
@@ -896,15 +947,15 @@ export const removeClubMember = https.onCall(async (data, context) => {
     throw new https.HttpsError("unauthenticated", "Must be logged in");
   }
 
+  // SECURITY: Rate limit club management actions
+  await enforceAdminRateLimit(callerUid, "clubMemberManagement", 200);
+
   const clubId = String(data?.clubId || "").trim();
   const userId = String(data?.userId || "").trim();
 
-  if (!clubId || !userId) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "Parameters 'clubId' and 'userId' are required"
-    );
-  }
+  // SECURITY: Validate document ID format to prevent injection
+  validateDocumentId(clubId, "clubId");
+  validateDocumentId(userId, "userId");
 
   const clubRef = db.collection("clubs").doc(clubId);
   const clubSnap = await clubRef.get();
@@ -962,15 +1013,15 @@ export const removeClubMember = https.onCall(async (data, context) => {
 export const approveClubEventSaf = https.onCall(async (data, context) => {
   const { uid: moderatorUid, moderator } = await assertSafModerator(context);
 
+  // SECURITY: Rate limit SAF moderation actions
+  await enforceAdminRateLimit(moderatorUid, "safEventModeration", 100);
+
   const clubId = String(data?.clubId || "").trim();
   const eventId = String(data?.eventId || "").trim();
 
-  if (!clubId || !eventId) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "Parameters 'clubId' and 'eventId' are required"
-    );
-  }
+  // SECURITY: Validate document ID format to prevent injection
+  validateDocumentId(clubId, "clubId");
+  validateDocumentId(eventId, "eventId");
 
   const clubRef = db.collection("clubs").doc(clubId);
   const clubSnap = await clubRef.get();
@@ -980,7 +1031,9 @@ export const approveClubEventSaf = https.onCall(async (data, context) => {
 
   const club = clubSnap.data() || {};
   const moderatorUniversityId = moderator.universityId || null;
-  const clubUniversityId = club.universityId || null;
+  // Clubs use 'university' field (e.g., 'iub'), not 'universityId'
+  const clubUniversityId =
+    club.universityId || club.universityCode || club.university || null;
 
   // Enforce university scope for SAF moderators (must be present and matching)
   if (!moderatorUniversityId) {
@@ -1031,16 +1084,120 @@ export const approveClubEventSaf = https.onCall(async (data, context) => {
   return { success: true };
 });
 
-export const removeSafModerator = https.onCall(async (data, context) => {
-  const { uid: callerUid } = await assertSuperAdmin(context);
-  const { uid } = data || {};
+// SAF event rejection: pending_saf -> rejected with reason
+export const rejectClubEventSaf = https.onCall(async (data, context) => {
+  const { uid: moderatorUid, moderator } = await assertSafModerator(context);
 
-  if (!uid) {
+  // SECURITY: Rate limit SAF moderation actions
+  await enforceAdminRateLimit(moderatorUid, "safEventModeration", 100);
+
+  const clubId = String(data?.clubId || "").trim();
+  const eventId = String(data?.eventId || "").trim();
+  const reason = String(data?.reason || "").trim();
+
+  // SECURITY: Validate document ID format to prevent injection
+  validateDocumentId(clubId, "clubId");
+  validateDocumentId(eventId, "eventId");
+
+  if (!reason) {
     throw new https.HttpsError(
       "invalid-argument",
-      "Parameter 'uid' is required"
+      "Parameter 'reason' is required for rejection"
     );
   }
+
+  const clubRef = db.collection("clubs").doc(clubId);
+  const clubSnap = await clubRef.get();
+  if (!clubSnap.exists) {
+    throw new https.HttpsError("not-found", "Club not found");
+  }
+
+  const club = clubSnap.data() || {};
+  const moderatorUniversityId = moderator.universityId || null;
+  const clubUniversityId =
+    club.universityId || club.universityCode || club.university || null;
+
+  // Enforce university scope
+  if (!moderatorUniversityId) {
+    throw new https.HttpsError(
+      "permission-denied",
+      "SAF moderator is not scoped to a university"
+    );
+  }
+  if (!clubUniversityId) {
+    throw new https.HttpsError(
+      "permission-denied",
+      "Club is not scoped to a university"
+    );
+  }
+  if (moderatorUniversityId !== clubUniversityId) {
+    throw new https.HttpsError(
+      "permission-denied",
+      "Cannot moderate clubs outside your university"
+    );
+  }
+
+  const eventRef = clubRef.collection("events").doc(eventId);
+  const eventSnap = await eventRef.get();
+  if (!eventSnap.exists) {
+    throw new https.HttpsError("not-found", "Event not found");
+  }
+
+  const event = eventSnap.data() || {};
+  if (event.status !== "pending_saf") {
+    throw new https.HttpsError(
+      "failed-precondition",
+      "Only events with status 'pending_saf' can be SAF-rejected"
+    );
+  }
+
+  // Get moderator info for rejectedByInfo
+  const modUserSnap = await db.collection("users").doc(moderatorUid).get();
+  const modUserData = modUserSnap.exists ? modUserSnap.data() : {};
+  // User profile data is nested under .profile (consistent with rest of codebase)
+  const profile = modUserData.profile || modUserData;
+  const rejectedByInfo = {
+    firstName: profile.firstName || null,
+    lastName: profile.lastName || null,
+    displayName:
+      profile.displayName ||
+      [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() ||
+      null,
+    name:
+      profile.displayName ||
+      [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() ||
+      null,
+  };
+
+  await eventRef.update({
+    status: "rejected",
+    rejectedBy: moderatorUid,
+    rejectedAt: FieldValue.serverTimestamp(),
+    rejectedByInfo,
+    rejectionReason: reason,
+    safRejected: true, // Flag to indicate SAF rejection (not president rejection)
+  });
+
+  logger.info("rejectClubEventSaf: SAF rejected event", {
+    clubId,
+    eventId,
+    moderatorUid,
+    reason,
+  });
+
+  return { success: true };
+});
+
+export const removeSafModerator = https.onCall(async (data, context) => {
+  const { uid: callerUid } = await assertSuperAdmin(context);
+  
+  // SECURITY: Rate limit admin actions
+  await enforceAdminRateLimit(callerUid, "removeSafModerator", 50);
+  
+  const { uid } = data || {};
+
+  // SECURITY: Validate document ID format to prevent injection
+  validateDocumentId(uid, "uid");
 
   const modRef = db.collection("safModerators").doc(uid);
   const modSnap = await modRef.get();
@@ -1520,32 +1677,54 @@ export const onClubFollow = onDocumentUpdated(
       const uniqueNewFollows = [...new Set(newFollows)];
       const uniqueUnfollows = [...new Set(unfollows)];
 
-      const changes = [
-        ...uniqueNewFollows.map((clubId) => ({ clubId, delta: 1 })),
-        ...uniqueUnfollows.map((clubId) => ({ clubId, delta: -1 })),
-      ];
+      // Process follows (can use increment safely)
+      if (uniqueNewFollows.length > 0) {
+        let batch = db.batch();
+        let opsInBatch = 0;
+        const batchSize = 400;
 
-      let batch = db.batch();
-      let opsInBatch = 0;
-      const batchSize = 400;
+        for (const clubId of uniqueNewFollows) {
+          const clubRef = db.collection("clubs").doc(clubId);
+          batch.update(clubRef, {
+            followerCount: FieldValue.increment(1),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          opsInBatch++;
 
-      for (const { clubId, delta } of changes) {
-        const clubRef = db.collection("clubs").doc(clubId);
-        batch.update(clubRef, {
-          followerCount: FieldValue.increment(delta),
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-        opsInBatch++;
+          if (opsInBatch >= batchSize) {
+            await batch.commit();
+            batch = db.batch();
+            opsInBatch = 0;
+          }
+        }
 
-        if (opsInBatch >= batchSize) {
+        if (opsInBatch > 0) {
           await batch.commit();
-          batch = db.batch();
-          opsInBatch = 0;
         }
       }
 
-      if (opsInBatch > 0) {
-        await batch.commit();
+      // Process unfollows with transaction to enforce floor of 0 (R24)
+      for (const clubId of uniqueUnfollows) {
+        try {
+          const clubRef = db.collection("clubs").doc(clubId);
+          await db.runTransaction(async (tx) => {
+            const clubDoc = await tx.get(clubRef);
+            if (!clubDoc.exists) return;
+
+            const currentCount = clubDoc.data()?.followerCount || 0;
+            const newCount = Math.max(0, currentCount - 1); // R24: Never go below 0
+
+            tx.update(clubRef, {
+              followerCount: newCount,
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+          });
+        } catch (txErr) {
+          logger.warn("onClubFollow: transaction failed for unfollow", {
+            clubId,
+            error: String(txErr),
+          });
+        }
       }
 
       logger.info("onClubFollow: follower counts updated", {
@@ -2438,92 +2617,132 @@ export const onClubEventStarted = onDocumentUpdated(
   }
 );
 
-// Scheduled: send 15-minute reminders for approved events
+// Scheduled: send 30-minute reminders for approved events (each time slot)
+// For multi-day events, sends a reminder 30 minutes before EACH day's slot
 export const sendClubEventReminders = onSchedule(
   "every 5 minutes",
   async () => {
     const now = new Date();
-    const fifteenMinutesFromNow = new Date(now.getTime() + 15 * 60 * 1000);
-    const twentyMinutesFromNow = new Date(now.getTime() + 20 * 60 * 1000);
+    const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
+    const thirtyFiveMinutesFromNow = new Date(now.getTime() + 35 * 60 * 1000);
 
-    const upcomingEventsSnap = await db
+    // Get all approved events (we'll check each time slot individually)
+    const approvedEventsSnap = await db
       .collectionGroup("events")
       .where("status", "==", "approved")
-      .where("firstSlotStart", ">=", fifteenMinutesFromNow)
-      .where("firstSlotStart", "<", twentyMinutesFromNow)
       .get();
 
-    if (upcomingEventsSnap.empty) return;
+    if (approvedEventsSnap.empty) return;
 
-    for (const eventDoc of upcomingEventsSnap.docs) {
+    for (const eventDoc of approvedEventsSnap.docs) {
       const eventData = eventDoc.data() || {};
+      const timeSlots = eventData.timeSlots || [];
 
-      if (eventData.reminderSent) continue;
+      if (timeSlots.length === 0) continue;
 
-      const clubRef = eventDoc.ref.parent.parent;
-      if (!clubRef) continue;
+      // Track which slots have had reminders sent
+      const remindersSentForSlots = eventData.remindersSentForSlots || [];
 
-      const clubSnap = await clubRef.get();
-      if (!clubSnap.exists) continue;
-      const club = clubSnap.data() || {};
-      const clubId = clubSnap.id;
+      // Check each time slot for 30-minute reminder window
+      for (let slotIndex = 0; slotIndex < timeSlots.length; slotIndex++) {
+        const slot = timeSlots[slotIndex];
+        const slotKey = `${slot.date}_${slot.startTime}`;
 
-      await eventDoc.ref.update({ reminderSent: true });
+        // Skip if reminder already sent for this slot
+        if (remindersSentForSlots.includes(slotKey)) continue;
 
-      const followersSnap = await db
-        .collection("users")
-        .where("followedClubs", "array-contains", clubId)
-        .get();
+        const slotStart = new Date(`${slot.date}T${slot.startTime}`);
 
-      if (followersSnap.empty) {
-        logger.info("No followers for reminder", {
-          clubId,
-          eventId: eventDoc.id,
-        });
-        continue;
-      }
+        // Check if slot starts within 30-35 minutes from now
+        if (
+          slotStart >= thirtyMinutesFromNow &&
+          slotStart < thirtyFiveMinutesFromNow
+        ) {
+          const clubRef = eventDoc.ref.parent.parent;
+          if (!clubRef) continue;
 
-      let batch = db.batch();
-      let countInBatch = 0;
-      let total = 0;
+          const clubSnap = await clubRef.get();
+          if (!clubSnap.exists) continue;
+          const club = clubSnap.data() || {};
+          const clubId = clubSnap.id;
 
-      for (const userDoc of followersSnap.docs) {
-        const notifRef = db.collection("notifications").doc();
-        batch.set(notifRef, {
-          userId: userDoc.id,
-          type: "club_event_reminder",
-          clubId,
-          eventId: eventDoc.id,
-          title: "⏰ Event starting soon!",
-          message: `"${eventData.title || "An event"}" starts in 15 minutes`,
-          clubInfo: {
-            name: club.name || "",
-            logoUrl: club.logoUrl || null,
-            accentColor: club.accentColor || null,
-          },
-          createdAt: FieldValue.serverTimestamp(),
-          status: "pending",
-          readAt: null,
-        });
-        countInBatch += 1;
-        total += 1;
+          // Mark this slot's reminder as sent
+          await eventDoc.ref.update({
+            remindersSentForSlots: [...remindersSentForSlots, slotKey],
+          });
 
-        if (countInBatch >= 400) {
-          await batch.commit();
-          batch = db.batch();
-          countInBatch = 0;
+          // Get followers to notify
+          const followersSnap = await db
+            .collection("users")
+            .where("followedClubs", "array-contains", clubId)
+            .get();
+
+          if (followersSnap.empty) {
+            logger.info("No followers for reminder", {
+              clubId,
+              eventId: eventDoc.id,
+              slotKey,
+            });
+            continue;
+          }
+
+          let batch = db.batch();
+          let countInBatch = 0;
+          let total = 0;
+
+          // Format date for display
+          const slotDate = new Date(slot.date + "T00:00:00");
+          const dateStr = slotDate.toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+          });
+
+          for (const userDoc of followersSnap.docs) {
+            const notifRef = db.collection("notifications").doc();
+            batch.set(notifRef, {
+              userId: userDoc.id,
+              type: "club_event_reminder",
+              clubId,
+              eventId: eventDoc.id,
+              slotKey,
+              title: "⏰ Event starting soon!",
+              message: `"${
+                eventData.title || "An event"
+              }" starts in 30 minutes${
+                timeSlots.length > 1 ? ` (${dateStr})` : ""
+              }`,
+              clubInfo: {
+                name: club.name || "",
+                logoUrl: club.logoUrl || null,
+                accentColor: club.accentColor || null,
+              },
+              createdAt: FieldValue.serverTimestamp(),
+              status: "pending",
+              readAt: null,
+            });
+            countInBatch += 1;
+            total += 1;
+
+            if (countInBatch >= 400) {
+              await batch.commit();
+              batch = db.batch();
+              countInBatch = 0;
+            }
+          }
+
+          if (countInBatch > 0) {
+            await batch.commit();
+          }
+
+          logger.info("Sent event reminders for slot", {
+            clubId,
+            eventId: eventDoc.id,
+            slotKey,
+            total,
+          });
         }
       }
-
-      if (countInBatch > 0) {
-        await batch.commit();
-      }
-
-      logger.info("Sent event reminders", {
-        clubId,
-        eventId: eventDoc.id,
-        total,
-      });
     }
   }
 );
@@ -2592,6 +2811,7 @@ export const onUserDeleted = onDocumentDeleted(
 );
 
 // 9) Maintain club memberCount based on /clubs/{clubId}/members subcollection
+// Per data model: memberCount = count of officials + president (not regular members)
 export const onClubMemberChanged = onDocumentWritten(
   "clubs/{clubId}/members/{memberId}",
   async (event) => {
@@ -2604,7 +2824,14 @@ export const onClubMemberChanged = onDocumentWritten(
         .collection("members")
         .get();
 
-      const memberCount = membersSnap.size;
+      // Count only president and officials, not regular members
+      let memberCount = 0;
+      for (const memberDoc of membersSnap.docs) {
+        const role = memberDoc.data()?.role;
+        if (role === "president" || role === "official") {
+          memberCount++;
+        }
+      }
 
       await db.collection("clubs").doc(clubId).update({
         memberCount,
@@ -2614,6 +2841,7 @@ export const onClubMemberChanged = onDocumentWritten(
       logger.info("onClubMemberChanged: memberCount updated", {
         clubId,
         memberCount,
+        totalMembers: membersSnap.size,
       });
     } catch (error) {
       logger.error("onClubMemberChanged: failed to update memberCount", {
@@ -3410,9 +3638,9 @@ export const manualCleanupOldEvents = onCall(async (request) => {
 });
 
 // -----------------------------
-// R20: Orphaned Image Verification (Callable)
+// R20: Orphaned Image Cleanup (Callable)
 // -----------------------------
-// Lists event images that may be orphaned (event deleted but image remains)
+// Lists and optionally deletes orphaned event images from Storage
 export const verifyOrphanedImages = onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) {
@@ -3428,12 +3656,23 @@ export const verifyOrphanedImages = onCall(async (request) => {
     throw new HttpsError("permission-denied", "Super admin access required");
   }
 
-  // Collect all imageUrls from existing events
+  const { dryRun = true } = request.data || {};
+  const storage = getStorage();
+  const bucket = storage.bucket();
+
+  // Collect all imageUrls from existing events and clubs
   const existingImageUrls = new Set();
+  const existingImagePaths = new Set();
 
   const clubsSnap = await db.collection("clubs").get();
 
   for (const clubDoc of clubsSnap.docs) {
+    const clubData = clubDoc.data() || {};
+
+    // Add club logo and banner
+    if (clubData.logoUrl) existingImageUrls.add(clubData.logoUrl);
+    if (clubData.bannerUrl) existingImageUrls.add(clubData.bannerUrl);
+
     const eventsSnap = await db
       .collection("clubs")
       .doc(clubDoc.id)
@@ -3448,20 +3687,72 @@ export const verifyOrphanedImages = onCall(async (request) => {
     }
   }
 
-  logger.info("Orphaned image verification", {
-    uid,
-    totalImagesReferenced: existingImageUrls.size,
-  });
+  // Extract storage paths from URLs
+  for (const url of existingImageUrls) {
+    if (url.startsWith("gs://")) {
+      existingImagePaths.add(url.replace(/^gs:\/\/[^/]+\//, ""));
+    } else if (url.includes("firebasestorage.googleapis.com")) {
+      const match = url.match(/\/o\/([^?]+)/);
+      if (match) {
+        existingImagePaths.add(decodeURIComponent(match[1]));
+      }
+    }
+  }
 
-  // Note: Full orphan detection requires listing Storage bucket files
-  // and comparing against existingImageUrls. This is a placeholder that
-  // returns the count of referenced images for now.
+  // List all files in clubEvents and clubAssets folders
+  const orphanedFiles = [];
+  let deletedCount = 0;
+
+  const prefixes = ["clubEvents/", "clubAssets/"];
+
+  for (const prefix of prefixes) {
+    try {
+      const [files] = await bucket.getFiles({ prefix });
+
+      for (const file of files) {
+        const filePath = file.name;
+        if (!existingImagePaths.has(filePath)) {
+          orphanedFiles.push({
+            path: filePath,
+            size: file.metadata.size,
+            created: file.metadata.timeCreated,
+          });
+
+          if (!dryRun) {
+            try {
+              await file.delete();
+              deletedCount++;
+            } catch (deleteErr) {
+              logger.warn("Failed to delete orphaned file", {
+                path: filePath,
+                error: String(deleteErr),
+              });
+            }
+          }
+        }
+      }
+    } catch (listErr) {
+      logger.error("Failed to list files in prefix", {
+        prefix,
+        error: String(listErr),
+      });
+    }
+  }
+
+  logger.info("Orphaned image verification/cleanup complete", {
+    uid,
+    dryRun,
+    totalReferencedImages: existingImageUrls.size,
+    orphanedFound: orphanedFiles.length,
+    deleted: deletedCount,
+  });
 
   return {
     success: true,
-    totalEventsWithImages: existingImageUrls.size,
-    message:
-      "To fully detect orphans, compare Storage bucket listing against these URLs",
-    // Future: Add Storage listing and comparison
+    dryRun,
+    totalReferencedImages: existingImageUrls.size,
+    orphanedFound: orphanedFiles.length,
+    deleted: dryRun ? 0 : deletedCount,
+    orphanedFiles: orphanedFiles.slice(0, 100), // Limit response size
   };
 });

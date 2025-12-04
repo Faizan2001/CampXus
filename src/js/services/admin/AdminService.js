@@ -328,13 +328,13 @@ export async function createClub(data) {
   // Generate club ID from name
   const clubId =
     explicitClubId ||
-    (name
+    name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "")
       .slice(0, 30) +
       "-" +
-      Date.now().toString(36));
+      Date.now().toString(36);
 
   await setDoc(doc(db, "clubs", clubId), {
     clubId,
@@ -400,16 +400,46 @@ export async function updateClub(clubId, data) {
 }
 
 /**
- * Delete a club and its subcollections
+ * Delete a club and its subcollections, including all associated images from Storage
  * @param {string} clubId - Club ID
  */
 export async function deleteClub(clubId) {
   const clubDoc = await getDoc(doc(db, "clubs", clubId));
-  const universityId = clubDoc.exists() ? clubDoc.data().universityId : null;
+  const clubData = clubDoc.exists() ? clubDoc.data() : {};
+  const universityId = clubData.universityId || null;
+
+  // Collect image URLs to delete from Storage
+  const imageUrlsToDelete = [];
+
+  // Add club logo and banner if present
+  if (clubData.logoUrl) imageUrlsToDelete.push(clubData.logoUrl);
+  if (clubData.bannerUrl) imageUrlsToDelete.push(clubData.bannerUrl);
 
   // Delete members subcollection
   const membersSnap = await getDocs(collection(db, "clubs", clubId, "members"));
   const eventsSnap = await getDocs(collection(db, "clubs", clubId, "events"));
+
+  // Collect event image URLs and delete event announcements
+  for (const eventDoc of eventsSnap.docs) {
+    const eventData = eventDoc.data();
+    if (eventData.imageUrl) {
+      imageUrlsToDelete.push(eventData.imageUrl);
+    }
+
+    // Delete announcements subcollection for each event
+    try {
+      const announcementsSnap = await getDocs(
+        collection(db, "clubs", clubId, "events", eventDoc.id, "announcements")
+      );
+      if (!announcementsSnap.empty) {
+        const announcementBatch = writeBatch(db);
+        announcementsSnap.docs.forEach((d) => announcementBatch.delete(d.ref));
+        await announcementBatch.commit();
+      }
+    } catch (e) {
+      logManager.warn("Could not delete event announcements", e);
+    }
+  }
 
   const docsToDelete = [
     ...membersSnap.docs.map((d) => d.ref),
@@ -424,6 +454,39 @@ export async function deleteClub(clubId) {
       const chunk = docsToDelete.slice(i, i + batchSize);
       chunk.forEach((ref) => batch.delete(ref));
       await batch.commit();
+    }
+  }
+
+  // Delete images from Firebase Storage
+  if (imageUrlsToDelete.length > 0) {
+    const { getStorage, ref, deleteObject } = await import("firebase/storage");
+    const storage = getStorage();
+
+    for (const imageUrl of imageUrlsToDelete) {
+      try {
+        // Extract storage path from URL (handles gs:// and https:// URLs)
+        let storagePath = imageUrl;
+        if (imageUrl.startsWith("gs://")) {
+          // gs://bucket/path/to/file → path/to/file
+          storagePath = imageUrl.replace(/^gs:\/\/[^/]+\//, "");
+        } else if (imageUrl.includes("firebasestorage.googleapis.com")) {
+          // https://firebasestorage.googleapis.com/.../o/path%2Fto%2Ffile?... → path/to/file
+          const match = imageUrl.match(/\/o\/([^?]+)/);
+          if (match) {
+            storagePath = decodeURIComponent(match[1]);
+          }
+        }
+
+        const imageRef = ref(storage, storagePath);
+        await deleteObject(imageRef);
+        logManager.info("Deleted image from storage", { storagePath });
+      } catch (e) {
+        // Image might already be deleted or path is invalid - log and continue
+        logManager.warn("Could not delete image from storage", {
+          imageUrl,
+          error: e.message,
+        });
+      }
     }
   }
 
@@ -442,41 +505,47 @@ export async function deleteClub(clubId) {
     }
   }
 
-  logManager.info("Club deleted", { clubId });
+  logManager.info("Club deleted with all images", {
+    clubId,
+    imagesDeleted: imageUrlsToDelete.length,
+  });
   await logAdminActivity("club_deleted", {
     clubId,
     universityId,
+    imagesDeleted: imageUrlsToDelete.length,
   });
 }
 
 /**
- * Assign a president to a club
+ * Assign a president to a club.
+ *
+ * This calls the Cloud Function `assignClubPresident` which properly:
+ * - Updates presidentId/presidentUid on the club doc
+ * - Updates members array (removes old president, adds new one)
+ * - Updates officialIds array if needed
+ * - Creates/updates the /clubs/{clubId}/members/{uid} doc
+ * - Updates the new president's user.clubRoles
+ * - Clears the old president's clubRoles entry for this club
+ * - Recalculates memberCount correctly
+ *
  * @param {string} clubId - Club ID
  * @param {string} uid - User ID of new president
  */
 export async function assignPresident(clubId, uid) {
-  const batch = writeBatch(db);
-
-  // Update club document
-  batch.update(doc(db, "clubs", clubId), {
-    presidentUid: uid,
-    presidentId: uid,
-    updatedAt: serverTimestamp(),
-  });
-
-  // Add/update membership with president role
-  batch.set(
-    doc(db, "clubs", clubId, "members", uid),
-    {
-      uid,
-      role: "president",
-      joinedAt: serverTimestamp(),
-    },
-    { merge: true }
+  const { callFunction } = await import(
+    "../../utils/firebase/functionsHelper.js"
   );
 
-  await batch.commit();
-  logManager.info("President assigned", { clubId, uid });
+  const result = await callFunction("assignClubPresident", {
+    clubId,
+    userId: uid,
+  });
+
+  if (!result?.data?.success) {
+    throw new Error(result?.data?.error || "Failed to assign president");
+  }
+
+  logManager.info("President assigned via Cloud Function", { clubId, uid });
   await logAdminActivity("club_president_assigned", { clubId, uid });
 }
 
@@ -500,11 +569,17 @@ export async function rebuildClubStats(log = console.log) {
   for (const clubDoc of clubsSnap.docs) {
     const clubId = clubDoc.id;
 
-    // Count members
+    // Count members (only president + officials per data model)
     const membersSnap = await getDocs(
       collection(db, "clubs", clubId, "members")
     );
-    const memberCount = membersSnap.size;
+    let memberCount = 0;
+    membersSnap.docs.forEach((memberDoc) => {
+      const role = memberDoc.data()?.role;
+      if (role === "president" || role === "official") {
+        memberCount++;
+      }
+    });
 
     // Count events in subcollection
     const eventsSubSnap = await getDocs(
@@ -523,7 +598,7 @@ export async function rebuildClubStats(log = console.log) {
     log(
       `Updated ${
         clubDoc.data().name
-      }: ${memberCount} members, ${eventCount} events`
+      }: ${memberCount} members (officials+president), ${eventCount} events`
     );
     if (operationsInBatch === batchSize) {
       await batch.commit();
