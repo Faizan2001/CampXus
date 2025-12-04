@@ -27,7 +27,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 // Bump version to force clients to re-cache everything (increment on deploy)
-const CACHE_VERSION = "v7";
+const CACHE_VERSION = "v9";
 const STATIC_CACHE = `meetchuthere-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `meetchuthere-dynamic-${CACHE_VERSION}`;
 const FONT_CACHE = `meetchuthere-fonts-${CACHE_VERSION}`;
@@ -121,6 +121,8 @@ self.addEventListener("fetch", (event) => {
 
   // ─────────────────────────────────────────────────────────────────
   // Strategy 2: GOOGLE FONTS - Cache-first (fonts rarely change)
+  // NOTE: The HTML <link> tags MUST have crossorigin="anonymous" for this to work!
+  // Without crossorigin, font requests are non-CORS and cannot be cached properly.
   // ─────────────────────────────────────────────────────────────────
   if (
     url.hostname === "fonts.googleapis.com" ||
@@ -131,15 +133,23 @@ self.addEventListener("fetch", (event) => {
         if (cachedResponse) {
           return cachedResponse;
         }
-        return fetch(request).then((networkResponse) => {
-          if (networkResponse.status === 200) {
-            const responseClone = networkResponse.clone();
-            caches.open(FONT_CACHE).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return networkResponse;
-        });
+        // Don't override request mode - browser already sets correct CORS mode
+        // when crossorigin="anonymous" is on the <link> element
+        return fetch(request)
+          .then((networkResponse) => {
+            // Only cache successful CORS responses (not opaque)
+            if (networkResponse.status === 200 && networkResponse.type !== "opaque") {
+              const responseClone = networkResponse.clone();
+              caches.open(FONT_CACHE).then((cache) => {
+                cache.put(request, responseClone);
+              });
+            }
+            return networkResponse;
+          })
+          .catch((err) => {
+            console.warn("[SW] Failed to fetch font:", url.href, err);
+            return new Response("", { status: 503 });
+          });
       })
     );
     return;
@@ -148,22 +158,37 @@ self.addEventListener("fetch", (event) => {
   // ─────────────────────────────────────────────────────────────────
   // Strategy 3: EXTERNAL CDN ASSETS (Font Awesome, etc.)
   // Cache-first for performance
+  // Font Awesome CSS from cdnjs, fonts from ka-f.fontawesome.com
+  // NOTE: The HTML <link> tags MUST have crossorigin="anonymous" for this to work!
   // ─────────────────────────────────────────────────────────────────
-  if (url.hostname === "cdnjs.cloudflare.com") {
+  if (
+    url.hostname === "cdnjs.cloudflare.com" ||
+    url.hostname === "ka-f.fontawesome.com" ||
+    url.hostname === "kit.fontawesome.com" ||
+    url.hostname.includes("fontawesome")
+  ) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse;
         }
-        return fetch(request).then((networkResponse) => {
-          if (networkResponse.status === 200) {
-            const responseClone = networkResponse.clone();
-            caches.open(STATIC_CACHE).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return networkResponse;
-        });
+        // Don't override request mode - browser already sets correct CORS mode
+        return fetch(request)
+          .then((networkResponse) => {
+            // Only cache successful CORS responses (not opaque)
+            if (networkResponse.status === 200 && networkResponse.type !== "opaque") {
+              const responseClone = networkResponse.clone();
+              caches.open(STATIC_CACHE).then((cache) => {
+                cache.put(request, responseClone);
+              });
+            }
+            return networkResponse;
+          })
+          .catch((err) => {
+            console.warn("[SW] Failed to fetch CDN asset:", url.href, err);
+            // Return empty response for failed font requests
+            return new Response("", { status: 503 });
+          });
       })
     );
     return;

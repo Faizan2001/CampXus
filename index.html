@@ -45,10 +45,27 @@
     <!-- CSP is set via hosting headers to avoid duplication/conflicts. -->
     <title>MeetchuThere - Schedule & Availability Tracker</title>
 
+    <!-- Google Fonts: preconnect FIRST for faster font loading -->
+    <!-- fonts.googleapis.com serves CSS, fonts.gstatic.com serves actual font files -->
+    <!-- Font files REQUIRE crossorigin for CORS (W3C Font spec requirement) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@500&family=Poppins:wght@400;500;600;700;800&family=Sora:wght@500;600;700&display=swap"
       rel="stylesheet"
+      crossorigin="anonymous"
     />
+
+    <!-- Font Awesome: preconnect and crossorigin for proper CORS -->
+    <!-- CSS from cdnjs, actual font files from ka-f.fontawesome.com -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css"
+      rel="stylesheet"
+      crossorigin="anonymous"
+    />
+
+    <!-- Firebase preconnects -->
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
     <link
       rel="preconnect"
@@ -56,10 +73,6 @@
       crossorigin
     />
     <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
-    <link
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css"
-      rel="stylesheet"
-    />
 
     <!-- Main application styles -->
     <link rel="stylesheet" href="/src/css/styles.css" />
