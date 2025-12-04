@@ -27,7 +27,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 // Bump version to force clients to re-cache everything (increment on deploy)
-const CACHE_VERSION = "v6";
+const CACHE_VERSION = "v7";
 const STATIC_CACHE = `meetchuthere-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `meetchuthere-dynamic-${CACHE_VERSION}`;
 const FONT_CACHE = `meetchuthere-fonts-${CACHE_VERSION}`;
@@ -172,12 +172,16 @@ self.addEventListener("fetch", (event) => {
   // ─────────────────────────────────────────────────────────────────
   // Strategy 4: FIREBASE/API REQUESTS - Network-only
   // Don't cache dynamic API responses
+  // NOTE: Be specific to avoid blocking Google Fonts (fonts.googleapis.com)
   // ─────────────────────────────────────────────────────────────────
   const isFirebaseRequest =
     url.hostname.includes("firestore.googleapis.com") ||
-    url.hostname.includes("firebase") ||
-    url.hostname.includes("googleapis.com") ||
-    url.hostname.includes("gstatic.com");
+    url.hostname.includes("identitytoolkit.googleapis.com") ||
+    url.hostname.includes("securetoken.googleapis.com") ||
+    url.hostname.includes("firebaseio.com") ||
+    url.hostname.includes("cloudfunctions.net") ||
+    (url.hostname.includes("gstatic.com") &&
+      !url.hostname.includes("fonts.gstatic.com"));
 
   if (isFirebaseRequest) {
     // Let these pass through to network (or fail gracefully)

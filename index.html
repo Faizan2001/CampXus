@@ -325,10 +325,14 @@
            ════════════════════════════════════════════════════════════════════ -->
       <style id="pwa-instant-styles">
         @keyframes pwa-shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(100%);
+          }
         }
-        
+
         .pwa-skeleton {
           background: rgba(255, 255, 255, 0.06);
           overflow: hidden;
@@ -337,14 +341,24 @@
         .pwa-skeleton::after {
           content: "";
           position: absolute;
-          top: 0; left: 0; right: 0; bottom: 0;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.08),
+            transparent
+          );
           animation: pwa-shimmer 1.5s infinite;
         }
-        
+
         .pwa-instant-skeleton {
           position: fixed;
-          top: calc(env(safe-area-inset-top, 0px) + 56px); /* Nav height + safe area */
+          top: calc(
+            env(safe-area-inset-top, 0px) + 56px
+          ); /* Nav height + safe area */
           left: 0;
           right: 0;
           bottom: 0;
@@ -353,7 +367,7 @@
           z-index: 50;
           overflow-y: auto;
         }
-        
+
         /* Light mode skeleton background */
         @media (prefers-color-scheme: light) {
           .pwa-instant-skeleton {
@@ -363,7 +377,12 @@
             background: rgba(0, 0, 0, 0.08);
           }
           .pwa-instant-skeleton .pwa-skeleton::after {
-            background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.05), transparent);
+            background: linear-gradient(
+              90deg,
+              transparent,
+              rgba(0, 0, 0, 0.05),
+              transparent
+            );
           }
           .pwa-instant-skeleton .pwa-skel-schedule {
             background: rgba(0, 0, 0, 0.03);
@@ -387,19 +406,19 @@
         body.dark-mode .pwa-instant-skeleton .pwa-skeleton {
           background: rgba(255, 255, 255, 0.06);
         }
-        
+
         /* ═══ HORIZONTAL FRIENDS BAR ═══ */
         .pwa-skel-friends-section {
           padding: 4px 0;
         }
-        
+
         .pwa-skel-friends-bar {
           display: flex;
           gap: 4px;
           padding: 0 12px;
           overflow: hidden;
         }
-        
+
         .pwa-skel-friend {
           display: flex;
           flex-direction: column;
@@ -407,23 +426,23 @@
           min-width: 64px;
           padding: 4px;
         }
-        
+
         .pwa-skel-avatar-wrap {
           position: relative;
           width: 52px;
           height: 52px;
         }
-        
+
         .pwa-skel-avatar {
           width: 52px;
           height: 52px;
           border-radius: 50%;
         }
-        
+
         .pwa-skel-friend.user .pwa-skel-avatar {
           box-shadow: 0 0 0 2.5px #8b5cf6;
         }
-        
+
         /* Presence pill - overlaps bottom of avatar */
         .pwa-skel-pill {
           position: absolute;
@@ -436,15 +455,17 @@
           background: rgba(75, 75, 75, 0.9);
           border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        .pwa-skel-pill::after { display: none; }
-        
+        .pwa-skel-pill::after {
+          display: none;
+        }
+
         .pwa-skel-name {
           width: 36px;
           height: 10px;
           border-radius: 3px;
           margin-top: 10px;
         }
-        
+
         /* ═══ SCHEDULE CARD ═══ */
         .pwa-skel-schedule {
           margin: 8px 12px 16px;
@@ -453,33 +474,33 @@
           background: rgba(255, 255, 255, 0.02);
           border: 1px solid rgba(255, 255, 255, 0.05);
         }
-        
+
         .pwa-skel-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
           margin-bottom: 12px;
         }
-        
+
         .pwa-skel-title {
           width: 72px;
           height: 20px;
           border-radius: 4px;
         }
-        
+
         .pwa-skel-chevron {
           width: 24px;
           height: 24px;
           border-radius: 6px;
         }
-        
+
         /* Day selector buttons */
         .pwa-skel-days {
           display: flex;
           gap: 6px;
           margin-bottom: 12px;
         }
-        
+
         .pwa-skel-day {
           flex: 1;
           display: flex;
@@ -498,26 +519,26 @@
         .pwa-skel-day.active .pwa-skel-day-num {
           background: rgba(255, 255, 255, 0.3);
         }
-        
+
         .pwa-skel-day-abbr {
           width: 16px;
           height: 10px;
           border-radius: 2px;
         }
-        
+
         .pwa-skel-day-num {
           width: 18px;
           height: 14px;
           border-radius: 3px;
         }
-        
+
         /* Time slots */
         .pwa-skel-slots {
           display: flex;
           flex-direction: column;
           gap: 8px;
         }
-        
+
         .pwa-skel-slot {
           display: flex;
           align-items: center;
@@ -526,7 +547,7 @@
           background: rgba(255, 255, 255, 0.02);
           border: 1px solid rgba(255, 255, 255, 0.04);
         }
-        
+
         .pwa-skel-slot-time {
           width: 100px;
           height: 13px;
@@ -534,30 +555,30 @@
           flex-shrink: 0;
           margin-right: 12px;
         }
-        
+
         .pwa-skel-slot-status {
           width: 32px;
           height: 13px;
           border-radius: 4px;
         }
-        
+
         .pwa-skel-slot.busy {
           background: rgba(139, 92, 246, 0.15);
           border-color: rgba(139, 92, 246, 0.25);
         }
-        
+
         .pwa-skel-slot-class {
           display: flex;
           flex-direction: column;
           gap: 4px;
         }
-        
+
         .pwa-skel-class-code {
           width: 56px;
           height: 14px;
           border-radius: 3px;
         }
-        
+
         .pwa-skel-class-room {
           width: 44px;
           height: 11px;
@@ -568,7 +589,7 @@
         .app-loaded .pwa-instant-skeleton {
           display: none !important;
         }
-        
+
         /* Offline banner */
         .pwa-offline-banner {
           position: fixed;
@@ -585,12 +606,17 @@
           display: none;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
         }
-        .pwa-offline-banner.show { display: block; }
+        .pwa-offline-banner.show {
+          display: block;
+        }
       </style>
 
       <!-- Skeleton matching actual home page structure -->
-      <div class="pwa-instant-skeleton" id="pwaInstantSkeleton" aria-hidden="true">
-        
+      <div
+        class="pwa-instant-skeleton"
+        id="pwaInstantSkeleton"
+        aria-hidden="true"
+      >
         <!-- Horizontal Friends Bar -->
         <section class="pwa-skel-friends-section">
           <div class="pwa-skel-friends-bar">
@@ -648,7 +674,7 @@
             <div class="pwa-skeleton pwa-skel-title"></div>
             <div class="pwa-skeleton pwa-skel-chevron"></div>
           </div>
-          
+
           <!-- Day selector (Su, M, Tu, W, Th, F, Sa) -->
           <div class="pwa-skel-days">
             <div class="pwa-skel-day">
@@ -680,7 +706,7 @@
               <div class="pwa-skeleton pwa-skel-day-num"></div>
             </div>
           </div>
-          
+
           <!-- Time slots (day view) -->
           <div class="pwa-skel-slots">
             <div class="pwa-skel-slot">
@@ -705,6 +731,30 @@
                 <div class="pwa-skeleton pwa-skel-class-code"></div>
                 <div class="pwa-skeleton pwa-skel-class-room"></div>
               </div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
             </div>
             <div class="pwa-skel-slot">
               <div class="pwa-skeleton pwa-skel-slot-time"></div>
