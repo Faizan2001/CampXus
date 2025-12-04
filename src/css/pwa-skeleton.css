@@ -1,0 +1,258 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * PWA SKELETON LOADING STYLES
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
+ * Purpose: Instant visual feedback while app loads
+ * 
+ * These skeleton states are shown:
+ * 1. Immediately when PWA opens (from cache)
+ * 2. While JavaScript loads and executes
+ * 3. While Firebase auth resolves
+ * 4. While user data loads from cache/network
+ * 
+ * The skeletons are replaced with real content as data becomes available.
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE SKELETON ANIMATION
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --skeleton-bg: rgba(128, 128, 128, 0.1);
+  --skeleton-shimmer: rgba(255, 255, 255, 0.3);
+  --skeleton-radius: 8px;
+}
+
+body.dark-mode {
+  --skeleton-bg: rgba(255, 255, 255, 0.08);
+  --skeleton-shimmer: rgba(255, 255, 255, 0.15);
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton {
+  background: var(--skeleton-bg);
+  border-radius: var(--skeleton-radius);
+  overflow: hidden;
+  position: relative;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--skeleton-shimmer),
+    transparent
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HORIZONTAL FRIENDS BAR SKELETON
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.skeleton-friends-bar {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  overflow: hidden;
+}
+
+.skeleton-avatar {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+}
+
+.skeleton-avatar.skeleton-avatar-user {
+  width: 60px;
+  height: 60px;
+  border: 2px solid var(--primary-purple, #8b5cf6);
+}
+
+/* Show 6 friend placeholders */
+.skeleton-friends-bar .skeleton-avatar:nth-child(n + 8) {
+  display: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SCHEDULE GRID SKELETON
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.skeleton-schedule {
+  padding: 16px;
+}
+
+.skeleton-schedule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.skeleton-title {
+  width: 120px;
+  height: 24px;
+  border-radius: 4px;
+}
+
+.skeleton-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.skeleton-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+}
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  gap: 2px;
+}
+
+.skeleton-cell {
+  height: 40px;
+  border-radius: 4px;
+}
+
+.skeleton-cell.skeleton-header {
+  height: 32px;
+}
+
+.skeleton-cell.skeleton-time {
+  width: 60px;
+}
+
+/* Generate 8 rows (header + 7 time slots) */
+.skeleton-grid-rows {
+  display: contents;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INITIAL LOAD OVERLAY (optional - for very slow connections)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.pwa-loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-primary, #0a0b0f);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.3s ease-out;
+}
+
+.pwa-loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pwa-loading-logo {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 16px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.95);
+  }
+}
+
+.pwa-loading-text {
+  color: var(--text-secondary, #9ca3af);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HIDE SKELETONS WHEN CONTENT LOADS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* When real content is present, hide skeletons */
+.horizontal-friends-wrapper:not(:empty) + .skeleton-friends-bar,
+.horizontal-friends-wrapper.loaded ~ .skeleton-friends-bar {
+  display: none;
+}
+
+/* Hide skeleton when schedule grid is populated */
+.schedule-section:not(:empty) .skeleton-schedule {
+  display: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   OFFLINE INDICATOR
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.offline-indicator {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 60px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #f59e0b;
+  color: #000;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 1000;
+  display: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.offline-indicator.visible {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.offline-indicator::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: #000;
+  border-radius: 50%;
+  animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+  0%,
+  50%,
+  100% {
+    opacity: 1;
+  }
+  25%,
+  75% {
+    opacity: 0.3;
+  }
+}

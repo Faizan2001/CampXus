@@ -218,7 +218,9 @@ function renderPendingEventCard(event, clubData, canApproveReject = true) {
     <div class="pending-event-card" data-event-id="${event.id}">
       ${
         event.imageUrl
-          ? `<div class="pending-event-image"><img src="${escapeAttr(event.imageUrl)}" alt="${title}" loading="lazy" /></div>`
+          ? `<div class="pending-event-image"><img src="${escapeAttr(
+              event.imageUrl
+            )}" alt="${title}" loading="lazy" /></div>`
           : ""
       }
       <div class="pending-event-content">

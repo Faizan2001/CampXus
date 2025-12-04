@@ -57,6 +57,7 @@ import { friendshipPrivacyService } from "../../services/friends/FriendshipPriva
 import { onboardingService } from "../../services/onboarding/OnboardingService.js";
 import { showCoachMark } from "../../services/onboarding/CoachMarkManager.js";
 import { uiCache } from "../../services/cache/UiCacheService.js";
+import { pwaCache } from "../../services/cache/PWACacheService.js";
 
 // Global instance for external access
 let globalHorizontalFriendsBarInstance = null;
@@ -190,7 +191,19 @@ export class HorizontalFriendsBar {
       // Hydrate Quick Access list from session cache for instant render (stale-while-revalidate)
       let cachedQuickAccessUsed = false;
       try {
-        const cached = uiCache.get(uiCache.keys.quickAccessFriends(uid));
+        // First try session cache (most recent)
+        let cached = uiCache.get(uiCache.keys.quickAccessFriends(uid));
+
+        // If no session cache, try PWA cache (persists across sessions/restarts)
+        if (!Array.isArray(cached) || cached.length === 0) {
+          cached = pwaCache.getQuickAccessFriends(uid);
+          if (cached) {
+            logManager.ui.debug(
+              "[PWA] Using PWA cache for instant friends bar render"
+            );
+          }
+        }
+
         if (Array.isArray(cached) && cached.length > 0) {
           this.quickAccessFriends = cached;
           this.sortQuickAccessFriendsForDisplay();
@@ -502,6 +515,8 @@ export class HorizontalFriendsBar {
             validatedFriends,
             10 * 60 * 1000 // 10 minutes
           );
+          // 📱 Also save to PWA cache for offline/instant startup (persists across sessions)
+          pwaCache.saveQuickAccessFriends(uid, validatedFriends);
         }
       } catch (_) {
         /* non-fatal */
