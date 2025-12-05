@@ -27,7 +27,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 // Bump version to force clients to re-cache everything (increment on deploy)
-const CACHE_VERSION = "v9";
+const CACHE_VERSION = "v10";
 const STATIC_CACHE = `meetchuthere-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `meetchuthere-dynamic-${CACHE_VERSION}`;
 const FONT_CACHE = `meetchuthere-fonts-${CACHE_VERSION}`;
