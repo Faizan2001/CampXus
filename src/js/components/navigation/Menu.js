@@ -1623,3 +1623,33 @@ function teardownMessagesIndicator() {
   _messagesSpacesCache = [];
   _messagesUserId = null;
 }
+
+// =========================
+// Clubs Badge Clear (exported for ClubsPage)
+// =========================
+
+/**
+ * Mark club notifications as read and clear the clubs nav badge.
+ * Called when user visits the Clubs page.
+ * 
+ * @param {string[]} [types] - Optional array of specific club notification types to mark as read.
+ *                             If not provided, marks all club_* notifications as read.
+ */
+export async function clearClubsBadge(types = null) {
+  try {
+    const uid = currentUser?.uid;
+    if (!uid) return;
+
+    // Immediately clear the visual badge
+    toggleClubsDot(false);
+    _clubsHasAlert = false;
+
+    // Mark club notifications as read in Firestore
+    const dm = await getMenuDataManager();
+    if (dm && typeof dm.markClubNotificationsAsRead === "function") {
+      await dm.markClubNotificationsAsRead(uid, types);
+    }
+  } catch (e) {
+    console.warn("⚠️ Failed to clear clubs badge:", e);
+  }
+}

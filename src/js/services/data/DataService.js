@@ -4689,6 +4689,78 @@ class DataManager {
   }
 
   /**
+   * ✅ Mark club notifications as read for a user
+   *
+   * Updates all unread club notifications (type starts with "club_") for a user to "read" status.
+   * Optionally can filter by specific notification types.
+   *
+   * @param {string} userId - ID of the user whose club notifications to mark as read
+   * @param {string[]} [types] - Optional array of specific club notification types to mark as read
+   * @returns {Promise<{success: boolean, updatedCount?: number, error?: string}>}
+   */
+  async markClubNotificationsAsRead(userId, types = null) {
+    try {
+      console.log(`✅ Marking club notifications as read for user: ${userId}`);
+
+      if (!userId) {
+        throw new Error("User ID is required");
+      }
+
+      const notificationsRef = collection(db, "notifications");
+      const q = query(
+        notificationsRef,
+        where("userId", "==", userId),
+        where("status", "==", "pending")
+      );
+
+      const querySnapshot = await getDocs(q);
+      const batch = writeBatch(db);
+      let updatedCount = 0;
+
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const notifType = data.type || "";
+        
+        // Check if it's a club notification
+        if (!notifType.startsWith("club_")) return;
+        
+        // If specific types are provided, filter by them
+        if (types && types.length > 0 && !types.includes(notifType)) return;
+        
+        batch.update(docSnap.ref, {
+          status: "read",
+          readAt: serverTimestamp(),
+        });
+        updatedCount++;
+      });
+
+      if (updatedCount > 0) {
+        await batch.commit();
+        console.log(`✅ Marked ${updatedCount} club notifications as read`);
+      } else {
+        console.log("ℹ️ No unread club notifications to mark as read");
+      }
+
+      return { success: true, updatedCount };
+    } catch (error) {
+      console.error("❌ Error marking club notifications as read:", error);
+
+      // Handle offline scenario
+      if (!navigator.onLine) {
+        this.pendingOperations.push({
+          type: "markClubNotificationsAsRead",
+          data: { userId, types },
+          timestamp: Date.now(),
+        });
+        console.log("📱 Mark club notifications as read queued for when online");
+        return { success: false, error: "Offline - queued for retry" };
+      }
+
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * 🗑️ Dismiss a notification (alias for deleteNotification with status update)
    *
    * Marks a notification as dismissed and optionally deletes it.

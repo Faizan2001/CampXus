@@ -3,6 +3,7 @@ import { logManager } from "../utils/debug/LogManager.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
 import { LiveEventsSection } from "../components/clubs/LiveEventsSection.js";
 import { isSuperAdmin } from "../services/admin/AdminService.js";
+import { clearClubsBadge } from "../components/navigation/Menu.js";
 
 export default class ClubsPage {
   constructor() {
@@ -99,6 +100,11 @@ export default class ClubsPage {
     // Setup search functionality
     this.setupSearch();
 
+    // Clear clubs notification badge when page is visited
+    // This marks informational notifications (new events, live events) as read
+    // Actionable notifications (pending approvals) are handled separately
+    this.clearClubsNotificationBadge();
+
     // Initialize Live Events Section
     await this.initLiveEventsSection();
 
@@ -158,6 +164,34 @@ export default class ClubsPage {
       this.isSuperAdminUser = await isSuperAdmin(uid);
     } catch (error) {
       logManager.warn("[ClubsPage] Error checking user roles:", error);
+    }
+  }
+
+  /**
+   * Clear clubs notification badge when page is visited.
+   * For regular users: clears all club notifications (new events, live events, etc.)
+   * For admins/moderators: only clears informational notifications, keeps actionable ones
+   */
+  clearClubsNotificationBadge() {
+    try {
+      if (this.isSuperAdminUser || this.isSafModerator) {
+        // For admins/moderators, only clear informational notifications
+        // Keep pending approval notifications visible
+        clearClubsBadge([
+          "club_new_event",
+          "club_event_started",
+          "club_event_changed",
+          "club_event_approved",
+          "club_event_rejected",
+          "club_approved",
+          "club_rejected",
+        ]);
+      } else {
+        // For regular users, clear all club notifications
+        clearClubsBadge();
+      }
+    } catch (e) {
+      logManager.warn("[ClubsPage] Error clearing clubs badge:", e);
     }
   }
 
