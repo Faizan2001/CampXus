@@ -528,7 +528,7 @@ exports.onEventStatusChanged = functions.firestore
         clubId,
         eventId,
         title: "Event Approved! 🎉",
-        message: `"${after.title}" is now live`,
+        message: `"${after.title}" has been approved and scheduled`,
         clubInfo: {
           name: club.name,
           logoUrl: club.logoUrl,

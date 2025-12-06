@@ -579,7 +579,7 @@ body.dark-mode {
     --nav-item-hover: var(--surface-hover);
     --nav-item-active: var(--accent-primary);
     --nav-link-highlight: rgba(255, 255, 255, 0.1);
-    --nav-link-color: var(--text-secondary);
+    --nav-link-color: var(--accent-primary);
     --nav-link-hover-color: var(--accent-primary);
     --nav-link-hover-bg: var(--surface-hover);
 
@@ -732,7 +732,7 @@ body:not(.dark-mode) {
   --nav-item-hover: rgba(162, 148, 249, 0.1);
   --nav-item-active: var(--accent-primary);
   --nav-link-highlight: rgba(162, 148, 249, 0.15);
-  --nav-link-color: var(--text-secondary);
+  --nav-link-color: var(--accent-primary);
   --nav-link-hover-color: var(--accent-primary);
   --nav-link-hover-bg: var(--surface-hover);
 

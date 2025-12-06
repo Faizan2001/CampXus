@@ -2442,7 +2442,7 @@ export const onClubEventCreated = onDocumentCreated(
           clubId,
           eventId,
           title: "Event Approved! 🎉",
-          message: `"${data.title || "Your event"}" is now live`,
+          message: `"${data.title || "Your event"}" has been approved and scheduled`,
           clubInfo: {
             name: club.name || "",
             logoUrl: club.logoUrl || null,
@@ -2506,7 +2506,7 @@ export const onClubEventStatusChanged = onDocumentUpdated(
           clubId,
           eventId,
           title: "Event Approved! 🎉",
-          message: `"${after.title || "Your event"}" is now live`,
+          message: `"${after.title || "Your event"}" has been approved and scheduled`,
           clubInfo: {
             name: club.name || "",
             logoUrl: club.logoUrl || null,

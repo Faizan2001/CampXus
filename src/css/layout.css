@@ -1104,7 +1104,7 @@ body:not(.dark-mode) .user-dropdown {
   grid-template-rows: 26px auto; /* taller icon row to match avatar presence */
   row-gap: 0px;
   place-items: center;
-  color: #bdbacb;
+  color: var(--accent-primary);
   text-decoration: none;
   border-radius: 14px;
   cursor: pointer;
