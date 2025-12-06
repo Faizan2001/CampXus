@@ -38,7 +38,7 @@
 
 - MembersTab: President + Officials display with promote/demote
 - ModerateTab: Pending events approval/rejection (president only)
-- Role-based event creation (officials → pending, presidents → approved)
+- Role-based event creation (officials → pending_president, presidents → pending_saf)
 - Firestore rules for role-based access
 - Cloud Functions for role sync: `promoteClubOfficial`, `demoteClubOfficial`, `assignClubPresident`, `removeClubMember`
 

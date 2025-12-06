@@ -6,22 +6,35 @@ This document defines the Firebase Cloud Functions required for the Clubs featur
 
 ## 📋 Functions Overview
 
-| Function                      | Trigger        | Purpose                    |
-| ----------------------------- | -------------- | -------------------------- |
-| `onClubFollow`                | Firestore      | Update follower counts     |
-| `onClubUnfollow`              | Firestore      | Update follower counts     |
-| `promoteToOfficial`           | HTTPS Callable | Role management            |
-| `demoteOfficial`              | HTTPS Callable | Role management            |
-| `assignPresident`             | HTTPS Callable | President assignment       |
-| `onEventCreated`              | Firestore      | Notify president           |
-| `onEventStatusChanged`        | Firestore      | Notify creator & followers |
-| `onEventStarted`              | Firestore      | Notify followers           |
-| `sendEventReminders`          | Scheduled      | 15-min reminders           |
-| `cleanupOldEvents`            | Scheduled      | 90-day retention           |
-| `cleanupExpiredAnnouncements` | Scheduled      | 24-hour TTL                |
-| `updateWeeklyEventCounts`     | Scheduled      | Stats refresh              |
-| `manualCleanupOldEvents`      | HTTPS Callable | Dev testing for cleanup    |
-| `verifyOrphanedImages`        | HTTPS Callable | Check orphaned images      |
+| Function                      | Trigger        | Purpose                              |
+| ----------------------------- | -------------- | ------------------------------------ |
+| `onClubFollow`                | Firestore      | Update follower counts               |
+| `onClubUnfollow`              | Firestore      | Update follower counts               |
+| `promoteToOfficial`           | HTTPS Callable | Role management                      |
+| `demoteOfficial`              | HTTPS Callable | Role management                      |
+| `assignPresident`             | HTTPS Callable | President assignment                 |
+| `approveClubEventSaf`         | HTTPS Callable | SAF approval of events               |
+| `rejectClubEventSaf`          | HTTPS Callable | SAF rejection of events              |
+| `onEventCreated`              | Firestore      | Notify president & SAF moderators    |
+| `onEventStatusChanged`        | Firestore      | Notify creator, SAF mods & followers |
+| `onEventStarted`              | Firestore      | Notify followers                     |
+| `sendEventReminders`          | Scheduled      | 15-min reminders                     |
+| `cleanupOldEvents`            | Scheduled      | 90-day retention                     |
+| `cleanupExpiredAnnouncements` | Scheduled      | 24-hour TTL                          |
+| `updateWeeklyEventCounts`     | Scheduled      | Stats refresh                        |
+| `manualCleanupOldEvents`      | HTTPS Callable | Dev testing for cleanup              |
+| `verifyOrphanedImages`        | HTTPS Callable | Check orphaned images                |
+
+---
+
+## 📋 Notification Helpers
+
+| Helper Function                    | Purpose                                  |
+| ---------------------------------- | ---------------------------------------- |
+| `createClubNotificationForUser`    | Send notification to a specific user     |
+| `notifyClubFollowers`              | Send notification to all club followers  |
+| `notifySafModeratorsForUniversity` | Send notification to SAF mods for a univ |
+| `notifyAllUniversityUsers`         | Send notification to all users in a univ |
 
 ---
 

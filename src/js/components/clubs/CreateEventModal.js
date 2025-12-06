@@ -1141,6 +1141,57 @@ export class CreateEventModal {
   }
 
   /**
+   * Check if current user is a Super Admin
+   * Super Admins have full rights over any club - their events go straight to approved
+   */
+  async isUserSuperAdmin() {
+    const uid = currentUser?.uid;
+    if (!uid) return false;
+
+    try {
+      const { isSuperAdmin } = await import(
+        "../../services/admin/AdminService.js"
+      );
+      return await isSuperAdmin(uid);
+    } catch (error) {
+      logManager.warn("Error checking super admin status:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if current user is a SAF moderator for this club's university
+   * SAF moderators have full rights over clubs in their university - their events go straight to approved
+   */
+  async isUserSafModeratorForClub() {
+    const uid = currentUser?.uid;
+    if (!uid || !this.clubData) return false;
+
+    try {
+      const { db } = await import("../../lib/firebase/firebase-config.js");
+      const { doc, getDoc } = await import("firebase/firestore");
+
+      // Check if user is a SAF moderator
+      const safModDoc = await getDoc(doc(db, "safModerators", uid));
+      if (!safModDoc.exists()) return false;
+
+      const safModData = safModDoc.data();
+      const moderatorUniversityId = safModData.universityId;
+
+      // Check if moderator's university matches the club's university
+      const clubUniversityId =
+        this.clubData.universityId || this.clubData.universityCode || null;
+
+      return (
+        moderatorUniversityId && moderatorUniversityId === clubUniversityId
+      );
+    } catch (error) {
+      logManager.warn("Error checking SAF moderator status:", error);
+      return false;
+    }
+  }
+
+  /**
    * Show the modal
    */
   show() {
@@ -1688,6 +1739,15 @@ export class CreateEventModal {
         const wasPendingSaf = this.event.status === "pending_saf";
         const isPresident = this.isUserPresident();
 
+        // Check if user has direct approval power (Super Admin or SAF Moderator)
+        const isSuperAdmin = await this.isUserSuperAdmin();
+        const isSafModerator = await this.isUserSafModeratorForClub();
+        const hasDirectApprovalPower = isSuperAdmin || isSafModerator;
+
+        const profileFirstName =
+          currentUser?.profile?.profile?.firstName || "Unknown";
+        const profileLastName = currentUser?.profile?.profile?.lastName || "";
+
         const updateData = {
           title,
           description,
@@ -1700,25 +1760,46 @@ export class CreateEventModal {
         };
 
         // R7: If a live, approved, or pending_saf event is edited, reset approval workflow
-        // The event must go back through the full approval process (pending_president → pending_saf → approved)
-        // This ensures the president reviews any changes before SAF sees the modified event
+        // EXCEPTION: Super Admins and SAF Moderators bypass approval - their edits stay approved
         if (wasLive || wasApproved || wasPendingSaf) {
-          updateData.isLive = false;
-          updateData.status = "pending_president";
-          if (wasLive) {
-            updateData.liveStoppedAt = Timestamp.now();
-            updateData.liveStoppedBy = currentUser?.uid;
-            updateData.liveStopReason = "edited";
-          }
-          // Clear any previous approval data
-          updateData.approvedAt = null;
-          updateData.approvedBy = null;
-          updateData.approvedByInfo = null;
-          // Clear any SAF approval data if it was pending SAF
-          if (wasPendingSaf) {
-            updateData.safApprovedAt = null;
-            updateData.safApprovedBy = null;
-            updateData.safApprovedByInfo = null;
+          if (hasDirectApprovalPower) {
+            // Super Admins and SAF Moderators: keep event approved, just update the fields
+            updateData.status = "approved";
+            if (wasLive) {
+              updateData.isLive = false;
+              updateData.liveStoppedAt = Timestamp.now();
+              updateData.liveStoppedBy = currentUser?.uid;
+              updateData.liveStopReason = "edited";
+            }
+            // Update approval info to reflect the admin's edit
+            updateData.approvedAt = Timestamp.now();
+            updateData.approvedBy = currentUser?.uid;
+            updateData.approvedByInfo = {
+              name: `${profileFirstName} ${profileLastName}`.trim() || "Admin",
+              uid: currentUser?.uid,
+              role: isSuperAdmin ? "superAdmin" : "safModerator",
+            };
+            updateData.safApprovedAt = Timestamp.now();
+            updateData.safApprovedBy = currentUser?.uid;
+          } else {
+            // Regular users: reset to pending_president for re-approval
+            updateData.isLive = false;
+            updateData.status = "pending_president";
+            if (wasLive) {
+              updateData.liveStoppedAt = Timestamp.now();
+              updateData.liveStoppedBy = currentUser?.uid;
+              updateData.liveStopReason = "edited";
+            }
+            // Clear any previous approval data
+            updateData.approvedAt = null;
+            updateData.approvedBy = null;
+            updateData.approvedByInfo = null;
+            // Clear any SAF approval data if it was pending SAF
+            if (wasPendingSaf) {
+              updateData.safApprovedAt = null;
+              updateData.safApprovedBy = null;
+              updateData.safApprovedByInfo = null;
+            }
           }
         }
 
@@ -1754,7 +1835,16 @@ export class CreateEventModal {
         logManager.info("[CreateEventModal] Updated event:", this.event.id);
 
         // Show appropriate message based on what happened
-        if (wasLive) {
+        if (
+          hasDirectApprovalPower &&
+          (wasLive || wasApproved || wasPendingSaf)
+        ) {
+          // Super Admin or SAF Moderator edited an approved/live event
+          notificationManager.show(
+            `Event "${title}" updated! It will go live at the scheduled time.`,
+            "success"
+          );
+        } else if (wasLive) {
           notificationManager.show(
             `Event "${title}" has been stopped and requires re-approval.`,
             "warning"
@@ -1786,11 +1876,24 @@ export class CreateEventModal {
         const profileLastName = currentUser?.profile?.profile?.lastName || "";
 
         // Determine status based on user role
-        // SAF approval is mandatory for all events.
-        // Presidents and devOwners can approve, but events still go to pending_saf.
+        // Super Admins and SAF moderators have full rights - their events go directly to approved
+        // Presidents: events go to pending_saf
+        // Officials: events go to pending_president
+        const isSuperAdmin = await this.isUserSuperAdmin();
+        const isSafModerator = await this.isUserSafModeratorForClub();
         const isPresident = this.isUserPresident();
-        // SAF approval is now mandatory for ALL clubs
-        const eventStatus = isPresident ? "pending_saf" : "pending_president";
+
+        let eventStatus;
+        if (isSuperAdmin || isSafModerator) {
+          // Super Admins and SAF moderators bypass all approval - events go directly to approved/queued
+          eventStatus = "approved";
+        } else if (isPresident) {
+          // Presidents skip president approval but still need SAF approval
+          eventStatus = "pending_saf";
+        } else {
+          // Officials need president approval first
+          eventStatus = "pending_president";
+        }
 
         const eventData = {
           title,
@@ -1812,6 +1915,18 @@ export class CreateEventModal {
           },
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
+          // Add approval fields if Super Admin or SAF moderator is creating (auto-approved)
+          ...(eventStatus === "approved" && {
+            approvedBy: currentUser?.uid,
+            approvedAt: Timestamp.now(),
+            approvedByInfo: {
+              name: `${profileFirstName} ${profileLastName}`.trim() || "Admin",
+              uid: currentUser?.uid,
+              role: isSuperAdmin ? "superAdmin" : "safModerator",
+            },
+            safApprovedBy: currentUser?.uid,
+            safApprovedAt: Timestamp.now(),
+          }),
         };
 
         const eventsRef = collection(db, "clubs", this.clubId, "events");
@@ -1832,7 +1947,17 @@ export class CreateEventModal {
         logManager.info("[CreateEventModal] Created event:", eventId);
 
         // Show appropriate message based on status
-        if (eventStatus === "pending_president") {
+        if (eventStatus === "approved") {
+          notificationManager.show(
+            `Event "${title}" created and approved! It will go live at the scheduled time.`,
+            "success"
+          );
+        } else if (eventStatus === "pending_saf") {
+          notificationManager.show(
+            `Event "${title}" created! Awaiting SAF review.`,
+            "success"
+          );
+        } else if (eventStatus === "pending_president") {
           notificationManager.show(
             `Event "${title}" submitted for approval! The president will review it soon.`,
             "success"

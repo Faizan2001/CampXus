@@ -1365,7 +1365,7 @@ export class AdminPage {
           universityName,
           category,
           accentColor,
-          requireSafApproval,
+          // requireSafApproval is deprecated - SAF approval is now mandatory for all events
           logoBlob,
           bannerBlob,
         } = clubData;
@@ -1379,6 +1379,7 @@ export class AdminPage {
         });
 
         // Create the club FIRST so storage rules can verify club exists
+        // Note: requireSafApproval is always true now (mandatory SAF approval)
         await createClub({
           clubId,
           name,
@@ -1388,7 +1389,7 @@ export class AdminPage {
           category,
           createdBy: currentUser.uid,
           accentColor,
-          requireSafApproval,
+          // requireSafApproval is always true - handled by createClub
           logoUrl: null,
           bannerUrl: null,
         });
@@ -1494,7 +1495,7 @@ export class AdminPage {
           description,
           category,
           accentColor,
-          requireSafApproval,
+          // requireSafApproval is deprecated - SAF approval is now mandatory for all events
           logoBlob,
           bannerBlob,
         } = formData;
@@ -1517,6 +1518,7 @@ export class AdminPage {
           }
 
           // Update the club
+          // Note: requireSafApproval is always true now (mandatory SAF approval)
           const { updateClub } = await import(
             "../services/admin/AdminService.js"
           );
@@ -1525,7 +1527,7 @@ export class AdminPage {
             description,
             category,
             accentColor,
-            requireSafApproval,
+            requireSafApproval: true, // Always true - SAF approval is mandatory
             ...(logoUrl && { logoUrl }),
             ...(bannerUrl && { bannerUrl }),
           });

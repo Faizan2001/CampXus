@@ -13,6 +13,15 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/safModerators/$(request.auth.uid));
     }
 
+    // Check if SAF moderator is scoped to a specific university
+    // SAF moderators can only manage clubs within their assigned university
+    // NOTE: Clubs store universityId (the ID like "iub") which matches safModerators.universityId
+    // The 'university' field may contain a human-readable name, so we use universityId for comparison
+    function isSafModeratorForUniversity(clubUniversityId) {
+      return isSafModerator() &&
+        get(/databases/$(database)/documents/safModerators/$(request.auth.uid)).data.universityId == clubUniversityId;
+    }
+
     // --- Class Spaces (dev testing + read access) ---
     // Reads: allow authenticated users (spaces are university-visible in app logic)
     // Writes: disable for clients except a narrow dev-testing path to create/clear spaces you own.
@@ -176,11 +185,12 @@ service cloud.firestore {
 	          )
 	        );
 
-	      // Delete: SAF moderators, super admins, creator (if verified), or devTest owner
-	      // SAF moderators can delete any club for moderation purposes
+	      // Delete: SAF moderators (within their university), super admins, creator (if verified), or devTest owner
+	      // SAF moderators can ONLY delete clubs within their assigned university
+	      // Use universityId (not 'university') as it contains the ID that matches safModerators.universityId
 	      allow delete: if request.auth != null && (
 	        isSuperAdmin() ||
-	        isSafModerator() ||
+	        isSafModeratorForUniversity(resource.data.universityId) ||
 	        (resource.data.createdBy == request.auth.uid && isVerified()) ||
 	        (resource.data.devTest == true && resource.data.devOwnerUid == request.auth.uid)
 	      );
@@ -238,11 +248,13 @@ service cloud.firestore {
                  club.officialIds.hasAny([request.auth.uid]);
         }
         
-        // Create: allow for club presidents (any status), super admins,
-        // and officials (pending_president only)
+        // Create: allow for super admins (any status), SAF moderators for their university (any status),
+        // club presidents (any status), and officials (pending_president only)
         allow create: if request.auth != null && (
-          // Super admin override
+          // Super admin override - full access to any club
           isSuperAdmin() ||
+          // SAF moderator for this club's university - full access (events go directly to approved)
+          isSafModeratorForUniversity(get(/databases/$(database)/documents/clubs/$(clubId)).data.universityId) ||
           // President/devOwner may create events with any valid status
           isClubPresident() ||
           // Non-president officials must submit events for moderation
@@ -258,12 +270,14 @@ service cloud.firestore {
           )
         );
         
-        // Update: presidents can update any event; super admins can update any event;
+        // Update: super admins, SAF moderators for their university, presidents can update any event;
         // officials can only update their own pending or rejected events (no self-approval)
         // and may toggle live state for their approved events.
         allow update: if request.auth != null && (
           // Super admin override
           isSuperAdmin() ||
+          // SAF moderator for this club's university - full control
+          isSafModeratorForUniversity(get(/databases/$(database)/documents/clubs/$(clubId)).data.universityId) ||
           // President/devOwner: full control over event (including approvals)
           isClubPresident() || 
           // Non-president officials: limited edits on their own events
@@ -291,9 +305,10 @@ service cloud.firestore {
           )
         );
         
-        // Delete: presidents and super admins can delete events
+        // Delete: super admins, SAF moderators for their university, and presidents can delete events
         allow delete: if request.auth != null && (
           isSuperAdmin() ||
+          isSafModeratorForUniversity(get(/databases/$(database)/documents/clubs/$(clubId)).data.universityId) ||
           isClubPresident()
         );
       }

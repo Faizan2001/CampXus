@@ -1036,9 +1036,8 @@ export const approveClubEventSaf = https.onCall(async (data, context) => {
 
   const club = clubSnap.data() || {};
   const moderatorUniversityId = moderator.universityId || null;
-  // Clubs use 'university' field (e.g., 'iub'), not 'universityId'
-  const clubUniversityId =
-    club.universityId || club.universityCode || club.university || null;
+  // Use universityId or universityCode (ID fields), NOT 'university' (which is human-readable name)
+  const clubUniversityId = club.universityId || club.universityCode || null;
 
   // Enforce university scope for SAF moderators (must be present and matching)
   if (!moderatorUniversityId) {
@@ -1119,8 +1118,8 @@ export const rejectClubEventSaf = https.onCall(async (data, context) => {
 
   const club = clubSnap.data() || {};
   const moderatorUniversityId = moderator.universityId || null;
-  const clubUniversityId =
-    club.universityId || club.universityCode || club.university || null;
+  // Use universityId or universityCode (ID fields), NOT 'university' (which is human-readable name)
+  const clubUniversityId = club.universityId || club.universityCode || null;
 
   // Enforce university scope
   if (!moderatorUniversityId) {
@@ -2174,6 +2173,66 @@ async function notifyClubFollowers(clubId, notificationData) {
   });
 }
 
+// Helper to notify SAF moderators for a specific university
+async function notifySafModeratorsForUniversity(
+  universityId,
+  clubId,
+  notificationData
+) {
+  // Query SAF moderators for this university
+  const safModsSnapshot = await db
+    .collection("safModerators")
+    .where("universityId", "==", universityId)
+    .get();
+
+  if (safModsSnapshot.empty) {
+    logger.info("No SAF moderators to notify for university", {
+      universityId,
+      clubId,
+    });
+    return;
+  }
+
+  let batch = db.batch();
+  let countInBatch = 0;
+  let total = 0;
+
+  for (const safModDoc of safModsSnapshot.docs) {
+    const notifRef = db.collection("notifications").doc();
+    batch.set(notifRef, {
+      userId: safModDoc.id,
+      clubId,
+      type: notificationData.type,
+      eventId: notificationData.eventId || null,
+      title: notificationData.title || "",
+      message: notificationData.message || "",
+      clubInfo: notificationData.clubInfo || null,
+      createdAt: FieldValue.serverTimestamp(),
+      status: "pending",
+      readAt: null,
+    });
+    countInBatch += 1;
+    total += 1;
+
+    if (countInBatch >= 400) {
+      await batch.commit();
+      batch = db.batch();
+      countInBatch = 0;
+    }
+  }
+
+  if (countInBatch > 0) {
+    await batch.commit();
+  }
+
+  logger.info("Sent SAF moderator notifications", {
+    universityId,
+    clubId,
+    type: notificationData.type,
+    total,
+  });
+}
+
 // R12: Helper to notify ALL users in a university (for live event notifications)
 async function notifyAllUniversityUsers(
   universityCode,
@@ -2269,6 +2328,7 @@ async function updateClubEventStats(clubId) {
 }
 
 // When a club event is created, notify the president about pending approval
+// or handle president-created events (pending_saf) and admin-created events (approved)
 export const onClubEventCreated = onDocumentCreated(
   "clubs/{clubId}/events/{eventId}",
   async (event) => {
@@ -2277,8 +2337,15 @@ export const onClubEventCreated = onDocumentCreated(
 
     const { clubId, eventId } = event.params;
 
-    // Only handle events that are pending president approval or already approved
-    if (data.status !== "pending_president" && data.status !== "approved") {
+    // Handle events that need action:
+    // - pending_president: notify president for approval
+    // - pending_saf: president-created event, awaiting SAF approval (no notification here, handled by status change)
+    // - approved: direct approval by super admin/SAF (legacy or bypass)
+    if (
+      data.status !== "pending_president" &&
+      data.status !== "pending_saf" &&
+      data.status !== "approved"
+    ) {
       return;
     }
 
@@ -2334,9 +2401,40 @@ export const onClubEventCreated = onDocumentCreated(
       return;
     }
 
+    if (data.status === "pending_saf") {
+      // President-created event: SAF approval is mandatory
+      // Notify SAF moderators for this university
+      const universityId = club.universityId || club.universityCode || null;
+      if (universityId) {
+        await notifySafModeratorsForUniversity(universityId, clubId, {
+          type: "club_event_pending_saf",
+          eventId,
+          title: "New Event Pending SAF Review",
+          message: `"${data.title || "An event"}" from ${
+            club.name || "a club"
+          } needs your approval`,
+          clubInfo: {
+            name: club.name || "",
+            logoUrl: club.logoUrl || null,
+            accentColor: club.accentColor || null,
+          },
+        });
+      }
+      logger.info(
+        "President-created event awaiting SAF approval, notified SAF moderators",
+        {
+          clubId,
+          eventId,
+          createdBy: data.createdBy || null,
+          universityId,
+        }
+      );
+      return;
+    }
+
     if (data.status === "approved") {
-      // Auto-approved event (created by president/devOwner) — behave like a freshly approved event:
-      // notify creator and followers, and refresh club event stats.
+      // Direct approval by super admin/SAF (bypassing normal flow)
+      // This should be rare now that SAF approval is mandatory
 
       if (data.createdBy) {
         await createClubNotificationForUser(data.createdBy, {
@@ -2367,7 +2465,7 @@ export const onClubEventCreated = onDocumentCreated(
 
       await updateClubEventStats(clubId);
 
-      logger.info("Handled auto-approved event on creation", {
+      logger.info("Handled directly-approved event on creation", {
         clubId,
         eventId,
         createdBy: data.createdBy || null,
@@ -2417,8 +2515,18 @@ export const onClubEventStatusChanged = onDocumentUpdated(
         });
       }
 
-      const isReapproval =
-        before.status === "pending_president" && before.approvedAt != null;
+      // Check if this is a re-approval (event was previously approved, then edited and re-submitted)
+      // Detection: If the event has editHistory entries, it means it was modified after creation.
+      // Also check if the event was created more than a reasonable time ago (e.g., 1 hour)
+      // to avoid false positives from quick approval workflows.
+      const hasEditHistory =
+        Array.isArray(after.editHistory) && after.editHistory.length > 0;
+      const createdAt = after.createdAt?.toDate?.() || after.createdAt;
+      const hoursSinceCreation = createdAt
+        ? (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60)
+        : 0;
+      // Consider it a re-approval if it has edit history OR was created more than 24 hours ago
+      const isReapproval = hasEditHistory || hoursSinceCreation > 24;
 
       if (isReapproval) {
         await notifyClubFollowers(clubId, {
@@ -2465,6 +2573,58 @@ export const onClubEventStatusChanged = onDocumentUpdated(
           accentColor: club.accentColor || null,
         },
       });
+    }
+
+    // Event transitioned to pending_saf (president approved official's event)
+    if (
+      after.status === "pending_saf" &&
+      before.status === "pending_president"
+    ) {
+      // Notify event creator that president approved and it's now with SAF
+      if (after.createdBy) {
+        await createClubNotificationForUser(after.createdBy, {
+          type: "club_event_president_approved",
+          clubId,
+          eventId,
+          title: "Event Approved by President",
+          message: `"${
+            after.title || "Your event"
+          }" is now awaiting SAF review`,
+          clubInfo: {
+            name: club.name || "",
+            logoUrl: club.logoUrl || null,
+            accentColor: club.accentColor || null,
+          },
+        });
+      }
+
+      // Notify SAF moderators for this university
+      const universityId = club.universityId || club.universityCode || null;
+      if (universityId) {
+        await notifySafModeratorsForUniversity(universityId, clubId, {
+          type: "club_event_pending_saf",
+          eventId,
+          title: "New Event Pending SAF Review",
+          message: `"${after.title || "An event"}" from ${
+            club.name || "a club"
+          } needs your approval`,
+          clubInfo: {
+            name: club.name || "",
+            logoUrl: club.logoUrl || null,
+            accentColor: club.accentColor || null,
+          },
+        });
+      }
+
+      logger.info(
+        "Event transitioned to pending_saf, notified creator and SAF moderators",
+        {
+          clubId,
+          eventId,
+          createdBy: after.createdBy || null,
+          universityId,
+        }
+      );
     }
 
     // Event re-submitted for president review (rejected -> pending_president)
@@ -2577,7 +2737,8 @@ export const onClubEventStarted = onDocumentUpdated(
     const club = clubSnap.data() || {};
 
     // R12: Notify ALL users in the same university, not just followers
-    const universityCode = club.universityCode || club.university || null;
+    // Use universityId or universityCode (ID fields), NOT 'university' (which is human-readable name)
+    const universityCode = club.universityId || club.universityCode || null;
 
     if (universityCode) {
       // Notify all users at this university

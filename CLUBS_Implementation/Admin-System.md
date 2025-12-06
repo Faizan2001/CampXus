@@ -16,19 +16,26 @@ The admin system has three tiers:
 │  • Manage all clubs & presidents                            │
 │  • System maintenance functions                             │
 │  • Access /admin dashboard                                  │
+│  • Create events in ANY club (bypass all approval)          │
+│  • Events created by Super Admin go directly to approved    │
 ├─────────────────────────────────────────────────────────────┤
 │                 SAF MODERATORS (per university)             │
 │  • Create/delete clubs in their university                  │
 │  • Assign club presidents                                   │
-│  • Approve events (when required)                           │
+│  • Approve/reject events (mandatory for all president/      │
+│    official events)                                         │
+│  • Create events in clubs (bypass all approval)             │
+│  • Events created by SAF go directly to approved            │
+│  • Receive notifications when events are pending SAF review │
 │  • Moderate content                                         │
 │  • Access "Moderate" tab in Clubs page                      │
 ├─────────────────────────────────────────────────────────────┤
 │                 CLUB PRESIDENTS                             │
 │  • Manage their own club                                    │
-│  • Approve/reject events                                    │
+│  • Approve/reject official-created events                   │
 │  • Promote/demote officials                                 │
 │  • Access "Moderate" tab in their club page                 │
+│  • Events created by President go to pending_saf status     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -385,12 +392,8 @@ class AdminPage {
       <label>Banner (Optional)</label>
       <input type="file" name="banner" accept="image/*" />
     </div>
-    <div class="form-group">
-      <label>
-        <input type="checkbox" name="requireSafApproval" />
-        Require SAF approval for events
-      </label>
-    </div>
+    <!-- NOTE: SAF approval is now MANDATORY for all events -->
+    <!-- The requireSafApproval checkbox has been removed -->
     <div class="form-group">
       <label>Assign President (Optional)</label>
       <input type="text" name="presidentHandle" placeholder="@handle" />

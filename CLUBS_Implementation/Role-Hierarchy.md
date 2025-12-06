@@ -50,36 +50,42 @@
 ## Permission Matrix
 
 ```
-┌────────────────────────┬───────┬─────┬──────────┬──────────┬────────┐
-│ Action                 │ Super │ SAF │ President│ Official │ Member │
-│                        │ Admin │ Mod │          │          │        │
-├────────────────────────┼───────┼─────┼──────────┼──────────┼────────┤
-│ Access /admin          │   ✓   │  ✗  │    ✗     │    ✗     │   ✗    │
-│ Manage SAF Moderators  │   ✓   │  ✗  │    ✗     │    ✗     │   ✗    │
-│ Create Universities    │   ✓   │  ✗  │    ✗     │    ✗     │   ✗    │
-│ Create Clubs           │   ✓   │  ✓  │    ✗     │    ✗     │   ✗    │
-│ Delete Any Club        │   ✓   │  ✓  │    ✗     │    ✗     │   ✗    │
-│ Assign President       │   ✓   │  ✓  │    ✗     │    ✗     │   ✗    │
-├────────────────────────┼───────┼─────┼──────────┼──────────┼────────┤
-│ Approve/Reject Events  │   ✓   │  ✓  │    ✓     │    ✗     │   ✗    │
-│ Promote to Official    │   ✓   │  ✓  │    ✓     │    ✗     │   ✗    │
-│ Demote Official        │   ✓   │  ✓  │    ✓     │    ✗     │   ✗    │
-│ Delete Club Events     │   ✓   │  ✓  │    ✓     │    ✗     │   ✗    │
-├────────────────────────┼───────┼─────┼──────────┼──────────┼────────┤
-│ Create Events          │   ✓   │  ✓  │    ✓     │    ✓     │   ✗    │
-│ Go Live / End Event    │   ✓   │  ✓  │    ✓     │    ✓*    │   ✗    │
-│ Edit Own Events        │   ✓   │  ✓  │    ✓     │    ✓     │   ✗    │
-├────────────────────────┼───────┼─────┼──────────┼──────────┼────────┤
-│ Follow/Unfollow Club   │   ✓   │  ✓  │    ✓     │    ✓     │   ✓    │
-│ View Club Events       │   ✓   │  ✓  │    ✓     │    ✓     │   ✓    │
-└────────────────────────┴───────┴─────┴──────────┴──────────┴────────┘
+┌─────────────────────────────┬───────┬─────────┬──────────┬──────────┬────────┐
+│ Action                      │ Super │ SAF Mod │ President│ Official │ Member │
+│                             │ Admin │ (scoped)│          │          │        │
+├─────────────────────────────┼───────┼─────────┼──────────┼──────────┼────────┤
+│ Access /admin               │   ✓   │    ✗    │    ✗     │    ✗     │   ✗    │
+│ Manage SAF Moderators       │   ✓   │    ✗    │    ✗     │    ✗     │   ✗    │
+│ Create Universities         │   ✓   │    ✗    │    ✗     │    ✗     │   ✗    │
+│ Create Clubs (own univ)     │   ✓   │    ✓    │    ✗     │    ✗     │   ✗    │
+│ Delete Clubs (own univ)     │   ✓   │    ✓    │    ✗     │    ✗     │   ✗    │
+│ Assign President            │   ✓   │    ✓    │    ✗     │    ✗     │   ✗    │
+├─────────────────────────────┼───────┼─────────┼──────────┼──────────┼────────┤
+│ SAF Approve/Reject Events   │   ✓   │    ✓    │    ✗     │    ✗     │   ✗    │
+│ President Approve Events    │   ✓   │    ✗    │    ✓     │    ✗     │   ✗    │
+│ Promote to Official         │   ✓   │    ✓    │    ✓     │    ✗     │   ✗    │
+│ Demote Official             │   ✓   │    ✓    │    ✓     │    ✗     │   ✗    │
+│ Delete Club Events          │   ✓   │    ✓    │    ✓     │    ✗     │   ✗    │
+├─────────────────────────────┼───────┼─────────┼──────────┼──────────┼────────┤
+│ Create Events               │   ✓   │    ✓    │    ✓     │    ✓     │   ✗    │
+│ Go Live / End Event         │   ✓   │    ✓    │    ✓     │    ✓*    │   ✗    │
+│ Edit Own Events             │   ✓   │    ✓    │    ✓     │    ✓     │   ✗    │
+├─────────────────────────────┼───────┼─────────┼──────────┼──────────┼────────┤
+│ Follow/Unfollow Club        │   ✓   │    ✓    │    ✓     │    ✓     │   ✓    │
+│ View Club Events            │   ✓   │    ✓    │    ✓     │    ✓     │   ✓    │
+└─────────────────────────────┴───────┴─────────┴──────────┴──────────┴────────┘
 
 * Officials can only Go Live/End events they created
+** SAF Mod (scoped) = SAF moderators can only manage clubs within their assigned university
 ```
 
 ---
 
 ## Event Approval Flow
+
+**SAF approval is MANDATORY for all events.** Events must go through the full approval chain before becoming visible to students.
+
+### Official Creates Event
 
 ```
 ┌──────────────┐
@@ -101,12 +107,77 @@
          │ approve
          ▼
 ┌──────────────────┐
+│ status:          │
+│ pending_saf      │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐         ┌──────────────────┐
+│  SAF MODERATOR   │────────▶│     REJECTED     │
+│    reviews       │  reject │ (with feedback)  │
+└────────┬─────────┘         └──────────────────┘
+         │ approve
+         ▼
+┌──────────────────┐
 │     APPROVED     │
-│ (visible to all) │
+│ (queued to go    │
+│  live on date)   │
 └──────────────────┘
 ```
 
-Presidents and Super Admins auto-approve their own events.
+### President Creates Event
+
+```
+┌──────────────┐
+│  PRESIDENT   │
+│ creates event│
+└──────┬───────┘
+       │ (auto-approved by president)
+       ▼
+┌──────────────────┐
+│ status:          │
+│ pending_saf      │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐         ┌──────────────────┐
+│  SAF MODERATOR   │────────▶│     REJECTED     │
+│    reviews       │  reject │ (with feedback)  │
+└────────┬─────────┘         └──────────────────┘
+         │ approve
+         ▼
+┌──────────────────┐
+│     APPROVED     │
+│ (queued to go    │
+│  live on date)   │
+└──────────────────┘
+```
+
+### Super Admin or SAF Moderator Creates Event
+
+```
+┌────────────────────┐
+│  SUPER ADMIN or    │
+│  SAF MODERATOR     │
+│  creates event     │
+└────────┬───────────┘
+         │ (auto-approved, bypasses all review)
+         ▼
+┌──────────────────┐
+│     APPROVED     │
+│ (queued to go    │
+│  live on date)   │
+└──────────────────┘
+```
+
+**Key Rules:**
+
+- Officials create events → President approves → SAF approves → Queued for scheduled date/time
+- Presidents create events → SAF approves → Queued for scheduled date/time
+- **Super Admins** create events → **Directly approved** → Queued for scheduled date/time (bypass all approval)
+- **SAF Moderators** (for clubs in their university) create events → **Directly approved** → Queued for scheduled date/time (bypass all approval)
+- All approved events are queued and go live automatically when their scheduled date/time arrives
+- SAF moderators receive notifications when new events are pending their review
 
 ---
 

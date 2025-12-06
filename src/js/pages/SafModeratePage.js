@@ -114,8 +114,9 @@ export class SafModeratePage {
    * Queries by universityId, universityCode, and university fields
    * for backwards compatibility with legacy clubs.
    *
-   * This matches the backend logic in Cloud Functions which accepts:
-   * club.universityId || club.universityCode || club.university
+   * Note: Backend Cloud Functions use universityId || universityCode only.
+   * This client-side query also checks `university` field to catch any legacy
+   * clubs that may have been created before universityId was standardized.
    */
   async fetchClubsForUniversity() {
     const allClubs = [];
@@ -653,7 +654,9 @@ export class SafModeratePage {
                     <div class="club-name-cell">
                       ${
                         club.logoUrl
-                          ? `<img src="${escapeAttr(club.logoUrl)}" alt="" class="club-logo-small">`
+                          ? `<img src="${escapeAttr(
+                              club.logoUrl
+                            )}" alt="" class="club-logo-small">`
                           : `<div class="club-logo-placeholder"><i class="fas fa-users"></i></div>`
                       }
                       <span>${escapeHtml(club.name || "Unnamed")}</span>
@@ -779,7 +782,8 @@ export class SafModeratePage {
           memberCount: 0,
           followerCount: 0,
           isActive: true,
-          requireSafApproval: true, // SAF-created clubs require SAF approval
+          // DEPRECATED: requireSafApproval is always true now (SAF approval is mandatory for ALL events)
+          requireSafApproval: true,
           logoUrl: null,
           bannerUrl: null,
         };
@@ -885,12 +889,13 @@ export class SafModeratePage {
           }
 
           // Update the club
+          // DEPRECATED: requireSafApproval is always true now (SAF approval is mandatory for ALL events)
           await updateDoc(doc(db, "clubs", clubId), {
             name,
             description,
             category,
             accentColor,
-            requireSafApproval,
+            requireSafApproval: true, // Always true - SAF approval is mandatory
             ...(logoUrl && { logoUrl }),
             ...(bannerUrl && { bannerUrl }),
             updatedAt: serverTimestamp(),

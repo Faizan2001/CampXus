@@ -4,6 +4,17 @@ This document contains the Firestore security rules for the Clubs feature.
 
 ---
 
+## 📋 Key Policies
+
+1. **SAF Approval is MANDATORY** (for Presidents and Officials): Events must be approved by SAF moderators before going live
+2. **Super Admins and SAF Moderators have Direct Approval Power**: Their events bypass all review and go directly to approved status
+3. **SAF Moderators are University-Scoped**: SAF moderators can only manage clubs within their assigned university
+4. **Event Approval Flow**: Official → President approves → SAF approves → Queued for scheduled time
+5. **President Events**: President creates → SAF approves → Queued for scheduled time
+6. **Super Admin/SAF Events**: Creates → Directly approved → Queued for scheduled time
+
+---
+
 ## 📋 Rules Overview
 
 ```
@@ -163,8 +174,10 @@ service cloud.firestore {
         )
       );
 
-      // DELETE: Only super admin can delete clubs
-      allow delete: if isSuperAdmin();
+      // DELETE: Super admin or SAF moderators (within their university) can delete clubs
+      // SAF moderators can ONLY delete clubs within their assigned university
+      // NOTE: Use universityId (not 'university') as it contains the ID that matches safModerators.universityId
+      allow delete: if isSuperAdmin() || isSafModeratorForUniversity(resource.data.universityId);
 
       // ----- EVENTS SUBCOLLECTION -----
       match /events/{eventId} {

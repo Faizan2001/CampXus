@@ -36,7 +36,13 @@ firestore/
   clubId: "iub_football_club",              // Auto-generated or slugified
   name: "IUB Football Club",                 // Display name
   description: "Official football club...",  // Max 500 chars
-  university: "iub",                         // University code (isolation key)
+
+  // === University Fields ===
+  // IMPORTANT: Use universityId for programmatic comparisons (e.g., SAF moderator scoping)
+  universityId: "iub",                       // University ID (for queries and security rules)
+  universityCode: "iub",                     // Alias for universityId (legacy compatibility)
+  university: "Independent University, Bangladesh", // Human-readable name (for display)
+  universityName: "Independent University, Bangladesh", // Alias for university (legacy)
 
   // === Branding ===
   logoUrl: "gs://bucket/clubs/iub_football/logo.webp",
@@ -391,14 +397,16 @@ Extend existing notification schema:
   // === Club-specific fields ===
   type: "club_new_event",
   // Club notification types:
-  // - "club_new_event"        : New event from followed club
-  // - "club_event_reminder"   : 15 min before event
-  // - "club_event_changed"    : Event details updated
-  // - "club_event_started"    : Event went live
-  // - "club_event_cancelled"  : Event was cancelled
-  // - "club_event_pending"    : Event awaiting approval (to president)
-  // - "club_event_approved"   : Event was approved (to creator)
-  // - "club_event_rejected"   : Event was rejected (to creator)
+  // - "club_new_event"           : New event from followed club
+  // - "club_event_reminder"      : 15 min before event
+  // - "club_event_changed"       : Event details updated
+  // - "club_event_started"       : Event went live
+  // - "club_event_cancelled"     : Event was cancelled
+  // - "club_event_pending"       : Event awaiting president approval (to president)
+  // - "club_event_pending_saf"   : Event awaiting SAF approval (to SAF moderators)
+  // - "club_event_president_approved" : President approved, now awaiting SAF (to creator)
+  // - "club_event_approved"      : Event was fully approved (to creator)
+  // - "club_event_rejected"      : Event was rejected (to creator)
 
   // === References ===
   clubId: "iub_football_club",

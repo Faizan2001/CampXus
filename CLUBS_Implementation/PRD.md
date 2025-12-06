@@ -162,15 +162,16 @@ Clubs (nav link)
 
 **Can do** (everything Officials can, plus):
 
-- Approve/reject events from officials
+- Approve events from officials (moves to SAF queue for final approval)
+- Reject events from officials (with feedback)
 - Promote students to Officials (assign custom role titles)
 - Demote officials back to regular students
 - Edit any event in their club
 - Delete events from their club
-- Enable/disable SAF approval requirement for their club
 
 **Cannot do**:
 
+- Final approval of events (SAF approval is mandatory)
 - Transfer presidency (only Admin/SAF can do this)
 - Delete the club itself
 - Moderate other clubs
@@ -181,14 +182,15 @@ Clubs (nav link)
 
 **Who**: University staff assigned by Admin
 
-**Scope**: All clubs within their assigned university
+**Scope**: All clubs within their assigned university ONLY
 
-**Can do** (everything Presidents can across all clubs, plus):
+**Can do** (within their university):
 
 - Create new clubs
+- Delete clubs (within their university only)
 - Assign/reassign Club Presidents
-- Approve/reject events (when club requires SAF approval)
-- Delete any event or club
+- Final approve/reject all events (SAF approval is mandatory for ALL events)
+- Delete any event in clubs within their university
 - Leave rejection comments visible to club officials
 - Push "University Announcement" events (bypass club flow)
 - View moderation dashboard for all pending content
@@ -196,7 +198,8 @@ Clubs (nav link)
 **Cannot do**:
 
 - Manage SAF moderators (only Admin can)
-- Access other universities' clubs
+- Access or modify clubs in other universities
+- Delete clubs outside their university
 - Modify admin settings
 
 ---
@@ -416,17 +419,23 @@ A permanent card at the top of the Clubs page that aggregates all events from al
 }
 ```
 
-**Approval flow**:
+**Approval flow** (SAF approval is MANDATORY for all events):
 
 1. Official creates event → Status: `pending_president`
-2. President approves → Status: `approved` (or `pending_saf` if SAF approval enabled)
-3. If SAF approval enabled: SAF approves → Status: `approved`
-4. Approved events appear in Upcoming Events
+2. President approves → Status: `pending_saf`
+3. SAF moderator approves → Status: `approved`
+4. Approved events are queued and go live on their scheduled date/time
+
+**President-created events**:
+
+1. President creates event → Status: `pending_saf` (auto-approved by president)
+2. SAF moderator approves → Status: `approved`
+3. Approved events are queued and go live on their scheduled date/time
 
 **Edit flow**:
 
 - Editing an approved event changes status back to `pending_president`
-- Requires re-approval before changes go live
+- Requires re-approval (President → SAF) before changes go live
 
 ---
 
@@ -534,26 +543,87 @@ Manual: Official clicks "Go Live" button
 
 ### 6.1 Permission Matrix
 
-| Action                        | Student | Official | President | SAF | Admin |
-| ----------------------------- | ------- | -------- | --------- | --- | ----- |
-| View clubs/events             | ✅      | ✅       | ✅        | ✅  | ✅    |
-| Follow clubs                  | ✅      | ✅       | ✅        | ✅  | ✅    |
-| Create event                  | ❌      | ✅       | ✅        | ✅  | ✅    |
-| Edit own event                | ❌      | ✅       | ✅        | ✅  | ✅    |
-| Edit any event in club        | ❌      | ❌       | ✅        | ✅  | ✅    |
-| Delete events                 | ❌      | ❌       | ✅        | ✅  | ✅    |
-| Approve events                | ❌      | ❌       | ✅        | ✅  | ✅    |
-| Post announcements (live)     | ❌      | ✅       | ✅        | ✅  | ✅    |
-| Start event                   | ❌      | ✅       | ✅        | ✅  | ✅    |
-| Promote officials             | ❌      | ❌       | ✅        | ✅  | ✅    |
-| Assign president              | ❌      | ❌       | ❌        | ✅  | ✅    |
-| Create clubs                  | ❌      | ❌       | ❌        | ✅  | ✅    |
-| Delete clubs                  | ❌      | ❌       | ❌        | ✅  | ✅    |
-| Push university announcements | ❌      | ❌       | ❌        | ✅  | ✅    |
-| Manage SAF moderators         | ❌      | ❌       | ❌        | ❌  | ✅    |
-| Access /admin dashboard       | ❌      | ❌       | ❌        | ❌  | ✅    |
+**Note:** SAF Moderators are scoped to their assigned university only.
 
-### 6.2 Role Assignment Flow
+| Action                        | Student | Official | President | SAF\* | Admin |
+| ----------------------------- | ------- | -------- | --------- | ----- | ----- |
+| View clubs/events             | ✅      | ✅       | ✅        | ✅    | ✅    |
+| Follow clubs                  | ✅      | ✅       | ✅        | ✅    | ✅    |
+| Create event                  | ❌      | ✅       | ✅        | ✅    | ✅    |
+| Edit own event                | ❌      | ✅       | ✅        | ✅    | ✅    |
+| Edit any event in club        | ❌      | ❌       | ✅        | ✅    | ✅    |
+| Delete events                 | ❌      | ❌       | ✅        | ✅    | ✅    |
+| President approve events      | ❌      | ❌       | ✅        | ❌    | ✅    |
+| SAF approve events (final)    | ❌      | ❌       | ❌        | ✅    | ✅    |
+| Post announcements (live)     | ❌      | ✅       | ✅        | ✅    | ✅    |
+| Start event                   | ❌      | ✅       | ✅        | ✅    | ✅    |
+| Promote officials             | ❌      | ❌       | ✅        | ✅    | ✅    |
+| Assign president              | ❌      | ❌       | ❌        | ✅    | ✅    |
+| Create clubs (own univ)       | ❌      | ❌       | ❌        | ✅    | ✅    |
+| Delete clubs (own univ)       | ❌      | ❌       | ❌        | ✅    | ✅    |
+| Push university announcements | ❌      | ❌       | ❌        | ✅    | ✅    |
+| Manage SAF moderators         | ❌      | ❌       | ❌        | ❌    | ✅    |
+| Access /admin dashboard       | ❌      | ❌       | ❌        | ❌    | ✅    |
+
+\*SAF = SAF Moderators can only perform actions within their assigned university
+
+### 6.2 Event Approval Flow
+
+**SAF approval is MANDATORY for all events created by Presidents and Officials.**
+**Super Admins and SAF Moderators have direct approval power - their events bypass all review.**
+
+```
+Official creates event
+    │
+    ▼
+[pending_president] ──────────────────────────────────────┐
+    │                                                     │
+    ▼                                                     │
+President reviews                                         │
+    │                                                     │
+    ├── Approve ──► [pending_saf]                         │
+    │                    │                                │
+    │                    ├──► SAF Moderators notified     │
+    │                    │                                │
+    │                    ▼                                │
+    │               SAF Moderator reviews                 │
+    │                    │                                │
+    │                    ├── Approve ──► [approved]       │
+    │                    │               (queued for      │
+    │                    │                scheduled time) │
+    │                    │                                │
+    │                    └── Reject ──► [rejected]        │
+    │                                                     │
+    └── Reject ──► [rejected]                             │
+                                                          │
+President creates event ──────────────────────────────────┘
+    │
+    ▼
+[pending_saf] (auto-approved by president)
+    │
+    ├──► SAF Moderators notified
+    │
+    ▼
+SAF Moderator reviews
+    │
+    ├── Approve ──► [approved] (queued for scheduled time)
+    │
+    └── Reject ──► [rejected]
+
+
+Super Admin or SAF Moderator creates event
+    │
+    ▼
+[approved] (bypasses all review, queued for scheduled time)
+```
+
+**Notifications:**
+
+- When an event transitions to `pending_saf`, all SAF moderators for that university receive a notification
+- Event creators are notified when their events are approved or rejected
+- Club followers are notified when new approved events are created
+
+### 6.3 Role Assignment Flow
 
 ```
 Admin (You)
@@ -571,7 +641,7 @@ Admin (You)
                     (with custom role titles)
 ```
 
-### 6.3 Role Storage
+### 6.4 Role Storage
 
 **User document addition**:
 

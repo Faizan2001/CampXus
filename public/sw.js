@@ -138,7 +138,10 @@ self.addEventListener("fetch", (event) => {
         return fetch(request)
           .then((networkResponse) => {
             // Only cache successful CORS responses (not opaque)
-            if (networkResponse.status === 200 && networkResponse.type !== "opaque") {
+            if (
+              networkResponse.status === 200 &&
+              networkResponse.type !== "opaque"
+            ) {
               const responseClone = networkResponse.clone();
               caches.open(FONT_CACHE).then((cache) => {
                 cache.put(request, responseClone);
@@ -176,7 +179,10 @@ self.addEventListener("fetch", (event) => {
         return fetch(request)
           .then((networkResponse) => {
             // Only cache successful CORS responses (not opaque)
-            if (networkResponse.status === 200 && networkResponse.type !== "opaque") {
+            if (
+              networkResponse.status === 200 &&
+              networkResponse.type !== "opaque"
+            ) {
               const responseClone = networkResponse.clone();
               caches.open(STATIC_CACHE).then((cache) => {
                 cache.put(request, responseClone);

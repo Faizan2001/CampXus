@@ -17,6 +17,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   collection,
   addDoc,
   query,
@@ -348,7 +349,9 @@ export async function createClub(data) {
     accentColor: accentColor || "blue",
     logoUrl: logoUrl || null,
     bannerUrl: bannerUrl || null,
-    requireSafApproval: !!requireSafApproval,
+    // DEPRECATED: requireSafApproval is always true now (SAF approval is mandatory for ALL events)
+    // Keeping field for backward compatibility with existing clubs
+    requireSafApproval: true,
     createdAt: serverTimestamp(),
     createdBy: createdBy || null,
     memberCount: 0,
@@ -502,6 +505,41 @@ export async function deleteClub(clubId) {
       }
     } catch (e) {
       logManager.warn("Could not update university club count", e);
+    }
+  }
+
+  // Clean up user.clubRoles for president and officials (Bug fix: stale roles)
+  const userIdsToCleanup = new Set();
+  if (clubData.presidentId) {
+    userIdsToCleanup.add(clubData.presidentId);
+  }
+  if (Array.isArray(clubData.officialIds)) {
+    clubData.officialIds.forEach((uid) => userIdsToCleanup.add(uid));
+  }
+  // Also check the members array in case it has additional entries
+  if (Array.isArray(clubData.members)) {
+    clubData.members
+      .filter((m) => m.role === "president" || m.role === "official")
+      .forEach((m) => {
+        if (m.uid) userIdsToCleanup.add(m.uid);
+      });
+  }
+
+  // Clear clubRoles[clubId] for each affected user
+  for (const userId of userIdsToCleanup) {
+    try {
+      const userRef = doc(db, "users", userId);
+      await updateDoc(userRef, {
+        [`clubRoles.${clubId}`]: deleteField(),
+      });
+      logManager.debug("Cleared clubRoles entry for user", { userId, clubId });
+    } catch (e) {
+      // User might not exist or have the field - log and continue
+      logManager.warn("Could not clear clubRoles for user", {
+        userId,
+        clubId,
+        error: e.message,
+      });
     }
   }
 
