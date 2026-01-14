@@ -56,7 +56,9 @@ service cloud.firestore {
       match /messages/{msgId} {
         // Only members may read messages
         allow read: if request.auth != null &&
-          get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.memberIds.hasAny([request.auth.uid]);
+          (('memberIds' in get(/databases/$(database)/documents/classSpaces/$(spaceId)).data) &&
+           (get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.memberIds is list) &&
+           get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.memberIds.hasAny([request.auth.uid]));
         // Dev-only: allow creating messages under your own devTest spaces
         allow create: if request.auth != null &&
           get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.devTest == true &&
@@ -65,7 +67,9 @@ service cloud.firestore {
             // Direct write path: allow members to create messages with strict validation
             request.auth != null &&
             request.auth.uid == request.resource.data.senderId &&
-            get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.memberIds.hasAny([request.auth.uid]) &&
+            (('memberIds' in get(/databases/$(database)/documents/classSpaces/$(spaceId)).data) &&
+             (get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.memberIds is list) &&
+             get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.memberIds.hasAny([request.auth.uid])) &&
             request.resource.data.content is string &&
             request.resource.data.content.size() > 0 &&
             request.resource.data.content.size() <= 500 &&
@@ -165,17 +169,18 @@ service cloud.firestore {
           )
           ) &&
           // Preserve followerCount (if present, it must not change)
-          (
-            !('followerCount' in request.resource.data) ||
-            request.resource.data.followerCount == resource.data.followerCount
-          ) &&
-          // Allow only members/officialIds as new top-level fields; all existing keys must remain
-          request.resource.data.keys().hasOnly(resource.data.keys() + ['members','officialIds']) &&
-          // For all other top-level fields (non-membership), require equality when present
-          (
-            (!('presidentId' in request.resource.data) || request.resource.data.presidentId == resource.data.presidentId) &&
-            (!('clubId' in request.resource.data) || request.resource.data.clubId == resource.data.clubId) &&
-            (!('name' in request.resource.data) || request.resource.data.name == resource.data.name) &&
+	          (
+	            !('followerCount' in request.resource.data) ||
+	            request.resource.data.followerCount == resource.data.followerCount
+	          ) &&
+	          // Allow only members/officialIds changes; prevent removing existing keys
+	          request.resource.data.keys().hasAll(resource.data.keys()) &&
+	          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members','officialIds']) &&
+	          // For all other top-level fields (non-membership), require equality when present
+	          (
+	            (!('presidentId' in request.resource.data) || request.resource.data.presidentId == resource.data.presidentId) &&
+	            (!('clubId' in request.resource.data) || request.resource.data.clubId == resource.data.clubId) &&
+	            (!('name' in request.resource.data) || request.resource.data.name == resource.data.name) &&
             (!('description' in request.resource.data) || request.resource.data.description == resource.data.description) &&
             (!('bannerUrl' in request.resource.data) || request.resource.data.bannerUrl == resource.data.bannerUrl) &&
             (!('logoUrl' in request.resource.data) || request.resource.data.logoUrl == resource.data.logoUrl) &&
