@@ -116,9 +116,16 @@ export class GroupsPage {
     targetEl.innerHTML = `
       <section class="groups-page">
         ${devTools}
-        <p class="tab-description">Spaces are created daily at 06:00 based on matching schedules.</p>
+        <p class="tab-description hidden" id="groups-description">
+          <i class="fas fa-info-circle"></i>
+          <span>Class Spaces connect you with classmates who've added their schedules on MeetchuThere. Invite friends to join and get matched automatically!</span>
+        </p>
         <div id="groups-list" class="groups-list"></div>
-        <div id="groups-empty" class="groups-empty hidden">No class spaces yet. They are created daily at 06:00.</div>
+        <div id="groups-empty" class="groups-empty hidden">
+          <i class="fas fa-users-slash"></i>
+          <h3>No Class Spaces Yet</h3>
+          <p>When classmates join MeetchuThere and add their schedules, you'll be matched into Class Spaces automatically each morning.</p>
+        </div>
       </section>
     `;
     if (this.showDevTools) {
@@ -419,60 +426,69 @@ export class GroupsPage {
 
   renderGroups(spaces, listEl, emptyEl) {
     listEl.innerHTML = "";
+    const descEl = document.getElementById("groups-description");
+
     if (!spaces || spaces.length === 0) {
       emptyEl.classList.remove("hidden");
+      if (descEl) descEl.classList.add("hidden");
       return;
     }
     emptyEl.classList.add("hidden");
+    if (descEl) descEl.classList.add("hidden");
 
     const userId = currentUser?.uid;
 
-    for (const s of spaces) {
-      const title = this.buildTitle(s);
+    spaces.forEach((s, index) => {
       const members = s.memberCount || s.memberIds?.length || 0;
-      const preview = s.lastMessagePreview?.content || "No messages yet";
       const hasUnread = unreadTracker.hasUnread(s.spaceId, s, userId);
       const relativeTime = unreadTracker.getRelativeTime(s);
 
       // Dynamic styling based on course code
       const courseCode =
         s.courseCode || (s.courseName ? s.courseName.substring(0, 3) : "GEN");
-      const { hue, icon } = this.getCourseStyle(courseCode);
+      const { hue, icon, category } = this.getCourseStyle(courseCode);
+
+      // Build a cleaner title: Section only (course code shown in badge)
+      const secNum = s.section ? parseInt(s.section, 10) : NaN;
+      const sectionLabel =
+        !Number.isNaN(secNum) && secNum > 0 ? `S-${secNum}` : "";
 
       const card = document.createElement("div");
       card.className = "group-card";
-      // Inject hue as CSS variable for the stylesheet to use
+      card.setAttribute("data-course", category);
       card.style.setProperty("--course-hue", hue);
+      card.style.setProperty("--card-index", index);
 
       card.innerHTML = `
-        <div class="card-icon-container">
+        <div class="card-accent"></div>
+        <div class="card-avatar">
           <i class="fas ${icon}"></i>
         </div>
-        <div class="card-content">
-          <div class="card-header">
-            <div class="course-badge">${courseCode}</div>
-            ${hasUnread ? '<div class="unread-indicator"></div>' : ""}
+        <div class="card-body">
+          <div class="card-row-top">
+            <span class="course-tag">${courseCode}</span>
+            ${
+              sectionLabel
+                ? `<span class="section-tag">${sectionLabel}</span>`
+                : ""
+            }
+            ${hasUnread ? '<span class="unread-dot"></span>' : ""}
+            <span class="card-time">${relativeTime || ""}</span>
           </div>
-          <h3 class="group-title">${title}</h3>
-          <div class="card-meta">
-            <span class="meta-item"><i class="far fa-clock"></i> ${this.slotToDisplay(
-              s
-            )}</span>
-            <span class="meta-item"><i class="fas fa-map-marker-alt"></i> ${
-              s.classroom || "TBD"
-            }</span>
+          <div class="card-row-main">
+            <span class="schedule-info">
+              <i class="far fa-clock"></i>
+              <strong>${this.slotToDisplay(s) || "TBD"}</strong>
+            </span>
+            <span class="room-info">
+              <i class="fas fa-door-open"></i>
+              <strong>${s.classroom || "TBD"}</strong>
+            </span>
           </div>
-          <div class="card-footer">
-            <div class="preview-text">${preview}</div>
-            <div class="member-info">
-              <i class="fas fa-user-friends"></i> ${members}
-              ${
-                relativeTime
-                  ? `<span class="time-ago">• ${relativeTime}</span>`
-                  : ""
-              }
-            </div>
-          </div>
+        </div>
+        <div class="card-members">
+          <i class="fas fa-users"></i>
+          <span>${members}</span>
         </div>
       `;
 
@@ -495,46 +511,75 @@ export class GroupsPage {
         }
       });
       listEl.appendChild(card);
-    }
+    });
   }
 
   getCourseStyle(code) {
     const c = (code || "").toUpperCase().replace(/[^A-Z]/g, "");
-    let hue = 0;
+    let hue = 270;
     let icon = "fa-book";
+    let category = "default";
 
-    // Categories
+    // Categories with distinct colors
     if (c.startsWith("CSE") || c.startsWith("CS") || c.startsWith("SWE")) {
-      hue = 230; // Blue/Purple
+      hue = 220;
       icon = "fa-laptop-code";
+      category = "cs";
     } else if (c.startsWith("EEE") || c.startsWith("EE")) {
-      hue = 40; // Gold
+      hue = 40;
       icon = "fa-bolt";
+      category = "eee";
     } else if (c.startsWith("MAT") || c.startsWith("MTH")) {
-      hue = 270; // Purple
+      hue = 270;
       icon = "fa-square-root-alt";
+      category = "math";
     } else if (c.startsWith("PHY")) {
-      hue = 330; // Pink
+      hue = 320;
       icon = "fa-atom";
+      category = "physics";
     } else if (c.startsWith("CHE") || c.startsWith("BIO")) {
-      hue = 150; // Green
+      hue = 150;
       icon = "fa-flask";
-    } else if (c.startsWith("ENG") || c.startsWith("HUM")) {
-      hue = 300; // Magenta
+      category = "bio";
+    } else if (
+      c.startsWith("ENG") ||
+      c.startsWith("HUM") ||
+      c.startsWith("CMN")
+    ) {
+      hue = 350;
       icon = "fa-feather-alt";
+      category = "humanities";
     } else if (c.startsWith("BBA") || c.startsWith("ECO")) {
-      hue = 190; // Cyan
+      hue = 180;
       icon = "fa-chart-line";
+      category = "business";
+    } else if (c.startsWith("LFE")) {
+      hue = 195;
+      icon = "fa-seedling";
+      category = "life";
     } else {
-      // Hash based generation for others
+      // Hash based for others
       let hash = 0;
       for (let i = 0; i < c.length; i++) {
         hash = c.charCodeAt(i) + ((hash << 5) - hash);
       }
-      hue = Math.abs(hash % 360);
+      const cats = [
+        "cs",
+        "eee",
+        "math",
+        "physics",
+        "bio",
+        "humanities",
+        "business",
+        "life",
+      ];
+      const hues = [220, 40, 270, 320, 150, 350, 180, 195];
+      const idx = Math.abs(hash) % cats.length;
+      category = cats[idx];
+      hue = hues[idx];
     }
 
-    return { hue, icon };
+    return { hue, icon, category };
   }
 
   bindDevTools() {

@@ -67,6 +67,7 @@ import {
   orderBy,
   limit,
   writeBatch, // ← Added for batch operations
+  runTransaction,
 } from "firebase/firestore";
 import { db } from "../../lib/firebase/firebase-config.js";
 import { auth } from "../../lib/firebase/firebase-config.js";
@@ -334,7 +335,17 @@ class DataManager {
    */
   async retryOperation(operation, attempt = 1) {
     try {
-      await operation();
+      if (typeof operation === "function") {
+        await operation();
+        return;
+      }
+
+      if (operation && typeof operation === "object" && operation.type) {
+        await this.executeQueuedOperation(operation);
+        return;
+      }
+
+      throw new Error("Invalid pending operation (expected function or typed object)");
     } catch (error) {
       if (attempt >= this.maxRetries) {
         throw error;
@@ -347,6 +358,36 @@ class DataManager {
 
       await new Promise((resolve) => setTimeout(resolve, delay));
       return this.retryOperation(operation, attempt + 1);
+    }
+  }
+
+  /**
+   * Execute an object-based queued operation (legacy support).
+   * Prefer enqueueing functions instead of objects.
+   * @private
+   */
+  async executeQueuedOperation(op) {
+    const type = op?.type;
+    const data = op?.data || {};
+
+    switch (type) {
+      case "createNotification":
+        return this.createNotification(data);
+      case "deleteNotification":
+        return this.deleteNotification(data.notificationId);
+      case "markNotificationAsRead":
+        return this.markNotificationAsRead(data.notificationId);
+      case "markAllNotificationsRead":
+        return this.markAllNotificationsRead(data.userId);
+      case "markClubNotificationsAsRead":
+        return this.markClubNotificationsAsRead(data.userId, data.types || null);
+      case "dismissNotification":
+        return this.dismissNotification(
+          data.notificationId,
+          data.permanentDelete !== false
+        );
+      default:
+        throw new Error(`Unknown queued operation type: ${type}`);
     }
   }
 
@@ -1984,15 +2025,34 @@ class DataManager {
     try {
       console.log("📩 Creating friend request...", requestData);
 
-      const friendRequestsRef = collection(db, "friendRequests");
-      const docRef = await addDoc(friendRequestsRef, {
-        ...requestData,
-        createdAt: serverTimestamp(),
-        respondedAt: null,
+      if (!requestData?.fromUserId || !requestData?.toUserId) {
+        throw new Error("Missing fromUserId/toUserId");
+      }
+
+      // Deterministic ID prevents duplicates from rapid taps / multi-tab races
+      const requestId = `${requestData.fromUserId}_${requestData.toUserId}`;
+      const requestRef = doc(db, "friendRequests", requestId);
+
+      await runTransaction(db, async (transaction) => {
+        const existing = await transaction.get(requestRef);
+        if (existing.exists()) {
+          const data = existing.data() || {};
+          const status = data.status || "pending";
+          if (status === "accepted") {
+            throw new Error("You are already friends");
+          }
+          throw new Error("Friend request already sent");
+        }
+
+        transaction.set(requestRef, {
+          ...requestData,
+          createdAt: serverTimestamp(),
+          respondedAt: null,
+        });
       });
 
-      console.log("✅ Friend request created successfully with ID:", docRef.id);
-      return { success: true, requestId: docRef.id };
+      console.log("✅ Friend request created successfully with ID:", requestId);
+      return { success: true, requestId };
     } catch (error) {
       console.error("❌ Error creating friend request:", error);
       return { success: false, error: error.message };
@@ -3220,32 +3280,7 @@ class DataManager {
         quickAccessEntry.handle
       );
 
-      // First, get current user data to check if quickAccessData exists
       const userDocRef = doc(db, "users", userId);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) {
-        throw new Error("User document not found");
-      }
-
-      const userData = userDoc.data();
-      const currentQuickAccess = userData.quickAccessData || {};
-      const rawFriends = currentQuickAccess.starredFriends || [];
-
-      // Ensure friends is always an array (defensive check)
-      if (!Array.isArray(rawFriends)) {
-        console.warn(
-          "⚠️ [DataManager] starredFriends is not an array:",
-          typeof rawFriends,
-          rawFriends
-        );
-      }
-      const friends = Array.isArray(rawFriends) ? rawFriends : [];
-
-      // Check if friend is already in Quick Access (prevent duplicates)
-      const existingIndex = friends.findIndex(
-        (friend) => friend.friendId === quickAccessEntry.friendId
-      );
 
       // Deep-sanitize a value for Firestore (remove all undefineds)
       const sanitizeValue = (value) => {
@@ -3305,56 +3340,92 @@ class DataManager {
         return value;
       };
 
-      let updatedFriends;
-      if (existingIndex >= 0) {
-        // Update existing entry (move to recent-first position)
-        updatedFriends = [...friends];
-        updatedFriends[existingIndex] = {
-          ...updatedFriends[existingIndex],
-          lastInteraction: quickAccessEntry.lastInteraction,
-        };
-      } else {
-        // Add new entry to the beginning (recent-first)
-        updatedFriends = [quickAccessEntry, ...friends];
-      }
-
-      // Sanitize entries to remove any undefined values (Firestore does not allow them)
-      const sanitizedFriends = updatedFriends.map((friend) => {
-        const cleaned = {};
-        Object.keys(friend || {}).forEach((key) => {
-          const value = sanitizeValue(friend[key]);
-          if (value !== undefined) {
-            cleaned[key] = value;
-          }
-        });
-        return cleaned;
-      });
-
-      // Recompute helper friendId list for efficient server-side queries
-      const updatedStarredFriendIds = Array.from(
-        new Set(
-          sanitizedFriends
-            .map((f) => f.friendId || f.userId)
-            .filter((id) => typeof id === "string" && id)
-        )
-      );
+      // Atomic update to avoid TOCTOU races across tabs/devices
+      let sanitizedFriends = [];
+      let updatedStarredFriendIds = [];
 
       // Mark Quick Access update in progress to prevent cascading events
       this.quickAccessUpdateInProgress.add(userId);
 
-      console.log(
-        `📊 [DataManager] Writing ${sanitizedFriends.length} starred friends to Firestore:`,
-        sanitizedFriends
-      );
+      try {
+        await runTransaction(db, async (transaction) => {
+          const userDoc = await transaction.get(userDocRef);
+          if (!userDoc.exists()) {
+            throw new Error("User document not found");
+          }
 
-      // Update the user document with enhanced Quick Access data
-      // Note: Avoid updating systemInfo.lastUpdated to prevent cascade of profile change events
-      await updateDoc(userDocRef, {
-        "quickAccessData.starredFriends": sanitizedFriends,
-        "quickAccessData.starredFriendIds": updatedStarredFriendIds,
-        "quickAccessData.totalStarred": sanitizedFriends.length,
-        "quickAccessData.lastUpdated": serverTimestamp(),
-      });
+          const userData = userDoc.data();
+          const currentQuickAccess = userData.quickAccessData || {};
+          const rawFriends = currentQuickAccess.starredFriends || [];
+
+          // Ensure friends is always an array (defensive check)
+          if (!Array.isArray(rawFriends)) {
+            console.warn(
+              "⚠️ [DataManager] starredFriends is not an array:",
+              typeof rawFriends,
+              rawFriends
+            );
+          }
+          const friends = Array.isArray(rawFriends) ? rawFriends : [];
+
+          // Check if friend is already in Quick Access (prevent duplicates)
+          const existingIndex = friends.findIndex(
+            (friend) => friend.friendId === quickAccessEntry.friendId
+          );
+
+          let updatedFriends;
+          if (existingIndex >= 0) {
+            // Update existing entry
+            updatedFriends = [...friends];
+            updatedFriends[existingIndex] = {
+              ...updatedFriends[existingIndex],
+              lastInteraction: quickAccessEntry.lastInteraction,
+            };
+          } else {
+            // Add new entry to the beginning (recent-first)
+            updatedFriends = [quickAccessEntry, ...friends];
+          }
+
+          // Sanitize entries to remove any undefined values (Firestore does not allow them)
+          sanitizedFriends = updatedFriends.map((friend) => {
+            const cleaned = {};
+            Object.keys(friend || {}).forEach((key) => {
+              const value = sanitizeValue(friend[key]);
+              if (value !== undefined) {
+                cleaned[key] = value;
+              }
+            });
+            return cleaned;
+          });
+
+          // Recompute helper friendId list for efficient server-side queries
+          updatedStarredFriendIds = Array.from(
+            new Set(
+              sanitizedFriends
+                .map((f) => f.friendId || f.userId)
+                .filter((id) => typeof id === "string" && id)
+            )
+          );
+
+          console.log(
+            `📊 [DataManager] Writing ${sanitizedFriends.length} starred friends to Firestore:`,
+            sanitizedFriends
+          );
+
+          // Note: Avoid updating systemInfo.lastUpdated to prevent cascade of profile change events
+          transaction.update(userDocRef, {
+            "quickAccessData.starredFriends": sanitizedFriends,
+            "quickAccessData.starredFriendIds": updatedStarredFriendIds,
+            "quickAccessData.totalStarred": sanitizedFriends.length,
+            "quickAccessData.lastUpdated": serverTimestamp(),
+          });
+        });
+      } finally {
+        // Clear the flag after a short delay to allow real-time propagation
+        setTimeout(() => {
+          this.quickAccessUpdateInProgress.delete(userId);
+        }, 2000);
+      }
 
       // Optimistically update cache with the new data to avoid stale reads
       const cacheKey = `quick_access_${userId}`;
@@ -3367,11 +3438,6 @@ class DataManager {
       console.log(
         `✅ [DataManager] Optimistically updated Quick Access cache for ${userId} with ${sanitizedFriends.length} friends`
       );
-
-      // Clear the flag after a short delay to allow real-time propagation
-      setTimeout(() => {
-        this.quickAccessUpdateInProgress.delete(userId);
-      }, 2000);
 
       console.log("✅ [DataManager] Successfully added to Quick Access");
       return { success: true };
@@ -3410,53 +3476,62 @@ class DataManager {
 
       console.log("❌ [DataManager] Removing from Quick Access:", friendId);
 
-      // Get current user data
       const userDocRef = doc(db, "users", userId);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) {
-        throw new Error("User document not found");
-      }
-
-      const userData = userDoc.data();
-      const currentQuickAccess = userData.quickAccessData || {};
-      const rawFriends = currentQuickAccess.starredFriends || [];
-
-      // Ensure friends is always an array (defensive check)
-      if (!Array.isArray(rawFriends)) {
-        console.warn(
-          "⚠️ [DataManager] starredFriends is not an array:",
-          typeof rawFriends,
-          rawFriends
-        );
-      }
-      const friends = Array.isArray(rawFriends) ? rawFriends : [];
-
-      // Filter out the friend to remove
-      const updatedFriends = friends.filter(
-        (friend) => friend.friendId !== friendId && friend.userId !== friendId
-      );
-
-      // Recompute helper friendId list
-      const updatedStarredFriendIds = Array.from(
-        new Set(
-          updatedFriends
-            .map((f) => f.friendId || f.userId)
-            .filter((id) => typeof id === "string" && id)
-        )
-      );
+      let updatedFriends = [];
+      let updatedStarredFriendIds = [];
 
       // Mark Quick Access update in progress to prevent cascading events
       this.quickAccessUpdateInProgress.add(userId);
 
-      // Update the user document
-      // Note: Avoid updating systemInfo.lastUpdated to prevent cascade of profile change events
-      await updateDoc(userDocRef, {
-        "quickAccessData.starredFriends": updatedFriends,
-        "quickAccessData.starredFriendIds": updatedStarredFriendIds,
-        "quickAccessData.totalStarred": updatedFriends.length,
-        "quickAccessData.lastUpdated": serverTimestamp(),
-      });
+      try {
+        await runTransaction(db, async (transaction) => {
+          const userDoc = await transaction.get(userDocRef);
+          if (!userDoc.exists()) {
+            throw new Error("User document not found");
+          }
+
+          const userData = userDoc.data();
+          const currentQuickAccess = userData.quickAccessData || {};
+          const rawFriends = currentQuickAccess.starredFriends || [];
+
+          // Ensure friends is always an array (defensive check)
+          if (!Array.isArray(rawFriends)) {
+            console.warn(
+              "⚠️ [DataManager] starredFriends is not an array:",
+              typeof rawFriends,
+              rawFriends
+            );
+          }
+          const friends = Array.isArray(rawFriends) ? rawFriends : [];
+
+          // Filter out the friend to remove
+          updatedFriends = friends.filter(
+            (friend) => friend.friendId !== friendId && friend.userId !== friendId
+          );
+
+          // Recompute helper friendId list
+          updatedStarredFriendIds = Array.from(
+            new Set(
+              updatedFriends
+                .map((f) => f.friendId || f.userId)
+                .filter((id) => typeof id === "string" && id)
+            )
+          );
+
+          // Note: Avoid updating systemInfo.lastUpdated to prevent cascade of profile change events
+          transaction.update(userDocRef, {
+            "quickAccessData.starredFriends": updatedFriends,
+            "quickAccessData.starredFriendIds": updatedStarredFriendIds,
+            "quickAccessData.totalStarred": updatedFriends.length,
+            "quickAccessData.lastUpdated": serverTimestamp(),
+          });
+        });
+      } finally {
+        // Clear the flag after a short delay to allow real-time propagation
+        setTimeout(() => {
+          this.quickAccessUpdateInProgress.delete(userId);
+        }, 2000);
+      }
 
       // Optimistically update cache with the new data to avoid stale reads
       const cacheKey = `quick_access_${userId}`;
@@ -3469,11 +3544,6 @@ class DataManager {
       console.log(
         `✅ [DataManager] Optimistically updated Quick Access cache for ${userId} with ${updatedFriends.length} friends`
       );
-
-      // Clear the flag after a short delay to allow real-time propagation
-      setTimeout(() => {
-        this.quickAccessUpdateInProgress.delete(userId);
-      }, 2000);
 
       console.log("✅ [DataManager] Successfully removed from Quick Access");
       return { success: true };
@@ -4415,11 +4485,7 @@ class DataManager {
 
       // Handle offline scenario
       if (!navigator.onLine) {
-        this.pendingOperations.push({
-          type: "createNotification",
-          data: notificationData,
-          timestamp: Date.now(),
-        });
+        this.pendingOperations.push(() => this.createNotification(notificationData));
         console.log("📱 Notification queued for when online");
         return { success: false, error: "Offline - queued for retry" };
       }
@@ -4570,11 +4636,7 @@ class DataManager {
 
       // Handle offline scenario
       if (!navigator.onLine) {
-        this.pendingOperations.push({
-          type: "deleteNotification",
-          data: { notificationId },
-          timestamp: Date.now(),
-        });
+        this.pendingOperations.push(() => this.deleteNotification(notificationId));
         console.log("📱 Notification deletion queued for when online");
         return { success: false, error: "Offline - queued for retry" };
       }
@@ -4613,11 +4675,7 @@ class DataManager {
 
       // Handle offline scenario
       if (!navigator.onLine) {
-        this.pendingOperations.push({
-          type: "markNotificationAsRead",
-          data: { notificationId },
-          timestamp: Date.now(),
-        });
+        this.pendingOperations.push(() => this.markNotificationAsRead(notificationId));
         console.log("📱 Mark as read queued for when online");
         return { success: false, error: "Offline - queued for retry" };
       }
@@ -4675,11 +4733,7 @@ class DataManager {
 
       // Handle offline scenario
       if (!navigator.onLine) {
-        this.pendingOperations.push({
-          type: "markAllNotificationsRead",
-          data: { userId },
-          timestamp: Date.now(),
-        });
+        this.pendingOperations.push(() => this.markAllNotificationsRead(userId));
         console.log("📱 Mark all as read queued for when online");
         return { success: false, error: "Offline - queued for retry" };
       }
@@ -4747,11 +4801,7 @@ class DataManager {
 
       // Handle offline scenario
       if (!navigator.onLine) {
-        this.pendingOperations.push({
-          type: "markClubNotificationsAsRead",
-          data: { userId, types },
-          timestamp: Date.now(),
-        });
+        this.pendingOperations.push(() => this.markClubNotificationsAsRead(userId, types));
         console.log("📱 Mark club notifications as read queued for when online");
         return { success: false, error: "Offline - queued for retry" };
       }
@@ -4799,11 +4849,7 @@ class DataManager {
 
       // Handle offline scenario
       if (!navigator.onLine) {
-        this.pendingOperations.push({
-          type: "dismissNotification",
-          data: { notificationId, permanentDelete },
-          timestamp: Date.now(),
-        });
+        this.pendingOperations.push(() => this.dismissNotification(notificationId, permanentDelete));
         console.log("📱 Notification dismissal queued for when online");
         return { success: false, error: "Offline - queued for retry" };
       }

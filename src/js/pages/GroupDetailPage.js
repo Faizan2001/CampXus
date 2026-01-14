@@ -106,6 +106,13 @@ export class GroupDetailPage {
       console.error("[GroupDetailPage] Failed to load profile", e);
     }
 
+    // Start Firestore-backed block list sync (fallbacks to localStorage on failure)
+    try {
+      if (currentUser?.uid) {
+        await blockService.startSync(currentUser.uid);
+      }
+    } catch (_) {}
+
     // PRD Requirement: Gate Groups until profile setup is complete
     if (!currentUser.isProfileComplete()) {
       const titleEl = document.getElementById("group-title");

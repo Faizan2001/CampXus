@@ -22,15 +22,25 @@ service cloud.firestore {
         get(/databases/$(database)/documents/safModerators/$(request.auth.uid)).data.universityId == clubUniversityId;
     }
 
-    // --- Class Spaces (dev testing + read access) ---
-    // Reads: allow authenticated users (spaces are university-visible in app logic)
-    // Writes: disable for clients except a narrow dev-testing path to create/clear spaces you own.
-    match /classSpaces/{spaceId} {
-      allow read: if request.auth != null;
-      // Allow client writes ONLY for dev test spaces you own
-      // Create: must be a devTest doc owned by caller
-      allow create: if request.auth != null &&
-        request.resource.data.devTest == true &&
+	    // --- Class Spaces (dev testing + read access) ---
+	    // Reads: allow authenticated users (spaces are university-visible in app logic)
+	    // Writes: disable for clients except a narrow dev-testing path to create/clear spaces you own.
+	    match /classSpaces/{spaceId} {
+	      // Only members may read class spaces (prevents cross-user enumeration)
+	      allow read: if request.auth != null &&
+	        (
+	          (('memberIds' in resource.data) &&
+	           (resource.data.memberIds is list) &&
+	           resource.data.memberIds.hasAny([request.auth.uid])) ||
+	          (('devTest' in resource.data) &&
+	           resource.data.devTest == true &&
+	           ('devOwnerUid' in resource.data) &&
+	           resource.data.devOwnerUid == request.auth.uid)
+	        );
+	      // Allow client writes ONLY for dev test spaces you own
+	      // Create: must be a devTest doc owned by caller
+	      allow create: if request.auth != null &&
+	        request.resource.data.devTest == true &&
         request.resource.data.devOwnerUid == request.auth.uid;
       // Update: only permitted on existing devTest docs owned by caller (prevents flipping prod docs to dev)
       allow update: if request.auth != null &&
@@ -44,7 +54,9 @@ service cloud.firestore {
 
       // Messages subcollection: client reads only; writes via Cloud Function (sendGroupMessage)
       match /messages/{msgId} {
-        allow read: if request.auth != null;
+        // Only members may read messages
+        allow read: if request.auth != null &&
+          get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.memberIds.hasAny([request.auth.uid]);
         // Dev-only: allow creating messages under your own devTest spaces
         allow create: if request.auth != null &&
           get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.devTest == true &&
@@ -53,7 +65,7 @@ service cloud.firestore {
             // Direct write path: allow members to create messages with strict validation
             request.auth != null &&
             request.auth.uid == request.resource.data.senderId &&
-            request.auth.uid in get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.memberIds &&
+            get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.memberIds.hasAny([request.auth.uid]) &&
             request.resource.data.content is string &&
             request.resource.data.content.size() > 0 &&
             request.resource.data.content.size() <= 500 &&
@@ -396,6 +408,19 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow write: if false;
     }
+
+    // --- User Subcollections: Blocks (client-managed) ---
+    // Persist per-user block list across devices.
+    match /users/{userId}/blocks/{targetId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null &&
+        request.auth.uid == userId &&
+        targetId != userId &&
+        request.resource.data.targetId == targetId &&
+        request.resource.data.createdAt == request.time;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow update: if false;
+    }
     
     // --- Friendships (/friendships) ---
     match /friendships/{friendshipId} {
@@ -428,15 +453,22 @@ service cloud.firestore {
         (validateBilateralPrivacyUpdate(request, resource) || validateCachedInfoUpdate(request, resource));
     }
 
-    // --- Friend Requests (/friendRequests) ---
-    match /friendRequests/{requestId} {
-      allow read, delete: if request.auth != null && (resource.data.toUserId == request.auth.uid || resource.data.fromUserId == request.auth.uid);
-      // Create friend request requires verified OR dev email
-      allow create: if request.auth != null && (isVerified() || isDevEmail());
-      allow update: if request.auth != null && 
-        ((resource.data.toUserId == request.auth.uid || resource.data.fromUserId == request.auth.uid) || 
-         validateFriendRequestCachedInfoUpdate(request, resource));
-    }
+	    // --- Friend Requests (/friendRequests) ---
+	    match /friendRequests/{requestId} {
+	      allow read, delete: if request.auth != null && (resource.data.toUserId == request.auth.uid || resource.data.fromUserId == request.auth.uid);
+	      // Create friend request requires verified OR dev email
+	      allow create: if request.auth != null &&
+	        request.resource.data.fromUserId == request.auth.uid &&
+	        request.resource.data.toUserId is string &&
+	        request.resource.data.toUserId != request.auth.uid &&
+	        request.resource.data.status == "pending" &&
+	        request.resource.data.createdAt == request.time &&
+	        (isVerified() || isDevEmail());
+	      // Updates are restricted to cached-info refreshes only (no status/ownership changes)
+	      allow update: if request.auth != null &&
+	        (isVerified() || isDevEmail()) &&
+	        validateFriendRequestCachedInfoUpdate(request, resource);
+	    }
 
 	    // --- Universities ---
 	    match /universities/{universityId} {
@@ -445,8 +477,8 @@ service cloud.firestore {
 	      allow write: if isSuperAdmin();
 	    }
 
-    // --- Notifications (/notifications) - Campus Presence 2025 ---
-    match /notifications/{notificationId} {
+	    // --- Notifications (/notifications) - Campus Presence 2025 ---
+	    match /notifications/{notificationId} {
       // Users can read notifications sent TO them or FROM them.
       // Guard field access so legacy/system notifications without userId/fromUserId
       // do not cause evaluation errors.
@@ -455,10 +487,24 @@ service cloud.firestore {
         (('fromUserId' in resource.data) && resource.data.fromUserId == request.auth.uid)
       );
       
-      // Users can create notifications they are sending (FROM them) if verified OR dev email
-      allow create: if request.auth != null && 
-        request.resource.data.fromUserId == request.auth.uid &&
-        (isVerified() || isDevEmail());
+	      // Client-created notifications are restricted to friend-to-friend location share requests
+	      allow create: if request.auth != null &&
+	        request.resource.data.fromUserId == request.auth.uid &&
+	        request.resource.data.userId is string &&
+	        request.resource.data.userId != request.auth.uid &&
+	        request.resource.data.type == "location_share_request" &&
+	        request.resource.data.status == "pending" &&
+	        request.resource.data.createdAt == request.time &&
+	        request.resource.data.locationRequest.friendshipId ==
+	          (request.auth.uid < request.resource.data.userId
+	            ? request.auth.uid + '_' + request.resource.data.userId
+	            : request.resource.data.userId + '_' + request.auth.uid) &&
+	        exists(/databases/$(database)/documents/friendships/$(
+	          request.auth.uid < request.resource.data.userId
+	            ? request.auth.uid + '_' + request.resource.data.userId
+	            : request.resource.data.userId + '_' + request.auth.uid
+	        )) &&
+	        (isVerified() || isDevEmail());
       
       // Users can update/delete notifications sent TO them (mark as read, dismiss) if verified OR dev email
       allow update, delete: if request.auth != null && 
@@ -466,12 +512,15 @@ service cloud.firestore {
         (isVerified() || isDevEmail());
     }
 
-    // --- GDPR & Consent Collections ---
-    match /user_consents/{consentId} {
-        allow create, update: if request.auth.uid == request.resource.data.userId;
-        allow read: if request.auth.uid == resource.data.userId;
-        allow delete: if false;
-    }
+	    // --- GDPR & Consent Collections ---
+	    match /user_consents/{consentId} {
+	        allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+	        allow update: if request.auth != null &&
+	          resource.data.userId == request.auth.uid &&
+	          request.resource.data.userId == resource.data.userId;
+	        allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+	        allow delete: if false;
+	    }
 
     match /user_deletion_requests/{requestId} {
         allow create: if request.auth.uid == request.resource.data.userId;
@@ -541,6 +590,14 @@ service cloud.firestore {
       return (
         // Condition 1: The user must be part of this friendship
         request.auth.uid in resource.data.users &&
+
+        // This validator only permits privacy/location-sharing updates
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'scheduleVisibility',
+          'locationVisibility',
+          'privacyMetadata',
+          'locationSharingMetadata'
+        ]) &&
         
         // Condition 2: Core friendship data must remain unchanged (if present in update)
         (!('users' in request.resource.data) || request.resource.data.users == resource.data.users) &&
@@ -549,52 +606,54 @@ service cloud.firestore {
         (!('createdAt' in request.resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
         
         // Condition 3: If privacyMetadata is being updated, user must be correctly attributed
-        (!('privacyMetadata' in request.resource.data) ||
-         request.resource.data.privacyMetadata.privacyUpdatedBy == request.auth.uid) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['privacyMetadata']) ||
+         (('privacyMetadata' in request.resource.data) &&
+          request.resource.data.privacyMetadata.privacyUpdatedBy == request.auth.uid)) &&
         
         // Condition 4: User can only update their own schedule visibility
         // Check if scheduleVisibility field is being modified
         (!('scheduleVisibility' in request.resource.data) ||
          (
-           // User can only modify their own visibility setting
-           request.resource.data.scheduleVisibility.keys().hasAll([request.auth.uid]) &&
-           // If friend's key exists in update, their value MUST remain unchanged
+           resource.data.users.removeAll([request.auth.uid]).size() == 1 &&
            (
-             // Either friend's key is not in the update at all (single-field update)
-             request.resource.data.scheduleVisibility.keys().size() == 1 ||
-             // Or if friend's key IS included, their value must match the existing value
-             (resource.data.users.toSet().difference([request.auth.uid].toSet()).size() == 1 &&
-              request.resource.data.scheduleVisibility[
-                resource.data.users.removeAll([request.auth.uid])[0]
-              ] == resource.data.scheduleVisibility[
-                resource.data.users.removeAll([request.auth.uid])[0]
-              ])
-           )
+             request.resource.data.scheduleVisibility.keys().hasOnly([request.auth.uid]) ||
+             request.resource.data.scheduleVisibility.keys().hasOnly([
+               request.auth.uid,
+               resource.data.users.removeAll([request.auth.uid])[0]
+             ])
+           ) &&
+           // Friend's visibility must remain unchanged
+           request.resource.data.scheduleVisibility[
+             resource.data.users.removeAll([request.auth.uid])[0]
+           ] == resource.data.scheduleVisibility[
+             resource.data.users.removeAll([request.auth.uid])[0]
+           ]
          )) &&
 
         // Condition 5: User can only update their own location visibility (Campus Presence 2025)
         // Check if locationVisibility field is being modified
         (!('locationVisibility' in request.resource.data) ||
          (
-           // User can only modify their own location visibility setting
-           request.resource.data.locationVisibility.keys().hasAll([request.auth.uid]) &&
-           // If friend's key exists in update, their value MUST remain unchanged
+           resource.data.users.removeAll([request.auth.uid]).size() == 1 &&
            (
-             // Either friend's key is not in the update at all (single-field update)
-             request.resource.data.locationVisibility.keys().size() == 1 ||
-             // Or if friend's key IS included, their value must match the existing value
-             (resource.data.users.toSet().difference([request.auth.uid].toSet()).size() == 1 &&
-              request.resource.data.locationVisibility[
-                resource.data.users.removeAll([request.auth.uid])[0]
-              ] == resource.data.locationVisibility[
-                resource.data.users.removeAll([request.auth.uid])[0]
-              ])
-           )
+             request.resource.data.locationVisibility.keys().hasOnly([request.auth.uid]) ||
+             request.resource.data.locationVisibility.keys().hasOnly([
+               request.auth.uid,
+               resource.data.users.removeAll([request.auth.uid])[0]
+             ])
+           ) &&
+           // Friend's visibility must remain unchanged
+           request.resource.data.locationVisibility[
+             resource.data.users.removeAll([request.auth.uid])[0]
+           ] == resource.data.locationVisibility[
+             resource.data.users.removeAll([request.auth.uid])[0]
+           ]
          )) &&
 
         // Condition 6: If locationSharingMetadata is being updated, user must be correctly attributed
-        (!('locationSharingMetadata' in request.resource.data) ||
-         request.resource.data.locationSharingMetadata.locationUpdatedBy == request.auth.uid)
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['locationSharingMetadata']) ||
+         (('locationSharingMetadata' in request.resource.data) &&
+          request.resource.data.locationSharingMetadata.locationUpdatedBy == request.auth.uid))
       );
     }
 
@@ -604,6 +663,9 @@ service cloud.firestore {
       return (
         // User must be part of this friendship
         request.auth.uid in resource.data.users &&
+
+        // This validator only permits cached-info updates
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['user1Info', 'user2Info']) &&
         
         // Core friendship data must remain unchanged
         (!('users' in request.resource.data) || request.resource.data.users == resource.data.users) &&
@@ -611,21 +673,15 @@ service cloud.firestore {
         (!('user2Id' in request.resource.data) || request.resource.data.user2Id == resource.data.user2Id) &&
         (!('createdAt' in request.resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
         
-        // Only allow updates to cached user info fields for the authenticated user
+        // Cross-user protection: users can only update their OWN cached info
         (
-          // User can update their own cached info in user1Info if they are user1
-          (request.auth.uid == resource.data.user1Id && 
-           (!('user1Info.displayName' in request.resource.data) || true) &&
-           (!('user1Info.major' in request.resource.data) || true) &&
-           (!('user1Info.university' in request.resource.data) || true) &&
-           (!('user1Info.avatarConfig' in request.resource.data) || true)) ||
-          
-          // User can update their own cached info in user2Info if they are user2
-          (request.auth.uid == resource.data.user2Id && 
-           (!('user2Info.displayName' in request.resource.data) || true) &&
-           (!('user2Info.major' in request.resource.data) || true) &&
-           (!('user2Info.university' in request.resource.data) || true) &&
-           (!('user2Info.avatarConfig' in request.resource.data) || true))
+          // User1 can update user1Info, but user2Info must remain unchanged
+          (request.auth.uid == resource.data.user1Id &&
+           request.resource.data.user2Info == resource.data.user2Info) ||
+
+          // User2 can update user2Info, but user1Info must remain unchanged
+          (request.auth.uid == resource.data.user2Id &&
+           request.resource.data.user1Info == resource.data.user1Info)
         )
       );
     }
@@ -633,21 +689,18 @@ service cloud.firestore {
     function validateFriendRequestCachedInfoUpdate(request, resource) {
       // Allow users to update their cached info in friend request documents
       return (
-        // Only allow updates to cached user info fields for the authenticated user
+        // This validator only permits cached-info updates
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fromUserInfo', 'toUserInfo']) &&
+
+        // Cross-user protection: users can only update their OWN cached info
         (
-          // User can update their own cached info in fromUserInfo if they are the sender
-          (request.auth.uid == resource.data.fromUserId && 
-           (!('fromUserInfo.displayName' in request.resource.data) || true) &&
-           (!('fromUserInfo.major' in request.resource.data) || true) &&
-           (!('fromUserInfo.university' in request.resource.data) || true) &&
-           (!('fromUserInfo.avatarConfig' in request.resource.data) || true)) ||
-          
-          // User can update their own cached info in toUserInfo if they are the recipient
-          (request.auth.uid == resource.data.toUserId && 
-           (!('toUserInfo.displayName' in request.resource.data) || true) &&
-           (!('toUserInfo.major' in request.resource.data) || true) &&
-           (!('toUserInfo.university' in request.resource.data) || true) &&
-           (!('toUserInfo.avatarConfig' in request.resource.data) || true))
+          // Sender can update fromUserInfo, but toUserInfo must remain unchanged
+          (request.auth.uid == resource.data.fromUserId &&
+           request.resource.data.toUserInfo == resource.data.toUserInfo) ||
+
+          // Recipient can update toUserInfo, but fromUserInfo must remain unchanged
+          (request.auth.uid == resource.data.toUserId &&
+           request.resource.data.fromUserInfo == resource.data.fromUserInfo)
         ) &&
         
         // Core friend request data must remain unchanged

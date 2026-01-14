@@ -911,6 +911,13 @@ export class FriendsManager {
           message: `Friend request sent to @${requestData.toUserInfo.handle}!`,
         };
       } else {
+        const err = (result.error || "").toLowerCase();
+        if (err.includes("already friends")) {
+          return { success: false, message: "You are already friends!" };
+        }
+        if (err.includes("already sent")) {
+          return { success: false, message: "Friend request already sent!" };
+        }
         return {
           success: false,
           message: "Failed to send friend request. Please try again.",
@@ -989,120 +996,129 @@ export class FriendsManager {
         requestData.fromUserInfo?.handle
       );
 
-      // 🎯 STEP 1: Create the friendship document first
-      // (We'll delete the request after successful friendship creation)
-
-      // 🎯 STEP 1: Create the friendship document with bilateral privacy
-
-      // Build user info objects with only defined values (Firestore doesn't allow undefined)
-      const user1Info = {
-        handle: requestData.fromUserInfo.handle,
-        major: requestData.fromUserInfo.major,
-      };
-
-      // Add avatar/photo fields only if they exist
-      const user1AvatarConfig =
-        requestData.fromUserInfo.avatarConfig ||
-        requestData.fromUserInfo.avatar;
-      if (user1AvatarConfig) {
-        user1Info.avatarConfig = user1AvatarConfig;
-      }
-      if (requestData.fromUserInfo.profilePhotoUrl) {
-        user1Info.profilePhotoUrl = requestData.fromUserInfo.profilePhotoUrl;
-      }
-      if (requestData.fromUserInfo.useAvatar !== undefined) {
-        user1Info.useAvatar = requestData.fromUserInfo.useAvatar;
-      }
-
-      const user2Info = {
-        handle: requestData.toUserInfo.handle,
-        major: requestData.toUserInfo.major,
-      };
-
-      // Add avatar/photo fields only if they exist
-      const user2AvatarConfig =
-        requestData.toUserInfo.avatarConfig ||
-        requestData.toUserInfo.avatar ||
-        userProfile.avatarConfig;
-      if (user2AvatarConfig) {
-        user2Info.avatarConfig = user2AvatarConfig;
-      }
-      const user2PhotoUrl =
-        requestData.toUserInfo.profilePhotoUrl ||
-        (userProfile.profile && userProfile.profile.profilePhotoUrl) ||
-        userProfile.profilePhotoUrl ||
-        null;
-      if (user2PhotoUrl) {
-        user2Info.profilePhotoUrl = user2PhotoUrl;
-      }
-      const user2UseAvatar =
-        requestData.toUserInfo.useAvatar !== undefined
-          ? requestData.toUserInfo.useAvatar
-          : typeof userProfile.profile?.useAvatar === "boolean"
-          ? userProfile.profile.useAvatar
-          : typeof userProfile.useAvatar === "boolean"
-          ? userProfile.useAvatar
-          : undefined;
-      if (user2UseAvatar !== undefined) {
-        user2Info.useAvatar = user2UseAvatar;
-      }
-
-      const friendshipData = {
-        users: [requestData.fromUserId, requestData.toUserId], // Array for easy querying
-        user1Id: requestData.fromUserId,
-        user2Id: requestData.toUserId,
-        createdAt: new Date(),
-        mutualFriends: 0,
-        lastInteraction: new Date(),
-        user1Info,
-        user2Info,
-
-        // 🔐 NEW: Bilateral Privacy Controls (default to visible)
-        scheduleVisibility: {
-          [requestData.fromUserId]: true, // User1's schedule IS visible to User2 (default: visible)
-          [requestData.toUserId]: true, // User2's schedule IS visible to User1 (default: visible)
-        },
-
-        // Privacy metadata for auditing and debugging
-        privacyMetadata: {
-          lastPrivacyUpdate: new Date(),
-          privacyUpdatedBy: null, // Last user who modified privacy settings
-          privacyVersion: 1, // For future privacy feature migrations
-        },
-      };
-
-      const friendshipResult = await dataManager.createFriendship(
-        friendshipData
+      const [{ db }, { runTransaction, doc, serverTimestamp }] =
+        await Promise.all([
+          import("../../lib/firebase/firebase-config.js"),
+          import("firebase/firestore"),
+        ]);
+      const { getFriendshipId } = await import(
+        "../../utils/friendship-utils.js"
       );
 
-      if (!friendshipResult.success) {
-        console.error("❌ Failed to create friendship");
-        return { success: false, message: "Failed to create friendship" };
-      }
+      const sanitizeInfo = (rawInfo, fallback = {}) => {
+        const source = rawInfo || {};
+        const info = {
+          handle: source.handle || fallback.handle || "unknown",
+          major: source.major || fallback.major || "",
+        };
 
-      // 🎯 STEP 2: Delete the friend request (clean lifecycle approach)
-      console.log(
-        "🗑️ Deleting friend request after successful friendship creation"
-      );
-      const deleteResult = await dataManager.deleteFriendRequest(requestId);
-      if (!deleteResult.success) {
-        console.warn(
-          "⚠️ Friendship created but failed to delete request:",
-          deleteResult.error
-        );
-        // Don't fail the operation, just log the warning
-      }
+        const avatarConfig =
+          source.avatarConfig || source.avatar || fallback.avatarConfig;
+        if (avatarConfig) info.avatarConfig = avatarConfig;
 
-      // 🎯 STEP 3: Clear search filter cache since friendship status changed
+        const photoUrl =
+          source.profilePhotoUrl || source.photoUrl || fallback.profilePhotoUrl;
+        if (photoUrl) info.profilePhotoUrl = photoUrl;
+
+        if (source.useAvatar !== undefined) info.useAvatar = source.useAvatar;
+        else if (fallback.useAvatar !== undefined) info.useAvatar = fallback.useAvatar;
+
+        return info;
+      };
+
+      const friendName = requestData.fromUserInfo?.handle || "new_friend";
+
+      // Atomic accept: create friendship + delete request in one transaction
+      let friendshipId = null;
+
+      await runTransaction(db, async (transaction) => {
+        const requestRef = doc(db, "friendRequests", requestId);
+        const reqSnap = await transaction.get(requestRef);
+
+        // If the request was already consumed, treat as success if friendship exists.
+        if (!reqSnap.exists()) {
+          const fallbackFriendshipId = getFriendshipId(
+            requestData.fromUserId,
+            requestData.toUserId
+          );
+          const fallbackRef = doc(db, "friendships", fallbackFriendshipId);
+          const friendshipSnap = await transaction.get(fallbackRef);
+          if (friendshipSnap.exists()) {
+            friendshipId = fallbackFriendshipId;
+            return;
+          }
+          throw new Error("Friend request no longer exists");
+        }
+
+        const fr = reqSnap.data() || {};
+        friendshipId = getFriendshipId(fr.fromUserId, fr.toUserId);
+        const friendshipRef = doc(db, "friendships", friendshipId);
+        const friendshipSnap = await transaction.get(friendshipRef);
+
+        // Idempotent: if friendship already exists, just clean up any lingering request
+        if (friendshipSnap.exists()) {
+          transaction.delete(requestRef);
+          return;
+        }
+        if (fr.toUserId !== currentUser.uid) {
+          throw new Error("You can only accept your own friend requests");
+        }
+        if (fr.status && fr.status !== "pending") {
+          throw new Error("Friend request is no longer pending");
+        }
+
+        const fromUserId = fr.fromUserId;
+        const toUserId = fr.toUserId;
+
+        const user1Info = sanitizeInfo(fr.fromUserInfo);
+        const user2Info = sanitizeInfo(fr.toUserInfo, {
+          avatarConfig: userProfile.avatarConfig,
+          profilePhotoUrl:
+            userProfile.profile?.profilePhotoUrl ||
+            userProfile.profilePhotoUrl ||
+            null,
+          useAvatar:
+            typeof userProfile.profile?.useAvatar === "boolean"
+              ? userProfile.profile.useAvatar
+              : typeof userProfile.useAvatar === "boolean"
+              ? userProfile.useAvatar
+              : undefined,
+        });
+
+        transaction.set(friendshipRef, {
+          users: [fromUserId, toUserId],
+          user1Id: fromUserId,
+          user2Id: toUserId,
+          createdAt: serverTimestamp(),
+          mutualFriends: 0,
+          lastInteraction: serverTimestamp(),
+          user1Info,
+          user2Info,
+
+          // 🔐 Bilateral Privacy Controls (default to visible)
+          scheduleVisibility: {
+            [fromUserId]: true,
+            [toUserId]: true,
+          },
+
+          privacyMetadata: {
+            lastPrivacyUpdate: serverTimestamp(),
+            privacyUpdatedBy: null,
+            privacyVersion: 1,
+          },
+        });
+
+        transaction.delete(requestRef);
+      });
+
+      // Clear search filter cache since friendship status changed
       this.clearSearchFilterCache();
 
       console.log("🎉 Friend request accepted successfully!");
-      const friendName = requestData.fromUserInfo?.handle || "new_friend";
-
       return {
         success: true,
         message: `You are now friends with ${friendName}!`,
-        friendshipId: friendshipResult.friendshipId,
+        friendshipId,
       };
     } catch (error) {
       console.error("❌ Error accepting friend request:", error);
