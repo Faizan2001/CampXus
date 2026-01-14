@@ -6,7 +6,7 @@ window.ENV = {
   FIREBASE_API_KEY: "AIzaSyC_kanIBFqxyq8LLE4CKuzH24yEfCMjFiQ",
   FIREBASE_AUTH_DOMAIN: "meetchuthere-00.firebaseapp.com",
   FIREBASE_PROJECT_ID: "meetchuthere-00",
-  FIREBASE_STORAGE_BUCKET: "meetchuthere-00.appspot.com",
+  FIREBASE_STORAGE_BUCKET: "meetchuthere-00.firebasestorage.app",
   FIREBASE_MESSAGING_SENDER_ID: "749689064628",
   FIREBASE_APP_ID: "1:749689064628:web:e757a95468a0a9a285dbe1",
   FIREBASE_MEASUREMENT_ID: "G-TK92730S3C",

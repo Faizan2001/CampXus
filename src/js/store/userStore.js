@@ -198,7 +198,8 @@ class CurrentUserManager {
       lastName,
       avatarConfig: this._profile?.avatarConfig || null,
       // profilePhotoUrl is stored inside the nested profile object
-      profilePhotoUrl: profile.profilePhotoUrl || this._profile?.profilePhotoUrl || null,
+      profilePhotoUrl:
+        profile.profilePhotoUrl || this._profile?.profilePhotoUrl || null,
       useAvatar:
         typeof profile.useAvatar === "boolean"
           ? profile.useAvatar

@@ -1086,7 +1086,8 @@ function initializeMobileBottomNav() {
                   profile?.profilePhotoUrl ||
                   profile?.profile?.profilePhotoUrl ||
                   null,
-                useAvatar: profile?.useAvatar ?? profile?.profile?.useAvatar ?? false,
+                useAvatar:
+                  profile?.useAvatar ?? profile?.profile?.useAvatar ?? false,
               };
 
         if (sheetNameEl) {
@@ -1551,7 +1552,10 @@ async function setupMessagesIndicator(userId) {
     // currentUser may be seeded from cache before Firebase Auth resolves.
     const requestedUid = userId;
     try {
-      if (authManager?.authReady && typeof authManager.authReady.then === "function") {
+      if (
+        authManager?.authReady &&
+        typeof authManager.authReady.then === "function"
+      ) {
         await authManager.authReady.catch(() => {});
       }
     } catch (_) {}
@@ -1661,7 +1665,7 @@ function teardownMessagesIndicator() {
 /**
  * Mark club notifications as read and clear the clubs nav badge.
  * Called when user visits the Clubs page.
- * 
+ *
  * @param {string[]} [types] - Optional array of specific club notification types to mark as read.
  *                             If not provided, marks all club_* notifications as read.
  */
