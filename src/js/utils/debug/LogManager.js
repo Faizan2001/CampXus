@@ -561,6 +561,8 @@ class LogManager {
       this.log(LOG_LEVELS.DEBUG, "ui", LOG_EMOJIS.UI_CLICK, message, data),
     render: (message, data) =>
       this.log(LOG_LEVELS.DEBUG, "ui", LOG_EMOJIS.UI_RENDER, message, data),
+    debug: (message, data) =>
+      this.log(LOG_LEVELS.DEBUG, "ui", LOG_EMOJIS.DEV_DEBUG, message, data),
     warn: (message, data) =>
       this.log(LOG_LEVELS.WARN, "ui", LOG_EMOJIS.UI_WARN, message, data),
     error: (message, data) =>

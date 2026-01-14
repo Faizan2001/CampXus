@@ -487,14 +487,14 @@
   transform: translateX(100%);
 }
 
-/* Sliding pill indicator - for Super Admin dashboard (4 tabs) */
+/* Sliding pill indicator - for Super Admin dashboard (5 tabs) */
 .admin-super .admin-tabs::before {
   content: "";
   position: absolute;
   top: 0.25rem;
   bottom: 0.25rem;
   left: 0.25rem;
-  width: calc(25% - 0.25rem);
+  width: calc(20% - 0.25rem);
   background: linear-gradient(
     135deg,
     rgba(139, 92, 246, 0.95),
@@ -506,7 +506,7 @@
   box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
 }
 
-/* Move pill for Super Admin 4-tab layout */
+/* Move pill for Super Admin 5-tab layout */
 .admin-super .admin-tabs[data-active-tab="universities"]::before {
   transform: translateX(100%);
 }
@@ -515,6 +515,9 @@
 }
 .admin-super .admin-tabs[data-active-tab="clubs"]::before {
   transform: translateX(300%);
+}
+.admin-super .admin-tabs[data-active-tab="automation"]::before {
+  transform: translateX(400%);
 }
 
 .admin-tab {
@@ -2731,4 +2734,147 @@
   .saf-club-actions .btn {
     min-height: 48px;
   }
+}
+
+/* ==========================================
+   AUTOMATION TAB
+   ========================================== */
+
+.admin-automation .section-subtitle {
+  margin-top: 0.25rem;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.automation-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+@media (min-width: 900px) {
+  .automation-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+}
+
+.automation-card {
+  padding: 1rem;
+}
+
+.automation-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.automation-card-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.automation-pill {
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(59, 130, 246, 0.18);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  white-space: nowrap;
+}
+
+.automation-desc {
+  margin: 0.5rem 0 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.4;
+  font-size: 0.95rem;
+}
+
+.automation-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.btn-run-automation {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  background: rgba(139, 92, 246, 0.18);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+
+.btn-run-automation:hover {
+  background: rgba(139, 92, 246, 0.28);
+  transform: translateY(-1px);
+}
+
+.btn-run-automation:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.automation-output {
+  margin-top: 0.9rem;
+}
+
+.automation-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.automation-status--running {
+  background: rgba(59, 130, 246, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.automation-status--success {
+  background: rgba(16, 185, 129, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.automation-status--error {
+  background: rgba(239, 68, 68, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.automation-time {
+  margin-left: auto;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.8rem;
+}
+
+.automation-result {
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  overflow: auto;
+  max-height: 320px;
 }
