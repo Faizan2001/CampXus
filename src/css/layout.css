@@ -31,7 +31,9 @@
   );
   /* Legacy aliases kept for existing page styles */
   --main-content-available-height: var(--content-available-height);
-  --main-content-available-height-with-bottom-nav: var(--content-available-height);
+  --main-content-available-height-with-bottom-nav: var(
+    --content-available-height
+  );
 }
 
 /* ===== UNIVERSAL THEME VARIABLES (DARK DEFAULT) ===== */
@@ -53,7 +55,9 @@ body.theme-ready:not(.dark-mode) {
   --color-safearea: var(--color-nav);
 }
 
-html { background-color: var(--color-bg); }
+html {
+  background-color: var(--color-bg);
+}
 body {
   /* iOS black-translucent uses body background for status bar area */
   background-color: var(--color-nav);
@@ -64,8 +68,7 @@ body {
 body.has-bottom-nav {
   --bottom-offset: calc(
     var(--mobile-bottom-nav-height, 60px) +
-      var(--mobile-bottom-nav-top-gap, 8px) +
-      env(safe-area-inset-bottom, 0px)
+      var(--mobile-bottom-nav-top-gap, 8px) + env(safe-area-inset-bottom, 0px)
   );
 }
 body.no-top-nav {
@@ -115,6 +118,43 @@ body.immersive-profile-mode {
     height: 100%;
     max-height: 100%;
   }
+
+  /* SAF & Admin pages in standalone mode - ensure proper safe area handling */
+  body.page-saf,
+  body.page-admin {
+    padding-top: 0 !important;
+  }
+
+  body.page-saf .main-content,
+  body.page-admin .main-content {
+    padding-top: env(safe-area-inset-top, 0px) !important;
+  }
+}
+
+/* Immersive Chat Mode Overrides */
+body.immersive-chat-mode .app-container {
+  padding-top: 0 !important;
+  height: 100dvh !important;
+}
+
+body.immersive-chat-mode .main-content {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  min-height: 100dvh !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* ==========================================
+   SAF & ADMIN DASHBOARD - LAYOUT OVERRIDES
+   These pages have their own layout in admin.css
+   ========================================== */
+body.page-saf .main-content,
+body.page-admin .main-content {
+  padding: 0 !important;
+  overflow-x: hidden;
 }
 
 /* Immersive Chat Mode Overrides */
@@ -147,16 +187,21 @@ body.immersive-chat-mode .main-content {
   box-shadow: 0 4px 20px var(--shadow);
 }
 
-.top-nav .safe-spacer{ height: var(--safe-top); }
+.top-nav .safe-spacer {
+  height: var(--safe-top);
+}
 
-.top-nav .top-nav-inner{
+.top-nav .top-nav-inner {
   height: var(--nav-height);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 0 clamp(0.75rem, 2vw, 1rem);
   padding-left: max(clamp(0.75rem, 2vw, 1rem), env(safe-area-inset-left, 0px));
-  padding-right: max(clamp(0.75rem, 2vw, 1rem), env(safe-area-inset-right, 0px));
+  padding-right: max(
+    clamp(0.75rem, 2vw, 1rem),
+    env(safe-area-inset-right, 0px)
+  );
   box-sizing: border-box;
 }
 
@@ -164,9 +209,13 @@ body.immersive-chat-mode .main-content {
 @media (display-mode: standalone),
   (display-mode: fullscreen),
   (display-mode: minimal-ui) {
-  .top-nav { background: var(--nav-solid-bg); }
+  .top-nav {
+    background: var(--nav-solid-bg);
+  }
 
-  .top-nav::before { display: none; }
+  .top-nav::before {
+    display: none;
+  }
 
   /* Bottom navigation uses the same solid background for seamless gesture area */
   .mobile-bottom-nav {
@@ -206,15 +255,19 @@ body.immersive-chat-mode .main-content {
 /* Make Install button highly attention-drawing with modern UI/UX principles */
 #installPwaBtn.nav-link {
   /* Eye-catching gradient background that adapts to theme */
-  background: linear-gradient(135deg, #8b7de8 0%, #a855f7 50%, #c084fc 100%) !important;
+  background: linear-gradient(
+    135deg,
+    #8b7de8 0%,
+    #a855f7 50%,
+    #c084fc 100%
+  ) !important;
   color: #ffffff !important;
   font-weight: 700 !important;
   font-family: "Sora", "Poppins", sans-serif !important;
   padding: 0.35rem 1.25rem !important;
   border-radius: 0.75rem !important;
   box-shadow: 0 4px 15px rgba(139, 125, 232, 0.4),
-              0 0 20px rgba(139, 125, 232, 0.2),
-              inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    0 0 20px rgba(139, 125, 232, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
   position: relative;
   overflow: hidden;
   transform: translateY(0);
@@ -259,11 +312,15 @@ body.immersive-chat-mode .main-content {
 
 /* Hover state - more intense and lifted */
 #installPwaBtn.nav-link:hover {
-  background: linear-gradient(135deg, #9d8ef5 0%, #b870ff 50%, #d4a0ff 100%) !important;
+  background: linear-gradient(
+    135deg,
+    #9d8ef5 0%,
+    #b870ff 50%,
+    #d4a0ff 100%
+  ) !important;
   transform: translateY(-3px) scale(1.05) !important;
   box-shadow: 0 6px 25px rgba(139, 125, 232, 0.6),
-              0 0 35px rgba(139, 125, 232, 0.4),
-              inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+    0 0 35px rgba(139, 125, 232, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
 }
 
 #installPwaBtn.nav-link:hover::after {
@@ -274,22 +331,30 @@ body.immersive-chat-mode .main-content {
 #installPwaBtn.nav-link:active {
   transform: translateY(-1px) scale(1.02) !important;
   box-shadow: 0 3px 15px rgba(139, 125, 232, 0.5),
-              0 0 25px rgba(139, 125, 232, 0.3) !important;
+    0 0 25px rgba(139, 125, 232, 0.3) !important;
 }
 
 /* Light mode specific enhancements */
 body:not(.dark-mode) #installPwaBtn.nav-link {
-  background: linear-gradient(135deg, #8b7de8 0%, #9d4edd 50%, #c77dff 100%) !important;
+  background: linear-gradient(
+    135deg,
+    #8b7de8 0%,
+    #9d4edd 50%,
+    #c77dff 100%
+  ) !important;
   box-shadow: 0 4px 15px rgba(139, 125, 232, 0.35),
-              0 2px 8px rgba(139, 125, 232, 0.25),
-              inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+    0 2px 8px rgba(139, 125, 232, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
 }
 
 body:not(.dark-mode) #installPwaBtn.nav-link:hover {
-  background: linear-gradient(135deg, #9d8ef5 0%, #b565f2 50%, #d896ff 100%) !important;
+  background: linear-gradient(
+    135deg,
+    #9d8ef5 0%,
+    #b565f2 50%,
+    #d896ff 100%
+  ) !important;
   box-shadow: 0 6px 25px rgba(139, 125, 232, 0.5),
-              0 3px 12px rgba(139, 125, 232, 0.35),
-              inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+    0 3px 12px rgba(139, 125, 232, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
 }
 
 /* Ensure text stays white and visible */
@@ -309,12 +374,13 @@ body:not(.dark-mode) #installPwaBtn.nav-link:hover {
   outline: 3px solid rgba(139, 125, 232, 0.5);
   outline-offset: 3px;
   box-shadow: 0 4px 15px rgba(139, 125, 232, 0.4),
-              0 0 0 4px rgba(139, 125, 232, 0.2) !important;
+    0 0 0 4px rgba(139, 125, 232, 0.2) !important;
 }
 
 /* Gradient animation */
 @keyframes installGradientShift {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 0% 50%;
   }
   50% {
@@ -334,7 +400,8 @@ body:not(.dark-mode) #installPwaBtn.nav-link:hover {
 
 /* Pulse glow animation */
 @keyframes installPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0;
   }
   50% {
@@ -348,7 +415,7 @@ body:not(.dark-mode) #installPwaBtn.nav-link:hover {
     padding: 0.25rem 1rem !important;
     font-size: 0.9rem;
   }
-  
+
   #installPwaBtn.nav-link .nav-text {
     font-size: 0.9rem;
   }
@@ -368,8 +435,7 @@ body:not(.dark-mode) #installPwaBtn.nav-link:hover {
     padding: 0.25rem 0.7rem !important;
     font-size: 0.85rem;
     box-shadow: 0 3px 12px rgba(139, 125, 232, 0.4),
-                0 0 15px rgba(139, 125, 232, 0.25),
-                inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+      0 0 15px rgba(139, 125, 232, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
   }
 }
 
@@ -378,12 +444,12 @@ body:not(.dark-mode) #installPwaBtn.nav-link:hover {
   #installPwaBtn.nav-link {
     animation: none;
   }
-  
+
   #installPwaBtn.nav-link::before,
   #installPwaBtn.nav-link::after {
     animation: none;
   }
-  
+
   #installPwaBtn.nav-link:hover {
     transform: translateY(-2px) !important;
   }
@@ -477,16 +543,17 @@ body:not(.dark-mode) .nav-link {
 .nav-link.has-alert::after {
   content: "";
   position: absolute;
-  top: 10px;
-  right: 12px;
-  width: 8px;
-  height: 8px;
+  top: 6px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #ff4d4d; /* unified red dot badge */
+  box-shadow: 0 0 0 2px var(--color-nav); /* subtle ring for contrast */
 }
 
-/* Inline badge dot for the Notify button */
-#notifyFriendsBtn .nav-dot {
+/* Inline badge dot for the Messages button */
+#messagesNavBtn .nav-dot {
   position: absolute;
   top: 10px;
   right: 12px;
@@ -501,9 +568,18 @@ body:not(.dark-mode) .nav-link {
 
 /* Tighter corner placement on mobile (icon-only button) */
 @media (max-width: 768px) {
-  #notifyFriendsBtn .nav-dot {
-    top: 6px;
+  .nav-link.has-alert::after {
+    top: 4px;
     right: 6px;
+    width: 9px;
+    height: 9px;
+  }
+
+  #messagesNavBtn .nav-dot {
+    top: 4px;
+    right: 6px;
+    width: 9px;
+    height: 9px;
   }
 }
 .nav-link::before {
@@ -627,6 +703,8 @@ body:not(.dark-mode) .nav-link:hover {
   margin: 0 auto;
   box-sizing: border-box;
   overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -646,6 +724,7 @@ body:not(.dark-mode) .nav-link:hover {
   outline: none !important;
   box-shadow: none !important;
 }
+
 .main-content::before {
   content: "";
   position: absolute;
@@ -1010,7 +1089,7 @@ body:not(.dark-mode) .user-dropdown {
   bottom: 0;
   z-index: 1000;
   display: none;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   justify-items: center;
   align-items: center;
   gap: 0;
@@ -1041,7 +1120,7 @@ body:not(.dark-mode) .user-dropdown {
   grid-template-rows: 26px auto; /* taller icon row to match avatar presence */
   row-gap: 0px;
   place-items: center;
-  color: #bdbacb;
+  color: var(--accent-primary);
   text-decoration: none;
   border-radius: 14px;
   cursor: pointer;
@@ -1057,6 +1136,10 @@ body:not(.dark-mode) .user-dropdown {
   line-height: 24px;
   margin-top: 2px; /* bring icon slightly closer to label */
   transition: transform 0.18s ease;
+  /* Default to regular weight; active will switch to solid */
+  font-family: "Font Awesome 6 Free";
+  font-weight: 400;
+  font-style: normal;
 }
 .mobile-nav-label {
   font-size: 11px;
@@ -1086,6 +1169,9 @@ body:not(.dark-mode) .user-dropdown {
 .mobile-nav-item.active i,
 .mobile-nav-item[data-current="true"] i {
   transform: scale(1.08);
+  /* Solid weight on active */
+  font-weight: 900;
+  font-family: "Font Awesome 6 Free";
 }
 .mobile-nav-item.active .mobile-nav-label,
 .mobile-nav-item[data-current="true"] .mobile-nav-label {
@@ -1114,6 +1200,20 @@ body:not(.dark-mode) .user-dropdown {
   box-shadow: 0 0 0 2px var(--bg-primary); /* Add ring to prevent blending with icon */
 }
 
+/* Alert dot for mobile nav items (messages, notifications if added back) */
+.mobile-nav-item.has-alert::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff4d4d;
+  box-shadow: 0 0 0 2px var(--bg-primary);
+  animation: badgePop 0.32s ease-out both;
+}
+
 /* profile trigger + avatar in bottom nav */
 .mobile-profile-trigger {
   position: relative;
@@ -1130,7 +1230,9 @@ body:not(.dark-mode) .user-dropdown {
 .mobile-profile-trigger.active .mobile-user-avatar {
   transform: scale(1.1);
 }
-.mobile-profile-trigger i { color: inherit; }
+.mobile-profile-trigger i {
+  color: inherit;
+}
 .mobile-profile-trigger.active i {
   color: var(--accent-primary);
 }
@@ -1350,7 +1452,9 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
       100dvh - var(--top-offset) - var(--bottom-offset)
     );
     --main-content-available-height: var(--content-available-height);
-    --main-content-available-height-with-bottom-nav: var(--content-available-height);
+    --main-content-available-height-with-bottom-nav: var(
+      --content-available-height
+    );
   }
 
   .top-nav .top-nav-inner {
@@ -1404,20 +1508,16 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     font-size: 0.65rem !important;
   }
   main.main-content {
-    padding: 0.75rem !important;
+    /* Preserve bottom offset so content stays above bottom nav */
+    padding: 0.75rem 0.75rem var(--bottom-offset) !important;
   }
 
-  /* Mobile: always assume bottom nav is present due to display: grid in mobile-bottom-nav */
   .main-content {
     /* Use dynamic height variables that account for bottom nav */
     height: auto;
-    min-height: var(--main-content-available-height-with-bottom-nav);
-    /* Reserve space equal to bottom nav height + safe-area */
-    padding-bottom: calc(
-      var(--mobile-bottom-nav-height, 60px) +
-      var(--mobile-bottom-nav-top-gap, 8px) +
-      env(safe-area-inset-bottom, 0px)
-    );
+    min-height: var(--content-available-height);
+    max-height: var(--content-available-height);
+    padding-bottom: var(--bottom-offset);
   }
 
   .content-grid {
@@ -1457,8 +1557,12 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     /* Slightly shorter bottom nav on small screens */
     --mobile-bottom-nav-height: 52px;
   }
-  .mobile-nav-item { grid-template-rows: 26px auto; }
-  .top-nav .top-nav-inner { padding: 0 0.75rem; }
+  .mobile-nav-item {
+    grid-template-rows: 26px auto;
+  }
+  .top-nav .top-nav-inner {
+    padding: 0 0.75rem;
+  }
   .logo span {
     font-size: 1.25rem;
     font-family: "Sora", "Poppins", sans-serif;
@@ -1512,13 +1616,13 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     font-weight: 500 !important;
   }
 
-  /* Hide notify button text on mobile - icon only */
-  #notifyFriendsBtn .nav-text {
+  /* Hide Messages button text on mobile - icon only */
+  #messagesNavBtn .nav-text {
     display: none !important;
   }
 
-  /* Larger icon and proper touch target for notify button on mobile */
-  #notifyFriendsBtn {
+  /* Larger icon and proper touch target for Messages button on mobile */
+  #messagesNavBtn {
     min-width: 48px;
     min-height: 48px;
     padding: 0.625rem;
@@ -1526,7 +1630,7 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     align-items: center;
   }
 
-  #notifyFriendsBtn i {
+  #messagesNavBtn i {
     font-size: 1.4rem;
   }
 
@@ -1602,20 +1706,76 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
 
   /* Mobile bottom nav present - adjust main content for all pages */
   .main-content {
-    height: var(--main-content-available-height-with-bottom-nav);
-    max-height: var(--main-content-available-height-with-bottom-nav);
-    min-height: var(--main-content-available-height-with-bottom-nav);
+    height: var(--content-available-height);
+    max-height: var(--content-available-height);
+    min-height: var(--content-available-height);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     /* small extra bottom padding to keep last items comfortably above the nav */
-    padding-bottom: 16px;
+    padding-bottom: calc(12px + var(--bottom-offset));
   }
 
   /* Exception: friends page needs the main scroller to remain scrollable on iOS */
-  body.page-friends .main-content {
+  body.page-friends .main-content,
+  body.page-groups .main-content,
+  body.page-messages .main-content,
+  body.page-user .main-content {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Clubs and SAF pages: remove main-content padding for full-bleed layouts */
+  body.page-clubs .main-content,
+  body.page-saf .main-content,
+  body.page-admin .main-content {
+    padding: 0 !important;
+    padding-bottom: var(--bottom-offset) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Clubs section should fill full height */
+  body.page-clubs .content-grid,
+  body.page-saf .content-grid,
+  body.page-admin .content-grid {
+    flex: 1 1 auto;
+    min-height: 100%;
+    padding-bottom: 0;
+  }
+
+  body.page-clubs .clubs-section,
+  body.page-clubs .club-section {
+    flex: 1 1 auto;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ==========================================
+     SAF & ADMIN DASHBOARD - HIDE TOP NAV ON MOBILE
+     Full-screen immersive mode for dashboard pages
+     ========================================== */
+
+  /* Hide top nav on SAF and Admin pages on mobile */
+  body.page-saf .top-nav,
+  body.page-admin .top-nav {
+    display: none !important;
+  }
+
+  /* Remove top padding since nav is hidden */
+  body.page-saf .app-container,
+  body.page-admin .app-container {
+    padding-top: 0 !important;
+  }
+
+  /* Extend main-content to top, accounting for safe area */
+  body.page-saf .main-content,
+  body.page-admin .main-content {
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    min-height: 100dvh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
   }
 
   /* sheet-as-dropdown option on mobile */
@@ -1720,16 +1880,16 @@ body:not(.dark-mode) .mobile-sheet-row.danger {
     padding: var(--space-sm) var(--space-md);
   }
 
-  /* Larger Notify button on desktop */
-  #notifyFriendsBtn {
+  /* Larger Messages button on desktop */
+  #messagesNavBtn {
     padding: 0.75rem 1.5rem;
   }
 
-  #notifyFriendsBtn i {
+  #messagesNavBtn i {
     font-size: 1.2rem;
   }
 
-  #notifyFriendsBtn .nav-text {
+  #messagesNavBtn .nav-text {
     font-size: 1rem;
     font-weight: 600;
   }

@@ -23,6 +23,11 @@ import {
 
 // 🎯 CSS IMPORTS: Import all CSS here so Vite bundles it for both dev & prod
 import "/src/css/styles.css";
+import "/src/css/mutual-friends-modal.css";
+import "/src/css/user-profile.css";
+import "/src/css/clubs/index.css"; // 🏁 Clubs feature styles (modular folder)
+import "/src/css/admin.css"; // 👑 Super Admin dashboard styles
+import "/src/css/pwa-skeleton.css"; // 📱 PWA skeleton loading states for instant startup
 
 // 🎯 JS IMPORTS: Import page-specific JS modules so Vite bundles them for preview mode
 // Import in dependency order: manager first, then UI that depends on it
@@ -123,6 +128,7 @@ async function initializeSPA() {
       "home",
       "friends",
       "notifications",
+      "messages",
       "about",
       "profile",
       "landing",
@@ -182,6 +188,10 @@ async function initializeSPA() {
       spaRouter?.updateLayoutChromeState?.();
     } catch (_) {}
   };
+  syncChrome();
+  window.addEventListener("resize", syncChrome);
+  window.addEventListener("orientationchange", syncChrome);
+  window.addEventListener("layoutChromeChange", syncChrome);
 
   // 🚀 PROFILE HYDRATION (stale-while-revalidate) BEFORE first page paint
   try {
@@ -199,12 +209,37 @@ async function initializeSPA() {
       logManager.system.init("Profile hydrated from cache (SWR mode)");
     }
   } catch (e) {
-    console.warn("Profile hydration failed (non-fatal)", e);
+    logManager.system.warn("Profile hydration failed (non-fatal)", e);
   }
 
-  // 🎯 Use smart initial load to avoid flashing landing on refresh
+  // 🎯 Use a fast, cache-aware initial load:
+  // If we have a strong session hint (cached profile or hydrated user),
+  // optimistically render the target route (usually home) immediately and
+  // skip the full-screen loading overlay. Auth will continue to resolve in
+  // the background and Router's auth handling will correct the route if
+  // needed. Otherwise, fall back to the smart auth-aware loader.
   try {
-    await spaRouter.loadInitialPageSmart(authManager?.authReady, 1500);
+    const hasSessionHint =
+      !!authManager?.auth?.currentUser ||
+      !!profileCache.peek() ||
+      (currentUser && currentUser.isLoggedIn && currentUser.isLoggedIn());
+
+    if (spaRouter) {
+      // If we already know (or strongly suspect) the user is logged in,
+      // avoid sending them through the landing route on reload.
+      if (hasSessionHint) {
+        try {
+          if (window.location.hash === "#landing") {
+            history.replaceState({}, "", "#home");
+          }
+        } catch (_) {}
+        // Extra safety: skip first overlay in case any early navigation
+        // path still attempts to show the SPA loader.
+        spaRouter._skipNextLoadingOverlay = true;
+      }
+
+      await spaRouter.loadInitialPageSmart(authManager?.authReady, 1500);
+    }
   } catch (e) {
     // Fallback to legacy initial load if anything goes wrong
     spaRouter.loadInitialPage();
@@ -267,14 +302,6 @@ async function initializeSPA() {
                     "Enable notifications to get instant alerts when friends share their campus location. Visit the Notifications page to enable.",
                     { duration: 5000 }
                   );
-                } else if (
-                  freshState.actionable === "needs_install" &&
-                  freshState.isIOS
-                ) {
-                  notificationManager.showInfoNotification(
-                    "Install the app on iPhone to enable notifications: open Safari share menu → Add to Home Screen.",
-                    { duration: 6000 }
-                  );
                 } else if (freshState.actionable === "denied") {
                   notificationManager.showWarningNotification(
                     "Notifications are blocked. Enable them in your browser/app settings to get alerts.",
@@ -306,17 +333,17 @@ async function initializeSPA() {
               showPermissionNotice();
             } catch (_) {}
           } catch (e) {
-            console.warn("Push messaging init failed (non-fatal)", e);
+            logManager.system.warn("Push messaging init failed (non-fatal)", e);
           }
         })();
       })
       .catch((error) => {
-        console.warn(
+        logManager.auth.warn(
           `Authentication timeout or error (background), continuing: ${error.message}`
         );
       });
   } else {
-    console.warn(
+    logManager.auth.warn(
       "AuthManager or authReady promise not found. Proceeding without auth check."
     );
   }
@@ -357,21 +384,22 @@ async function initializeSPA() {
     // Place banner near the bottom-left so it never obscures the top navigation
     // and make it click-through (pointer-events: none).
     const bottomOffset = `calc(var(--mobile-bottom-nav-height, 60px) + env(safe-area-inset-bottom, 0px) + 8px)`;
-    envBanner.style.cssText = [
-      "position:fixed",
-      `left:8px` ,
-      `bottom:${bottomOffset}`,
-      "background:rgba(255,152,0,0.9)",
-      "color:white",
-      "padding:4px 8px",
-      "z-index:1500",
-      "border-radius:4px",
-      "font-size:10px",
-      "font-weight:600",
-      "letter-spacing:0.5px",
-      "box-shadow:0 2px 4px rgba(0,0,0,0.2)",
-      "pointer-events:none",
-    ].join(";") + ";";
+    envBanner.style.cssText =
+      [
+        "position:fixed",
+        `left:8px`,
+        `bottom:${bottomOffset}`,
+        "background:rgba(255,152,0,0.9)",
+        "color:white",
+        "padding:4px 8px",
+        "z-index:1500",
+        "border-radius:4px",
+        "font-size:10px",
+        "font-weight:600",
+        "letter-spacing:0.5px",
+        "box-shadow:0 2px 4px rgba(0,0,0,0.2)",
+        "pointer-events:none",
+      ].join(";") + ";";
     envBanner.textContent = envName;
     document.body.appendChild(envBanner);
   }
@@ -499,13 +527,16 @@ function tryStartCampusPresenceAfterLogin(subscribe = false) {
         );
         locationScheduler.start?.();
       } catch (e) {
-        console.warn(
+        logManager.location.warn(
           "LocationScheduler start failed (non-critical):",
           e?.message || e
         );
       }
     } catch (e) {
-      console.warn("Campus Presence lazy init failed:", e?.message || e);
+      logManager.location.warn(
+        "Campus Presence lazy init failed:",
+        e?.message || e
+      );
     }
   };
 
@@ -607,18 +638,17 @@ function setupSPAEventListeners() {
 /**
  * Update page title based on current route
  * 🎯 Learning: Good SPAs update the browser title for each "page"
+ *
+ * NOTE: The SPA Router now owns route-specific titles via its route
+ * configuration (Router.routes[route].title). To avoid conflicts and
+ * duplication, this helper intentionally no longer overrides
+ * document.title; it is kept as a no-op for backwards compatibility
+ * with existing event listeners that call updatePageTitle(route).
  */
 function updatePageTitle(route) {
-  const titles = {
-    home: "Schedule - MeetchuThere",
-    profile: "Profile Setup - MeetchuThere",
-    friends: "Friends - MeetchuThere",
-    notifications: "Notifications - MeetchuThere",
-    about: "About - MeetchuThere",
-  };
-
-  const title = titles[route] || "MeetchuThere";
-  document.title = title;
+  // Router already set document.title based on the active route.
+  // No additional work is required here.
+  void route; // explicit no-op to satisfy linters and keep signature stable
 }
 
 /**
@@ -663,7 +693,7 @@ export function navigateTo(route) {
   if (spaRouter) {
     spaRouter.navigateTo(route);
   } else {
-    console.error("SPA Router not initialized yet");
+    logManager.system.error("SPA Router not initialized yet");
   }
 }
 
@@ -816,7 +846,9 @@ async function initializeCampusPresenceInBackground() {
  * 🎯 Priority Mode: Ensures presence dots get latest coordinates quickly
  */
 async function fetchFreshLocationForPresence() {
-  console.log("🎯 Priority: Fetching fresh location data for presence dots...");
+  logManager.location.info(
+    "🎯 Priority: Fetching fresh location data for presence dots..."
+  );
 
   try {
     const { campusLocationService } = await import(
@@ -828,15 +860,19 @@ async function fetchFreshLocationForPresence() {
     ) {
       // This method bypasses debouncing and gets fresh GPS immediately
       campusLocationService.requestSingleLocationUpdate();
-      console.log(
+      logManager.location.info(
         "✅ Priority: Fresh location request initiated for presence dots"
       );
     } else if (typeof campusLocationService.handleTriggerEvent === "function") {
       // Alternative method for immediate location update
       await campusLocationService.handleTriggerEvent("presence_priority");
-      console.log("✅ Priority: Trigger event sent for fresh presence data");
+      logManager.location.info(
+        "✅ Priority: Trigger event sent for fresh presence data"
+      );
     } else {
-      console.warn("⚠️ Priority: No immediate location method available");
+      logManager.location.warn(
+        "⚠️ Priority: No immediate location method available"
+      );
     }
 
     // Emit event that fresh data is being fetched
@@ -850,7 +886,7 @@ async function fetchFreshLocationForPresence() {
       })
     );
   } catch (error) {
-    console.error(
+    logManager.location.error(
       "❌ Priority: Failed to fetch fresh location for presence:",
       error
     );
@@ -885,7 +921,9 @@ function syncMetaThemeColorToNav() {
       const r = parseInt(parts[0], 10) || 21;
       const g = parseInt(parts[1], 10) || 24;
       const b = parseInt(parts[2], 10) || 32;
-      color = `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+      color = `#${[r, g, b]
+        .map((n) => n.toString(16).padStart(2, "0"))
+        .join("")}`;
     }
   }
 
@@ -904,7 +942,7 @@ function tryRegisterServiceWorker() {
   const devSWDisabled =
     !isProduction && localStorage.getItem("disableDevSW") === "true";
   if (devSWDisabled) {
-    console.info(
+    logManager.system.info(
       "Service worker disabled in dev mode (localStorage.disableDevSW)"
     );
     return;
@@ -940,5 +978,7 @@ function tryRegisterServiceWorker() {
         });
       } catch (_) {}
     })
-    .catch((e) => console.warn("SW registration failed (non-fatal):", e));
+    .catch((e) =>
+      logManager.system.warn("SW registration failed (non-fatal):", e)
+    );
 }

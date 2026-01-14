@@ -10,9 +10,25 @@
  * - Custom events for CampXus-specific features
  */
 
-import app from "../../lib/firebase/firebase-config.js";
-
 let analyticsContextPromise = null;
+const ANALYTICS_CONSENT_KEY = "meetchuthere_privacy_consent";
+
+function analyticsConsentAllowsCollection() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return true;
+  }
+  try {
+    const raw = window.localStorage.getItem(ANALYTICS_CONSENT_KEY);
+    if (!raw) return true;
+    const parsed = JSON.parse(raw);
+    if (parsed?.preferences?.analytics === false) {
+      return false;
+    }
+  } catch (_) {
+    // Swallow parsing errors and default to enabled to avoid breaking analytics for existing users.
+  }
+  return true;
+}
 
 function ensureAnalyticsContext() {
   if (typeof window === "undefined") {
@@ -23,8 +39,12 @@ function ensureAnalyticsContext() {
     return analyticsContextPromise;
   }
 
-  analyticsContextPromise = import("firebase/analytics")
-    .then((mod) => {
+  analyticsContextPromise = (async () => {
+    try {
+      const [{ default: app }, mod] = await Promise.all([
+        import("../../lib/firebase/firebase-config.js"),
+        import("firebase/analytics"),
+      ]);
       try {
         const analytics = mod.getAnalytics(app);
         return {
@@ -40,11 +60,11 @@ function ensureAnalyticsContext() {
         );
         return null;
       }
-    })
-    .catch((error) => {
+    } catch (error) {
       console.warn("📊 Analytics module failed to load:", error.message);
       return null;
-    });
+    }
+  })();
 
   return analyticsContextPromise;
 }
@@ -54,7 +74,30 @@ export class AnalyticsService {
    * ✅ Basic availability check so callers can short‑circuit
   */
   static isEnabled() {
-    return AnalyticsService._collectionEnabled !== false;
+    if (AnalyticsService._collectionEnabled === false) return false;
+    if (typeof window === "undefined") return false;
+
+    const host = window.location?.hostname || "";
+    const env = (typeof window !== "undefined" && window.ENV) || {};
+    const isLocalHost =
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "[::1]" ||
+      host.endsWith(".local");
+    const disabledByEnv =
+      env.DISABLE_ANALYTICS === true ||
+      (typeof env.SITE_ENV === "string" &&
+        env.SITE_ENV.toLowerCase() === "development");
+
+    if (isLocalHost || disabledByEnv) {
+      return false;
+    }
+
+    if (!analyticsConsentAllowsCollection()) {
+      return false;
+    }
+
+    return true;
   }
 
   // Internal flag for runtime consent (default true unless explicitly disabled)

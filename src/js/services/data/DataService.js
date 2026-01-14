@@ -67,6 +67,7 @@ import {
   orderBy,
   limit,
   writeBatch, // ← Added for batch operations
+  runTransaction,
 } from "firebase/firestore";
 import { db } from "../../lib/firebase/firebase-config.js";
 import { auth } from "../../lib/firebase/firebase-config.js";
@@ -173,14 +174,25 @@ class DataManager {
    */
   async saveFcmToken(userId, token, meta = {}) {
     try {
-      if (!userId || !token) return { success: false, error: "Missing uid or token" };
+      if (!userId || !token)
+        return { success: false, error: "Missing uid or token" };
       const tokenRef = doc(db, "users", userId, "fcmTokens", token);
       await setDoc(
         tokenRef,
         {
           token,
-          platform: meta.platform || (/(iphone|ipad|ipod|ios)/i.test(navigator.userAgent) ? "ios" : (/android/i.test(navigator.userAgent) ? "android" : "web")),
-          userAgent: meta.userAgent || (typeof navigator !== "undefined" ? navigator.userAgent : "unknown"),
+          platform:
+            meta.platform ||
+            (/(iphone|ipad|ipod|ios)/i.test(navigator.userAgent)
+              ? "ios"
+              : /android/i.test(navigator.userAgent)
+              ? "android"
+              : "web"),
+          userAgent:
+            meta.userAgent ||
+            (typeof navigator !== "undefined"
+              ? navigator.userAgent
+              : "unknown"),
           appVersion: meta.appVersion || null,
           // Persist PWA/device metadata for dedupe + analytics
           isPWA: meta.isPWA === true, // store explicit boolean
@@ -204,7 +216,8 @@ class DataManager {
    */
   async deleteFcmToken(userId, token) {
     try {
-      if (!userId || !token) return { success: false, error: "Missing uid or token" };
+      if (!userId || !token)
+        return { success: false, error: "Missing uid or token" };
       const tokenRef = doc(db, "users", userId, "fcmTokens", token);
       await deleteDoc(tokenRef);
       return { success: true };
@@ -262,7 +275,7 @@ class DataManager {
   setupNetworkListeners() {
     window.addEventListener("online", () => {
       this.isOnline = true;
-      this.showNotification("Back online! Syncing changes...", "success", {
+      notificationManager.show("Back online! Syncing changes...", "success", {
         duration: 3000,
       });
       this.processPendingOperations();
@@ -270,7 +283,7 @@ class DataManager {
 
     window.addEventListener("offline", () => {
       this.isOnline = false;
-      this.showNotification(
+      notificationManager.show(
         "You're offline. Changes will be saved locally and synced when you reconnect.",
         "warning",
         { duration: 5000 }
@@ -307,9 +320,9 @@ class DataManager {
     }
 
     if (this.pendingOperations.length === 0) {
-      this.showNotification("All changes synced successfully", "success");
+      notificationManager.show("All changes synced successfully", "success");
     } else {
-      this.showNotification(
+      notificationManager.show(
         `${this.pendingOperations.length} operations still pending`,
         "warning"
       );
@@ -322,7 +335,17 @@ class DataManager {
    */
   async retryOperation(operation, attempt = 1) {
     try {
-      await operation();
+      if (typeof operation === "function") {
+        await operation();
+        return;
+      }
+
+      if (operation && typeof operation === "object" && operation.type) {
+        await this.executeQueuedOperation(operation);
+        return;
+      }
+
+      throw new Error("Invalid pending operation (expected function or typed object)");
     } catch (error) {
       if (attempt >= this.maxRetries) {
         throw error;
@@ -335,6 +358,36 @@ class DataManager {
 
       await new Promise((resolve) => setTimeout(resolve, delay));
       return this.retryOperation(operation, attempt + 1);
+    }
+  }
+
+  /**
+   * Execute an object-based queued operation (legacy support).
+   * Prefer enqueueing functions instead of objects.
+   * @private
+   */
+  async executeQueuedOperation(op) {
+    const type = op?.type;
+    const data = op?.data || {};
+
+    switch (type) {
+      case "createNotification":
+        return this.createNotification(data);
+      case "deleteNotification":
+        return this.deleteNotification(data.notificationId);
+      case "markNotificationAsRead":
+        return this.markNotificationAsRead(data.notificationId);
+      case "markAllNotificationsRead":
+        return this.markAllNotificationsRead(data.userId);
+      case "markClubNotificationsAsRead":
+        return this.markClubNotificationsAsRead(data.userId, data.types || null);
+      case "dismissNotification":
+        return this.dismissNotification(
+          data.notificationId,
+          data.permanentDelete !== false
+        );
+      default:
+        throw new Error(`Unknown queued operation type: ${type}`);
     }
   }
 
@@ -387,21 +440,11 @@ class DataManager {
    * @param {string} userId - User ID to sync cache for
    */
   debounceCacheSync(userId) {
-    // Clear existing timeout for this user
-    if (this.syncDebounceMap.has(userId)) {
-      clearTimeout(this.syncDebounceMap.get(userId));
-    }
-
-    // Set new timeout
-    const timeoutId = setTimeout(() => {
-      syncUserDataCache(userId).catch((error) =>
-        logManager.network.error("Friend cache sync failed", error)
-      );
-      this.syncDebounceMap.delete(userId);
-    }, 1000); // 1 second debounce
-
-    this.syncDebounceMap.set(userId, timeoutId);
-    logManager.system.perf(`Debounced cache sync for user: ${userId}`);
+    // Client-side cache sync is now handled solely by server-side Cloud Function.
+    // This method is kept as a no-op for backward compatibility.
+    logManager.system.info(
+      `debounceCacheSync(${userId}) called – propagation handled by Cloud Function`
+    );
   }
 
   /**
@@ -432,27 +475,6 @@ class DataManager {
     if (this.cache.has(key)) {
       this.cache.delete(key);
       console.log(`♻️ Invalidated cache for key: ${key}`);
-    }
-  }
-
-  // =========================
-  // NOTIFICATION UI
-  // =========================
-
-  /**
-   * Show a notification toast via NotificationService
-   * @param {string} message The message to display
-   * @param {"success"|"error"|"warning"|"info"} type Notification type
-   * @param {object} options Additional options (e.g., { duration })
-   * @private
-   */
-  showNotification(message, type = "info", options = {}) {
-    try {
-      // Route all toasts through the centralized NotificationService
-      notificationManager.showSystemNotification(message, type, options);
-    } catch (e) {
-      // Fallback to console to avoid breaking flows
-      console.log(`[${type.toUpperCase()}] ${message}`);
     }
   }
 
@@ -593,7 +615,7 @@ class DataManager {
       return users;
     } catch (error) {
       console.error("❌ Error finding users by university:", error);
-      this.showNotification("Could not search for students.", "error");
+      notificationManager.show("Could not search for students.", "error");
       return [];
     }
   }
@@ -671,7 +693,10 @@ class DataManager {
       return users;
     } catch (error) {
       console.error("❌ Error finding users by major:", error);
-      this.showNotification("Could not search for students by major.", "error");
+      notificationManager.show(
+        "Could not search for students by major.",
+        "error"
+      );
       return [];
     }
   }
@@ -755,7 +780,7 @@ class DataManager {
       return users;
     } catch (error) {
       console.error("❌ Error finding users by ID/email:", error);
-      this.showNotification(
+      notificationManager.show(
         "Could not search by student ID or email.",
         "error"
       );
@@ -809,7 +834,7 @@ class DataManager {
       return results;
     } catch (error) {
       console.error("❌ Error in exact student ID lookup:", error);
-      this.showNotification("Could not search by student ID.", "error");
+      notificationManager.show("Could not search by student ID.", "error");
       return [];
     }
   }
@@ -849,7 +874,7 @@ class DataManager {
       return userData;
     } catch (error) {
       console.error("Error fetching user profile:", error);
-      this.showError("Failed to load profile data");
+      notificationManager.show("Failed to load profile data", "error");
       return null;
     }
   }
@@ -942,7 +967,7 @@ class DataManager {
         // Cache immediately for offline access
         this.setCachedData(`user_${userId}`, profileData);
 
-        this.showNotification("Changes will sync when online", "info", {
+        notificationManager.show("Changes will sync when online", "info", {
           duration: 4000,
         });
         return { success: true, offline: true };
@@ -966,7 +991,7 @@ class DataManager {
       return { success: true };
     } catch (error) {
       console.error("Error saving profile:", error);
-      this.showError(error.message);
+      notificationManager.show(error.message, "error");
       return { success: false, error: error.message };
     }
   }
@@ -974,7 +999,7 @@ class DataManager {
   /**
    * Get just the minimal profile info (firstName, email, avatarConfig).
    * @param {string|object} userIdOrObj - UID or user object
-   * @returns {Promise<{handle: string|null, email: string|null, avatarConfig: object|null}|null>}
+   * @returns {Promise<{uid: string, handle: string|null, email: string|null, firstName: string, lastName: string, major: string, profilePhotoUrl: string|null, avatarConfig: object|null}|null>}
    * @example
    *   const mini = await dataManager.getUserProfileMinimal("abc123");
    */
@@ -1000,12 +1025,24 @@ class DataManager {
         return null;
       }
       const data = userDoc.data();
-      // Defensive extraction: Only pull minimal fields
-      const handle = data?.profile?.handle ?? null;
-      const email = data?.profile?.email ?? null;
-      const avatarConfig = data?.avatarConfig ?? null;
-      console.log("Returned minimal profile: @" + handle, email, avatarConfig);
-      return { handle, email, avatarConfig };
+      const profile = data?.profile || {};
+      const payload = {
+        uid: userId,
+        handle: profile.handle ?? null,
+        email: profile.email ?? null,
+        firstName: profile.firstName ?? "",
+        lastName: profile.lastName ?? "",
+        major: profile.major ?? "",
+        profilePhotoUrl: profile.profilePhotoUrl ?? null,
+        avatarConfig: data?.avatarConfig ?? null,
+      };
+      console.log(
+        `Returned minimal profile for ${userId}:`,
+        payload.handle,
+        payload.firstName,
+        payload.lastName
+      );
+      return payload;
     } catch (error) {
       console.error("[dataManager] Error in getUserProfileMinimal:", error);
       return null;
@@ -1064,20 +1101,6 @@ class DataManager {
         cachedData.avatarConfig = cleanedConfig;
         this.cache.set(cacheKey, cachedData);
         console.log("🔄 [DataManager] Updated avatar in cache");
-      }
-
-      // 🔄 CRITICAL: Sync avatar changes to all cached locations (friendships, friend requests)
-      console.log(
-        "🔄 [DataManager] Syncing avatar changes to all cached locations..."
-      );
-      try {
-        await syncUserDataCache(userId);
-        console.log(
-          "✅ [DataManager] Avatar sync to cached locations completed"
-        );
-      } catch (syncError) {
-        console.error("⚠️ [DataManager] Avatar sync failed:", syncError);
-        // Don't fail the avatar update if sync fails
       }
 
       return { success: true, cleanedConfig: cleanedConfig };
@@ -1267,7 +1290,7 @@ class DataManager {
           this.saveUserSchedule(userId, scheduleData, currentUserId)
         );
         this.setCachedData(`schedule_${userId}`, enhancedScheduleData);
-        this.showNotification("Schedule will sync when online", "info", {
+        notificationManager.show("Schedule will sync when online", "info", {
           duration: 4000,
         });
         return { success: true, offline: true };
@@ -1286,7 +1309,41 @@ class DataManager {
       return { success: true };
     } catch (error) {
       console.error("Error saving schedule:", error);
-      this.showError("Failed to save schedule");
+      notificationManager.show("Failed to save schedule", "error");
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Update users/{uid}.courses with normalized compact entries used for grouping.
+   * Creates/overwrites the array only when courses are provided (non-empty).
+   * @param {string} userId
+   * @param {Array<Object>} courses - Array of normalized course entries
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async updateUserCourses(userId, courses) {
+    try {
+      if (!userId || !Array.isArray(courses)) {
+        return { success: false, error: "invalid_args" };
+      }
+      if (courses.length === 0) {
+        // Do not create empty arrays (respect 'create only when present')
+        return { success: true };
+      }
+
+      await updateDoc(doc(db, "users", userId), {
+        courses: courses,
+        "systemInfo.lastUpdated": serverTimestamp(),
+      });
+      // Update cache entry for user profile if present
+      const cacheKey = `user_${userId}`;
+      const cached = this.getCachedData(cacheKey);
+      if (cached) {
+        this.setCachedData(cacheKey, { ...cached, courses });
+      }
+      return { success: true };
+    } catch (error) {
+      console.error("[dataManager] updateUserCourses failed:", error);
       return { success: false, error: error.message };
     }
   }
@@ -1326,8 +1383,41 @@ class DataManager {
       return scheduleData;
     } catch (error) {
       console.error("Error fetching schedule:", error);
-      this.showError("Failed to load schedule");
+      notificationManager.show("Failed to load schedule", "error");
       return null;
+    }
+  }
+
+  /**
+   * Get class spaces for current user via array-contains on memberIds.
+   * Returns lightweight summaries for GroupsPage cards.
+   */
+  async getUserClassSpaces() {
+    try {
+      if (!this.isOnline) return [];
+      const userId =
+        (auth.currentUser && auth.currentUser.uid) || currentUser?.uid;
+      if (!userId) return [];
+      const qSpaces = query(
+        collection(db, "classSpaces"),
+        where("memberIds", "array-contains", userId)
+      );
+      const snap = await getDocs(qSpaces);
+      const list = [];
+      snap.forEach((docSnap) => {
+        const d = docSnap.data() || {};
+        list.push({ spaceId: docSnap.id, ...d });
+      });
+      // Sort by lastActivity desc
+      list.sort((a, b) => {
+        const at = a.lastActivity?.toMillis?.() || 0;
+        const bt = b.lastActivity?.toMillis?.() || 0;
+        return bt - at;
+      });
+      return list;
+    } catch (e) {
+      console.error("[dataManager] getUserClassSpaces failed:", e);
+      return [];
     }
   }
 
@@ -1377,7 +1467,10 @@ class DataManager {
             return;
           }
           console.error("Error in schedule listener:", error);
-          this.showError("Lost connection to schedule updates");
+          notificationManager.show(
+            "Lost connection to schedule updates",
+            "error"
+          );
         }
       );
 
@@ -1402,46 +1495,6 @@ class DataManager {
    */
   clearCache() {
     this.cache.clear();
-  }
-
-  /**
-   * Show error message to user with consistent styling
-   * @private
-   */
-  showError(message) {
-    this.showNotification(message, "error");
-  }
-
-  /**
-   * Show user notifications with consistent styling and accessibility
-   * @param {string} message - Message to show
-   * @param {string} type - 'error' | 'success' | 'info' | 'warning'
-   * @private
-   */
-  showNotification(message, type = "info", options = {}) {
-    // Delegate to the centralized NotificationService to avoid duplicate UI systems
-    try {
-      notificationManager.showSystemNotification(message, type, options);
-    } catch (e) {
-      console.log(`[${type.toUpperCase()}] ${message}`);
-    }
-  }
-
-  /**
-   * Get notification styles based on type
-   * @private
-   */
-  getNotificationStyles(type) {
-    const styles = {
-      error:
-        "background: #fecaca; color: #b91c1c; border-left: 4px solid #ef4444;",
-      success:
-        "background: #bbf7d0; color: #166534; border-left: 4px solid #10b981;",
-      warning:
-        "background: #fef3c7; color: #d97706; border-left: 4px solid #f59e0b;",
-      info: "background: #dbeafe; color: #1d4ed8; border-left: 4px solid #3b82f6;",
-    };
-    return styles[type] || styles.info;
   }
 
   /**
@@ -1634,7 +1687,7 @@ class DataManager {
         this.pendingOperations.push(() =>
           this.updateUserProfile(userId, profileData)
         );
-        this.showNotification("Changes will sync when online", "info", {
+        notificationManager.show("Changes will sync when online", "info", {
           duration: 4000,
         });
         return { success: true, offline: true };
@@ -1660,7 +1713,7 @@ class DataManager {
       return { success: true };
     } catch (error) {
       console.error("Error updating user profile:", error);
-      this.showError(error.message);
+      notificationManager.show(error.message, "error");
       return { success: false, error: error.message };
     }
   }
@@ -1727,7 +1780,8 @@ class DataManager {
       // Write lightweight audit fields under onboarding
       updates["systemInfo.onboarding.lastEvent"] = eventName;
       updates["systemInfo.onboarding.lastEventAt"] = serverTimestamp();
-      updates[`systemInfo.onboarding.events.${eventName}.lastAt`] = serverTimestamp();
+      updates[`systemInfo.onboarding.events.${eventName}.lastAt`] =
+        serverTimestamp();
       hasPayload = true;
     }
 
@@ -1801,7 +1855,7 @@ class DataManager {
 
       if (!this.isOnline) {
         this.pendingOperations.push(() => this.updateUserBio(userId, bio));
-        this.showNotification("Changes will sync when online", "info", {
+        notificationManager.show("Changes will sync when online", "info", {
           duration: 4000,
         });
         return { success: true, offline: true };
@@ -1888,7 +1942,7 @@ class DataManager {
       return { success: true };
     } catch (error) {
       console.error("Error deleting user profile:", error);
-      this.showError(error.message);
+      notificationManager.show(error.message, "error");
       return { success: false, error: error.message };
     }
   }
@@ -1918,14 +1972,14 @@ class DataManager {
         this.invalidateCache(`user_${userId}`)
       );
 
-      this.showNotification(
+      notificationManager.show(
         `Updated ${userUpdates.length} users successfully`,
         "success"
       );
       return { success: true };
     } catch (error) {
       console.error("Error in batch update:", error);
-      this.showError(error.message);
+      notificationManager.show(error.message, "error");
       return { success: false, error: error.message };
     }
   }
@@ -1938,7 +1992,10 @@ class DataManager {
   async searchUsers(_criteria) {
     try {
       if (!this.isOnline) {
-        this.showError("Search requires internet connection");
+        notificationManager.show(
+          "Search requires internet connection",
+          "error"
+        );
         return null;
       }
 
@@ -1950,7 +2007,7 @@ class DataManager {
       return [];
     } catch (error) {
       console.error("Error searching users:", error);
-      this.showError("Search failed");
+      notificationManager.show("Search failed", "error");
       return null;
     }
   }
@@ -1968,15 +2025,34 @@ class DataManager {
     try {
       console.log("📩 Creating friend request...", requestData);
 
-      const friendRequestsRef = collection(db, "friendRequests");
-      const docRef = await addDoc(friendRequestsRef, {
-        ...requestData,
-        createdAt: serverTimestamp(),
-        respondedAt: null,
+      if (!requestData?.fromUserId || !requestData?.toUserId) {
+        throw new Error("Missing fromUserId/toUserId");
+      }
+
+      // Deterministic ID prevents duplicates from rapid taps / multi-tab races
+      const requestId = `${requestData.fromUserId}_${requestData.toUserId}`;
+      const requestRef = doc(db, "friendRequests", requestId);
+
+      await runTransaction(db, async (transaction) => {
+        const existing = await transaction.get(requestRef);
+        if (existing.exists()) {
+          const data = existing.data() || {};
+          const status = data.status || "pending";
+          if (status === "accepted") {
+            throw new Error("You are already friends");
+          }
+          throw new Error("Friend request already sent");
+        }
+
+        transaction.set(requestRef, {
+          ...requestData,
+          createdAt: serverTimestamp(),
+          respondedAt: null,
+        });
       });
 
-      console.log("✅ Friend request created successfully with ID:", docRef.id);
-      return { success: true, requestId: docRef.id };
+      console.log("✅ Friend request created successfully with ID:", requestId);
+      return { success: true, requestId };
     } catch (error) {
       console.error("❌ Error creating friend request:", error);
       return { success: false, error: error.message };
@@ -2865,7 +2941,8 @@ class DataManager {
       // Downgrade noise on auth transitions: permission-denied is expected when signed out
       const isAuthMissing = !auth?.currentUser;
       const isPermissionDenied = error?.code === "permission-denied";
-      const logMethod = isPermissionDenied || isAuthMissing ? console.info : console.error;
+      const logMethod =
+        isPermissionDenied || isAuthMissing ? console.info : console.error;
       logMethod("📱 Mobile-resilient friendships listener error:", {
         code: error?.code,
         message: error?.message,
@@ -3203,56 +3280,164 @@ class DataManager {
         quickAccessEntry.handle
       );
 
-      // First, get current user data to check if quickAccessData exists
       const userDocRef = doc(db, "users", userId);
-      const userDoc = await getDoc(userDocRef);
 
-      if (!userDoc.exists()) {
-        throw new Error("User document not found");
-      }
+      // Deep-sanitize a value for Firestore (remove all undefineds)
+      const sanitizeValue = (value) => {
+        if (value === undefined) {
+          return undefined;
+        }
 
-      const userData = userDoc.data();
-      const currentQuickAccess = userData.quickAccessData || {};
-      const friends = currentQuickAccess.starredFriends || [];
+        // Preserve Dates as-is
+        if (value instanceof Date) {
+          return value;
+        }
 
-      // Check if friend is already in Quick Access (prevent duplicates)
-      const existingIndex = friends.findIndex(
-        (friend) => friend.friendId === quickAccessEntry.friendId
-      );
+        // Preserve Firestore Timestamp-like values as-is
+        // (they expose a .toDate() method; converting them to plain objects
+        // would break Quick Access ordering logic that relies on toDate())
+        if (value && typeof value.toDate === "function") {
+          return value;
+        }
 
-      let updatedFriends;
-      if (existingIndex >= 0) {
-        // Update existing entry (move to recent-first position)
-        updatedFriends = [...friends];
-        updatedFriends[existingIndex] = {
-          ...updatedFriends[existingIndex],
-          lastInteraction: quickAccessEntry.lastInteraction,
-        };
-      } else {
-        // Add new entry to the beginning (recent-first)
-        updatedFriends = [quickAccessEntry, ...friends];
-      }
+        // Handle legacy plain-object timestamps that may have been written by
+        // older code (e.g., {seconds, nanoseconds} without Firestore methods)
+        if (
+          value &&
+          typeof value === "object" &&
+          !Array.isArray(value) &&
+          typeof value.seconds === "number" &&
+          typeof value.nanoseconds === "number" &&
+          typeof value.toDate !== "function"
+        ) {
+          try {
+            return new Date(value.seconds * 1000 + value.nanoseconds / 1e6);
+          } catch (_e) {
+            // If anything goes wrong, fall through to generic object handling
+          }
+        }
+
+        // Recursively sanitize plain objects
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          const cleanedObject = {};
+          Object.keys(value).forEach((key) => {
+            const nested = sanitizeValue(value[key]);
+            if (nested !== undefined) {
+              cleanedObject[key] = nested;
+            }
+          });
+          return cleanedObject;
+        }
+
+        // Recursively sanitize arrays
+        if (Array.isArray(value)) {
+          const cleanedArray = value
+            .map((item) => sanitizeValue(item))
+            .filter((item) => item !== undefined);
+          return cleanedArray;
+        }
+
+        return value;
+      };
+
+      // Atomic update to avoid TOCTOU races across tabs/devices
+      let sanitizedFriends = [];
+      let updatedStarredFriendIds = [];
 
       // Mark Quick Access update in progress to prevent cascading events
       this.quickAccessUpdateInProgress.add(userId);
 
-      // Update the user document with enhanced Quick Access data
-      // Note: Avoid updating systemInfo.lastUpdated to prevent cascade of profile change events
-      await updateDoc(userDocRef, {
-        "quickAccessData.starredFriends": updatedFriends,
-        "quickAccessData.totalStarred": updatedFriends.length,
-        "quickAccessData.lastUpdated": serverTimestamp(),
-      });
+      try {
+        await runTransaction(db, async (transaction) => {
+          const userDoc = await transaction.get(userDocRef);
+          if (!userDoc.exists()) {
+            throw new Error("User document not found");
+          }
 
-      // Clear cache immediately after database update to ensure fresh data
+          const userData = userDoc.data();
+          const currentQuickAccess = userData.quickAccessData || {};
+          const rawFriends = currentQuickAccess.starredFriends || [];
+
+          // Ensure friends is always an array (defensive check)
+          if (!Array.isArray(rawFriends)) {
+            console.warn(
+              "⚠️ [DataManager] starredFriends is not an array:",
+              typeof rawFriends,
+              rawFriends
+            );
+          }
+          const friends = Array.isArray(rawFriends) ? rawFriends : [];
+
+          // Check if friend is already in Quick Access (prevent duplicates)
+          const existingIndex = friends.findIndex(
+            (friend) => friend.friendId === quickAccessEntry.friendId
+          );
+
+          let updatedFriends;
+          if (existingIndex >= 0) {
+            // Update existing entry
+            updatedFriends = [...friends];
+            updatedFriends[existingIndex] = {
+              ...updatedFriends[existingIndex],
+              lastInteraction: quickAccessEntry.lastInteraction,
+            };
+          } else {
+            // Add new entry to the beginning (recent-first)
+            updatedFriends = [quickAccessEntry, ...friends];
+          }
+
+          // Sanitize entries to remove any undefined values (Firestore does not allow them)
+          sanitizedFriends = updatedFriends.map((friend) => {
+            const cleaned = {};
+            Object.keys(friend || {}).forEach((key) => {
+              const value = sanitizeValue(friend[key]);
+              if (value !== undefined) {
+                cleaned[key] = value;
+              }
+            });
+            return cleaned;
+          });
+
+          // Recompute helper friendId list for efficient server-side queries
+          updatedStarredFriendIds = Array.from(
+            new Set(
+              sanitizedFriends
+                .map((f) => f.friendId || f.userId)
+                .filter((id) => typeof id === "string" && id)
+            )
+          );
+
+          console.log(
+            `📊 [DataManager] Writing ${sanitizedFriends.length} starred friends to Firestore:`,
+            sanitizedFriends
+          );
+
+          // Note: Avoid updating systemInfo.lastUpdated to prevent cascade of profile change events
+          transaction.update(userDocRef, {
+            "quickAccessData.starredFriends": sanitizedFriends,
+            "quickAccessData.starredFriendIds": updatedStarredFriendIds,
+            "quickAccessData.totalStarred": sanitizedFriends.length,
+            "quickAccessData.lastUpdated": serverTimestamp(),
+          });
+        });
+      } finally {
+        // Clear the flag after a short delay to allow real-time propagation
+        setTimeout(() => {
+          this.quickAccessUpdateInProgress.delete(userId);
+        }, 2000);
+      }
+
+      // Optimistically update cache with the new data to avoid stale reads
       const cacheKey = `quick_access_${userId}`;
-      this.cache.delete(cacheKey);
-      console.log(`🧹 [DataManager] Cleared Quick Access cache for ${userId}`);
-
-      // Clear the flag after a short delay to allow real-time propagation
-      setTimeout(() => {
-        this.quickAccessUpdateInProgress.delete(userId);
-      }, 2000);
+      this.setCachedData(cacheKey, {
+        starredFriends: sanitizedFriends,
+        starredFriendIds: updatedStarredFriendIds,
+        totalStarred: sanitizedFriends.length,
+        lastUpdated: new Date(),
+      });
+      console.log(
+        `✅ [DataManager] Optimistically updated Quick Access cache for ${userId} with ${sanitizedFriends.length} friends`
+      );
 
       console.log("✅ [DataManager] Successfully added to Quick Access");
       return { success: true };
@@ -3291,43 +3476,74 @@ class DataManager {
 
       console.log("❌ [DataManager] Removing from Quick Access:", friendId);
 
-      // Get current user data
       const userDocRef = doc(db, "users", userId);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) {
-        throw new Error("User document not found");
-      }
-
-      const userData = userDoc.data();
-      const currentQuickAccess = userData.quickAccessData || {};
-      const friends = currentQuickAccess.starredFriends || [];
-
-      // Filter out the friend to remove
-      const updatedFriends = friends.filter(
-        (friend) => friend.friendId !== friendId
-      );
+      let updatedFriends = [];
+      let updatedStarredFriendIds = [];
 
       // Mark Quick Access update in progress to prevent cascading events
       this.quickAccessUpdateInProgress.add(userId);
 
-      // Update the user document
-      // Note: Avoid updating systemInfo.lastUpdated to prevent cascade of profile change events
-      await updateDoc(userDocRef, {
-        "quickAccessData.starredFriends": updatedFriends,
-        "quickAccessData.totalStarred": updatedFriends.length,
-        "quickAccessData.lastUpdated": serverTimestamp(),
-      });
+      try {
+        await runTransaction(db, async (transaction) => {
+          const userDoc = await transaction.get(userDocRef);
+          if (!userDoc.exists()) {
+            throw new Error("User document not found");
+          }
 
-      // Clear cache immediately after database update to ensure fresh data
+          const userData = userDoc.data();
+          const currentQuickAccess = userData.quickAccessData || {};
+          const rawFriends = currentQuickAccess.starredFriends || [];
+
+          // Ensure friends is always an array (defensive check)
+          if (!Array.isArray(rawFriends)) {
+            console.warn(
+              "⚠️ [DataManager] starredFriends is not an array:",
+              typeof rawFriends,
+              rawFriends
+            );
+          }
+          const friends = Array.isArray(rawFriends) ? rawFriends : [];
+
+          // Filter out the friend to remove
+          updatedFriends = friends.filter(
+            (friend) => friend.friendId !== friendId && friend.userId !== friendId
+          );
+
+          // Recompute helper friendId list
+          updatedStarredFriendIds = Array.from(
+            new Set(
+              updatedFriends
+                .map((f) => f.friendId || f.userId)
+                .filter((id) => typeof id === "string" && id)
+            )
+          );
+
+          // Note: Avoid updating systemInfo.lastUpdated to prevent cascade of profile change events
+          transaction.update(userDocRef, {
+            "quickAccessData.starredFriends": updatedFriends,
+            "quickAccessData.starredFriendIds": updatedStarredFriendIds,
+            "quickAccessData.totalStarred": updatedFriends.length,
+            "quickAccessData.lastUpdated": serverTimestamp(),
+          });
+        });
+      } finally {
+        // Clear the flag after a short delay to allow real-time propagation
+        setTimeout(() => {
+          this.quickAccessUpdateInProgress.delete(userId);
+        }, 2000);
+      }
+
+      // Optimistically update cache with the new data to avoid stale reads
       const cacheKey = `quick_access_${userId}`;
-      this.cache.delete(cacheKey);
-      console.log(`🧹 [DataManager] Cleared Quick Access cache for ${userId}`);
-
-      // Clear the flag after a short delay to allow real-time propagation
-      setTimeout(() => {
-        this.quickAccessUpdateInProgress.delete(userId);
-      }, 2000);
+      this.setCachedData(cacheKey, {
+        starredFriends: updatedFriends,
+        starredFriendIds: updatedStarredFriendIds,
+        totalStarred: updatedFriends.length,
+        lastUpdated: new Date(),
+      });
+      console.log(
+        `✅ [DataManager] Optimistically updated Quick Access cache for ${userId} with ${updatedFriends.length} friends`
+      );
 
       console.log("✅ [DataManager] Successfully removed from Quick Access");
       return { success: true };
@@ -3351,7 +3567,12 @@ class DataManager {
       const intentionalLogout =
         typeof sessionStorage !== "undefined" &&
         sessionStorage.getItem("intentionalLogout") === "true";
-      // NEW: If auth isn't ready yet on first load, wait briefly instead of returning a skipped result
+      // NEW: If auth isn't ready yet on first load, wait briefly instead of returning a skipped result.
+      // IMPORTANT: Some flows (like FriendsPage → Quick Access toggle) can run before auth.currentUser
+      // is populated even though currentUser.uid is already set. In that case we still want to read
+      // Quick Access data, because Firestore rules will enforce security, and skipping here causes
+      // the UI to see an empty starred list and immediately un-star the friend (exactly the bug seen
+      // where the real-time Quick Access update contains quickAccessFriends: []).
       if (!intentionalLogout && !auth.currentUser) {
         try {
           // Small wait to let Firebase auth settle on first app open
@@ -3361,7 +3582,11 @@ class DataManager {
         }
       }
 
-      if (intentionalLogout || !auth.currentUser) {
+      // Only treat this as a signed-out / skipped read when BOTH:
+      //  - we have an intentionalLogout flag, or
+      //  - neither Firebase Auth nor our userStore report a logged-in user.
+      const hasUserStoreUid = !!currentUser?.uid;
+      if (intentionalLogout || (!auth.currentUser && !hasUserStoreUid)) {
         return {
           starredFriends: [],
           totalStarred: 0,
@@ -3385,9 +3610,26 @@ class DataManager {
 
       // Check cache first
       const cacheKey = `quick_access_${userId}`;
+      console.log(`🔍 [DataManager] Cache lookup for key: ${cacheKey}`);
       const cachedData = this.getCachedData(cacheKey);
+      console.log(
+        `🔍 [DataManager] Cache result:`,
+        cachedData
+          ? `HIT (${cachedData.starredFriends?.length || 0} friends)`
+          : "MISS"
+      );
       if (cachedData) {
         console.log("📦 [DataManager] Using cached Quick Access data");
+        // Ensure cached data has proper array structure (defensive check)
+        if (!Array.isArray(cachedData.starredFriends)) {
+          console.warn(
+            "⚠️ [DataManager] Cached starredFriends is not an array, fixing...",
+            typeof cachedData.starredFriends
+          );
+          cachedData.starredFriends = [];
+          // Update cache with fixed data
+          this.setCachedData(cacheKey, cachedData);
+        }
         return cachedData;
       }
 
@@ -3406,6 +3648,22 @@ class DataManager {
         totalStarred: 0,
         lastUpdated: null,
       };
+
+      console.log("🔍 [DataManager] Raw quickAccessData from Firestore:", {
+        hasQuickAccessData: !!userData.quickAccessData,
+        starredFriendsType: typeof quickAccessData.starredFriends,
+        isArray: Array.isArray(quickAccessData.starredFriends),
+        starredFriends: quickAccessData.starredFriends,
+      });
+
+      // Ensure starredFriends is always an array (defensive check)
+      if (!Array.isArray(quickAccessData.starredFriends)) {
+        console.warn(
+          "⚠️ [DataManager] Firestore starredFriends is not an array, fixing...",
+          typeof quickAccessData.starredFriends
+        );
+        quickAccessData.starredFriends = [];
+      }
 
       // Cache the result
       this.setCachedData(cacheKey, quickAccessData);
@@ -3459,6 +3717,34 @@ class DataManager {
       const currentQuickAccess = userData.quickAccessData || {};
       const starredFriends = currentQuickAccess.starredFriends || [];
 
+      const toJsDate = (value) => {
+        if (!value) return null;
+        if (value instanceof Date) return value;
+        if (value && typeof value.toDate === "function") {
+          try {
+            return value.toDate();
+          } catch (_e) {
+            // fall through to other strategies
+          }
+        }
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          if (
+            typeof value.seconds === "number" &&
+            typeof value.nanoseconds === "number"
+          ) {
+            return new Date(value.seconds * 1000 + value.nanoseconds / 1e6);
+          }
+          if (
+            typeof value._seconds === "number" &&
+            typeof value._nanoseconds === "number"
+          ) {
+            return new Date(value._seconds * 1000 + value._nanoseconds / 1e6);
+          }
+        }
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+      };
+
       // Find and update the friend's last interaction timestamp
       const updatedStarredFriends = starredFriends.map((friend) => {
         if (friend.userId === friendId) {
@@ -3473,11 +3759,9 @@ class DataManager {
       // Sort by recent-first (most recent interaction first)
       updatedStarredFriends.sort((a, b) => {
         const dateA =
-          a.lastInteraction?.toDate?.() ||
-          new Date(a.lastInteraction || a.starredAt);
+          toJsDate(a.lastInteraction) || toJsDate(a.starredAt) || new Date(0);
         const dateB =
-          b.lastInteraction?.toDate?.() ||
-          new Date(b.lastInteraction || b.starredAt);
+          toJsDate(b.lastInteraction) || toJsDate(b.starredAt) || new Date(0);
         return dateB - dateA;
       });
 
@@ -3561,6 +3845,14 @@ class DataManager {
         handle: friendData.profile?.handle || existingFriend.handle,
         major: friendData.profile?.major || existingFriend.major,
         avatarConfig: friendData.avatarConfig || existingFriend.avatarConfig,
+        profilePhotoUrl:
+          friendData.profile?.profilePhotoUrl ||
+          existingFriend.profilePhotoUrl ||
+          null,
+        useAvatar:
+          typeof friendData.profile?.useAvatar === "boolean"
+            ? friendData.profile.useAvatar
+            : existingFriend.useAvatar,
         // Add update timestamp to track freshness
         lastProfileSync: serverTimestamp(),
       };
@@ -3651,6 +3943,14 @@ class DataManager {
             handle: freshData.profile?.handle || existingFriend.handle,
             major: freshData.profile?.major || existingFriend.major,
             avatarConfig: freshData.avatarConfig || existingFriend.avatarConfig,
+            profilePhotoUrl:
+              freshData.profile?.profilePhotoUrl ||
+              existingFriend.profilePhotoUrl ||
+              null,
+            useAvatar:
+              typeof freshData.profile?.useAvatar === "boolean"
+                ? freshData.profile.useAvatar
+                : existingFriend.useAvatar,
           };
         }
       );
@@ -3821,7 +4121,7 @@ class DataManager {
         this.pendingOperations.push(() =>
           this.updateUserLocationStatus(userId, campusStatus, coordinates)
         );
-        this.showNotification("Location will sync when online", "info", {
+        notificationManager.show("Location will sync when online", "info", {
           duration: 4000,
         });
         return { success: true, cached: true };
@@ -3917,7 +4217,7 @@ class DataManager {
         this.pendingOperations.push(() =>
           this.updateLocationSharingPreference(userId, enabled)
         );
-        this.showNotification("Preference will sync when online", "info", {
+        notificationManager.show("Preference will sync when online", "info", {
           duration: 4000,
         });
         return { success: true, cached: true };
@@ -4103,7 +4403,7 @@ class DataManager {
         this.pendingOperations.push(() =>
           this.updateBilateralLocationSharing(friendshipId, userId, enabled)
         );
-        this.showNotification(
+        notificationManager.show(
           "Location sharing will sync when online",
           "info",
           {
@@ -4185,11 +4485,7 @@ class DataManager {
 
       // Handle offline scenario
       if (!navigator.onLine) {
-        this.pendingOperations.push({
-          type: "createNotification",
-          data: notificationData,
-          timestamp: Date.now(),
-        });
+        this.pendingOperations.push(() => this.createNotification(notificationData));
         console.log("📱 Notification queued for when online");
         return { success: false, error: "Offline - queued for retry" };
       }
@@ -4198,217 +4494,7 @@ class DataManager {
     }
   }
 
-  /**
-   * Create availability ping notifications for multiple recipients (per friend cooldown respected by caller)
-   * @param {string} fromUserId
-   * @param {Array<string>} recipientIds
-   * @param {Object} fromUserInfo - cached sender info (handle, avatarConfig)
-   * @param {string} pingId - session id to group this batch
-   */
-  async createAvailabilityPings(fromUserId, recipientIds = [], fromUserInfo = {}, pingId) {
-    try {
-      if (!fromUserId || !Array.isArray(recipientIds) || recipientIds.length === 0)
-        return { success: false, error: "Missing sender or recipients" };
-
-      if (!navigator.onLine) {
-        this.showNotification("You are offline", "warning");
-        return { success: false, error: "offline" };
-      }
-
-      const now = Date.now();
-      // Receiver has 100 minutes to respond; sender cooldown is 5 minutes (allows refresh every 5m)
-      const expiresAtDate = new Date(now + 100 * 60 * 1000);
-      const batchPromises = [];
-      const skipped = [];
-      const notificationsRef = collection(db, "notifications");
-
-      for (const toUserId of recipientIds) {
-        // Guard: skip if an active ping already exists (enforces 5m cooldown client-side)
-        try {
-          const hasActive = await this.hasActiveAvailabilityPing(fromUserId, toUserId);
-          if (hasActive) {
-            skipped.push(toUserId);
-            continue;
-          }
-        } catch (_) {}
-        
-        // Delete any existing pending notification from this sender to this recipient (silent refresh)
-        try {
-          const existingQuery = query(
-            notificationsRef,
-            where("fromUserId", "==", fromUserId),
-            where("userId", "==", toUserId),
-            where("type", "==", "availability_ping"),
-            where("status", "==", "pending")
-          );
-          const existingSnap = await getDocs(existingQuery);
-          const deletePromises = existingSnap.docs.map(doc => deleteDoc(doc.ref));
-          await Promise.all(deletePromises);
-        } catch (deleteErr) {
-          console.warn("⚠️ Failed to delete old notification:", deleteErr);
-        }
-        
-        const data = {
-          userId: toUserId,
-          fromUserId,
-          type: "availability_ping",
-          status: "pending",
-          expiresAt: expiresAtDate,
-          fromUserInfo: fromUserInfo || {},
-          availabilityPing: { pingId: pingId || `ping_${now}` },
-        };
-        batchPromises.push(
-          addDoc(notificationsRef, {
-            ...data,
-            createdAt: serverTimestamp(),
-          })
-        );
-      }
-
-      await Promise.all(batchPromises);
-      return { success: true, createdCount: batchPromises.length, skipped };
-    } catch (error) {
-      console.error("❌ Error creating availability pings:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * Build a map of friendId -> cooldown expiry (createdAt + 5m)
-   * regardless of notification TTL (which may be 100m).
-   */
-  async getActiveAvailabilityPingMap(fromUserId) {
-    try {
-      if (!fromUserId) return new Map();
-      const q = query(
-        collection(db, "notifications"),
-        where("fromUserId", "==", fromUserId),
-        where("type", "==", "availability_ping")
-      );
-      const snap = await getDocs(q);
-      const map = new Map();
-      const now = Date.now();
-      const COOLDOWN_MS = 5 * 60 * 1000;
-      const PING_TTL_MS = 100 * 60 * 1000; // used only for fallback if createdAt missing
-      snap.forEach((d) => {
-        const data = d.data();
-        const toUserId = data?.userId;
-        if (!toUserId) return;
-        // Prefer createdAt; if missing, derive from expiresAt - 100m
-        const createdAtMs =
-          data?.createdAt?.toDate?.()?.getTime?.() ||
-          (data?.expiresAt?.toDate?.()?.getTime?.() ?
-            data.expiresAt.toDate().getTime() - PING_TTL_MS :
-            new Date(data?.createdAt || 0).getTime());
-        if (!createdAtMs) return;
-        const cooldownExp = createdAtMs + COOLDOWN_MS;
-        if (cooldownExp > now) {
-          const prev = map.get(toUserId) || 0;
-          if (cooldownExp > prev) map.set(toUserId, cooldownExp);
-        }
-      });
-      return map;
-    } catch (e) {
-      console.warn("⚠️ getActiveAvailabilityPingMap failed:", e);
-      return new Map();
-    }
-  }
-
-  /**
-   * Check active cooldown for a specific recipient (per-friend 5m)
-   * Cooldown is based on createdAt + 5m, independent of the ping's 100m TTL.
-   */
-  async hasActiveAvailabilityPing(fromUserId, toUserId) {
-    try {
-      if (!fromUserId || !toUserId) return false;
-      const q = query(
-        collection(db, "notifications"),
-        where("fromUserId", "==", fromUserId),
-        where("type", "==", "availability_ping"),
-        where("userId", "==", toUserId)
-      );
-      const snap = await getDocs(q);
-      const now = Date.now();
-      const COOLDOWN_MS = 5 * 60 * 1000;
-      const PING_TTL_MS = 100 * 60 * 1000; // used only for fallback if createdAt missing
-      for (const d of snap.docs) {
-        const data = d.data();
-        const createdAtMs =
-          data?.createdAt?.toDate?.()?.getTime?.() ||
-          (data?.expiresAt?.toDate?.()?.getTime?.() ?
-            data.expiresAt.toDate().getTime() - PING_TTL_MS :
-            new Date(data?.createdAt || 0).getTime());
-        if (!createdAtMs) continue;
-        if (createdAtMs + COOLDOWN_MS > now) return true;
-      }
-      return false;
-    } catch (e) {
-      console.warn("⚠️ hasActiveAvailabilityPing failed:", e);
-      return false;
-    }
-  }
-
-  /**
-   * Recipient response: set response to 'available' or 'busy', mark respondedAt
-   */
-  async respondToAvailabilityPing(notificationId, response) {
-    try {
-      if (!notificationId || !response) return { success: false, error: "invalid" };
-      const allowed = response === "available" || response === "busy";
-      if (!allowed) return { success: false, error: "invalid_response" };
-      const ref = doc(db, "notifications", notificationId);
-      await updateDoc(ref, {
-        response,
-        status: "responded",
-        respondedAt: serverTimestamp(),
-      });
-      return { success: true };
-    } catch (e) {
-      console.error("❌ respondToAvailabilityPing failed:", e);
-      return { success: false, error: e.message };
-    }
-  }
-
-  /**
-   * Lightweight listener to compute whether there are unseen responses for availability pings
-   * Calls callback(true|false)
-   */
-  setupAvailabilityResponsesListener(userId, callback) {
-    try {
-      if (!userId) return () => {};
-      // Listen for response notifications addressed TO the current user
-      const q = query(
-        collection(db, "notifications"),
-        where("userId", "==", userId),
-        where("type", "==", "availability_response")
-      );
-      const unsub = onSnapshot(
-        q,
-        (snap) => {
-          let has = false;
-          let lastClear = 0;
-          try {
-            lastClear = parseInt(sessionStorage.getItem("notify:lastClearTs") || "0", 10) || 0;
-          } catch (_) {}
-          snap.docs.forEach((d) => {
-            if (has) return;
-            const data = d.data();
-            const createdAt = data?.createdAt?.toDate?.()?.getTime?.() || 0;
-            const resp = data?.response;
-            if ((resp === "available" || resp === "busy") && createdAt && createdAt > lastClear) {
-              has = true;
-            }
-          });
-          try { callback(!!has); } catch (cbErr) { console.warn(cbErr); }
-        },
-        (err) => console.warn("⚠️ Availability responses listener error", err)
-      );
-      return unsub;
-    } catch (e) {
-      console.warn("⚠️ setupAvailabilityResponsesListener failed:", e);
-      return () => {};
-    }
-  }
+  // (Availability ping/response helpers removed – feature deprecated)
   /**
    * Check if there is an existing pending outgoing location share request
    * from a sender to a recipient (friend) for a specific friendship.
@@ -4418,7 +4504,11 @@ class DataManager {
    * @param {string} friendshipId - Friendship document ID
    * @returns {Promise<boolean>} true if a pending request exists
    */
-  async hasPendingOutgoingLocationShareRequest(fromUserId, toUserId, friendshipId) {
+  async hasPendingOutgoingLocationShareRequest(
+    fromUserId,
+    toUserId,
+    friendshipId
+  ) {
     try {
       if (!fromUserId || !toUserId || !friendshipId) return false;
 
@@ -4437,7 +4527,11 @@ class DataManager {
         const data = docSnap.data();
         // Ensure it targets the intended friend and friendship
         if (data.userId !== toUserId) continue;
-        if (data.expiresAt && data.expiresAt.toDate && data.expiresAt.toDate().getTime() < now) {
+        if (
+          data.expiresAt &&
+          data.expiresAt.toDate &&
+          data.expiresAt.toDate().getTime() < now
+        ) {
           continue; // treat expired as non-pending
         }
         const req = data.locationRequest || {};
@@ -4447,7 +4541,10 @@ class DataManager {
       }
       return false;
     } catch (error) {
-      console.warn("⚠️ [DataManager] hasPendingOutgoingLocationShareRequest failed:", error);
+      console.warn(
+        "⚠️ [DataManager] hasPendingOutgoingLocationShareRequest failed:",
+        error
+      );
       // Fail-open to avoid blocking legitimate requests on transient errors
       return false;
     }
@@ -4539,11 +4636,7 @@ class DataManager {
 
       // Handle offline scenario
       if (!navigator.onLine) {
-        this.pendingOperations.push({
-          type: "deleteNotification",
-          data: { notificationId },
-          timestamp: Date.now(),
-        });
+        this.pendingOperations.push(() => this.deleteNotification(notificationId));
         console.log("📱 Notification deletion queued for when online");
         return { success: false, error: "Offline - queued for retry" };
       }
@@ -4582,11 +4675,7 @@ class DataManager {
 
       // Handle offline scenario
       if (!navigator.onLine) {
-        this.pendingOperations.push({
-          type: "markNotificationAsRead",
-          data: { notificationId },
-          timestamp: Date.now(),
-        });
+        this.pendingOperations.push(() => this.markNotificationAsRead(notificationId));
         console.log("📱 Mark as read queued for when online");
         return { success: false, error: "Offline - queued for retry" };
       }
@@ -4644,12 +4733,76 @@ class DataManager {
 
       // Handle offline scenario
       if (!navigator.onLine) {
-        this.pendingOperations.push({
-          type: "markAllNotificationsRead",
-          data: { userId },
-          timestamp: Date.now(),
-        });
+        this.pendingOperations.push(() => this.markAllNotificationsRead(userId));
         console.log("📱 Mark all as read queued for when online");
+        return { success: false, error: "Offline - queued for retry" };
+      }
+
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * ✅ Mark club notifications as read for a user
+   *
+   * Updates all unread club notifications (type starts with "club_") for a user to "read" status.
+   * Optionally can filter by specific notification types.
+   *
+   * @param {string} userId - ID of the user whose club notifications to mark as read
+   * @param {string[]} [types] - Optional array of specific club notification types to mark as read
+   * @returns {Promise<{success: boolean, updatedCount?: number, error?: string}>}
+   */
+  async markClubNotificationsAsRead(userId, types = null) {
+    try {
+      console.log(`✅ Marking club notifications as read for user: ${userId}`);
+
+      if (!userId) {
+        throw new Error("User ID is required");
+      }
+
+      const notificationsRef = collection(db, "notifications");
+      const q = query(
+        notificationsRef,
+        where("userId", "==", userId),
+        where("status", "==", "pending")
+      );
+
+      const querySnapshot = await getDocs(q);
+      const batch = writeBatch(db);
+      let updatedCount = 0;
+
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const notifType = data.type || "";
+        
+        // Check if it's a club notification
+        if (!notifType.startsWith("club_")) return;
+        
+        // If specific types are provided, filter by them
+        if (types && types.length > 0 && !types.includes(notifType)) return;
+        
+        batch.update(docSnap.ref, {
+          status: "read",
+          readAt: serverTimestamp(),
+        });
+        updatedCount++;
+      });
+
+      if (updatedCount > 0) {
+        await batch.commit();
+        console.log(`✅ Marked ${updatedCount} club notifications as read`);
+      } else {
+        console.log("ℹ️ No unread club notifications to mark as read");
+      }
+
+      return { success: true, updatedCount };
+    } catch (error) {
+      console.error("❌ Error marking club notifications as read:", error);
+
+      // Handle offline scenario
+      if (!navigator.onLine) {
+        this.pendingOperations.push(() => this.markClubNotificationsAsRead(userId, types));
+        console.log("📱 Mark club notifications as read queued for when online");
         return { success: false, error: "Offline - queued for retry" };
       }
 
@@ -4696,11 +4849,7 @@ class DataManager {
 
       // Handle offline scenario
       if (!navigator.onLine) {
-        this.pendingOperations.push({
-          type: "dismissNotification",
-          data: { notificationId, permanentDelete },
-          timestamp: Date.now(),
-        });
+        this.pendingOperations.push(() => this.dismissNotification(notificationId, permanentDelete));
         console.log("📱 Notification dismissal queued for when online");
         return { success: false, error: "Offline - queued for retry" };
       }
@@ -4885,155 +5034,55 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
  * @param {object} [customUserInfo] - Optional: provide custom user info instead of fetching from DB
  * @returns {Promise<void>}
  */
+/**
+ * @deprecated
+ * Kept only to avoid runtime errors while Cloud Function handles propagation.
+ * Client-side sync of cached user data is now a no-op.
+ */
 export async function syncUserDataCache(userId, customUserInfo = null) {
   try {
-    console.log("🔄 Synchronizing user data cache for:", userId);
+    console.log("🔄 syncUserDataCache called (client-side):", userId);
 
-    // 🔒 SECURITY: Only sync cache for the current authenticated user
-    // Other users' profile changes should not trigger cache sync operations
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
+    // 🔒 SECURITY: Only operate for the current authenticated user
+    const current = auth.currentUser;
+    if (!current) {
       console.warn("⚠️ No authenticated user, skipping cache sync");
       return;
     }
 
-    if (userId !== currentUser.uid) {
+    if (userId !== current.uid) {
       console.log(
-        `🔒 Skipping cache sync for ${userId} - only current user (${currentUser.uid}) can sync their own cache`
+        `🔒 Skipping cache sync for ${userId} - only current user (${current.uid}) can sync their own cache`
       );
       return;
     }
 
-    let userInfoForCache;
-
-    if (customUserInfo) {
-      // Use provided data (for efficiency when we already have fresh data)
-      userInfoForCache = customUserInfo;
-      console.log("📋 Using provided user info:", userInfoForCache);
-    } else {
-      // Get latest user data from database
+    // Build user info object for any in-memory callers that still use this
+    let userInfoForCache = customUserInfo || null;
+    if (!userInfoForCache) {
       const userData = await dataManager.getUserProfile(userId);
       if (!userData) {
         console.warn("⚠️ No user data found for cache sync:", userId);
         return;
       }
-
-      // Build consistent cache object
       userInfoForCache = {
         handle: userData.profile?.handle || null,
         major: userData.profile?.major || "Unknown",
         university: userData.universityInfo?.university || "unknown",
         avatarConfig: userData.avatarConfig || null,
       };
-      console.log("📋 Built cache info from database:", userInfoForCache);
     }
 
-    // Update all cached locations using batch operations
-    const batch = writeBatch(db);
-    let updateCount = 0;
-
-    // 1. Update friend requests where you're the sender
-    const outgoingRequests = await getDocs(
-      query(collection(db, "friendRequests"), where("fromUserId", "==", userId))
-    );
-
     console.log(
-      `📤 Found ${outgoingRequests.size} outgoing friend requests to update`
+      "ℹ️ syncUserDataCache is now handled by a Cloud Function. Client will not write shared docs.",
+      userInfoForCache
     );
-    outgoingRequests.forEach((doc) => {
-      // Completely replace fromUserInfo (don't merge nested objects)
-      batch.update(doc.ref, {
-        "fromUserInfo.handle": userInfoForCache.handle,
-        "fromUserInfo.major": userInfoForCache.major,
-        "fromUserInfo.university": userInfoForCache.university,
-        "fromUserInfo.avatarConfig": userInfoForCache.avatarConfig,
-      });
-      updateCount++;
-    });
-
-    // 2. Update friend requests where you're the receiver
-    const incomingRequests = await getDocs(
-      query(collection(db, "friendRequests"), where("toUserId", "==", userId))
-    );
-
-    console.log(
-      `📥 Found ${incomingRequests.size} incoming friend requests to update`
-    );
-    incomingRequests.forEach((doc) => {
-      // Completely replace toUserInfo (don't merge nested objects)
-      batch.update(doc.ref, {
-        "toUserInfo.handle": userInfoForCache.handle,
-        "toUserInfo.major": userInfoForCache.major,
-        "toUserInfo.university": userInfoForCache.university,
-        "toUserInfo.avatarConfig": userInfoForCache.avatarConfig,
-      });
-      updateCount++;
-    });
-
-    // 3. Update friendships where you're involved
-    const friendships = await getDocs(
-      query(
-        collection(db, "friendships"),
-        where("users", "array-contains", userId)
-      )
-    );
-
-    console.log(`👥 Found ${friendships.size} friendships to update`);
-    friendships.forEach((doc) => {
-      const data = doc.data();
-      if (data.user1Id === userId) {
-        // Completely replace user1Info (don't merge nested objects)
-        batch.update(doc.ref, {
-          "user1Info.handle": userInfoForCache.handle,
-          "user1Info.major": userInfoForCache.major,
-          "user1Info.university": userInfoForCache.university,
-          "user1Info.avatarConfig": userInfoForCache.avatarConfig,
-        });
-        updateCount++;
-      } else if (data.user2Id === userId) {
-        // Completely replace user2Info (don't merge nested objects)
-        batch.update(doc.ref, {
-          "user2Info.handle": userInfoForCache.handle,
-          "user2Info.major": userInfoForCache.major,
-          "user2Info.university": userInfoForCache.university,
-          "user2Info.avatarConfig": userInfoForCache.avatarConfig,
-        });
-        updateCount++;
-      }
-    });
-
-    // 4. Save all updates at once
-    if (updateCount > 0) {
-      try {
-        await batch.commit();
-        console.log(
-          `✅ Updated ${updateCount} cached entries with fresh user info`
-        );
-      } catch (error) {
-        console.error(
-          `❌ Batch update failed for ${updateCount} entries:`,
-          error
-        );
-        throw error; // Re-throw for upstream handling
-      }
-    } else {
-      console.log("ℹ️ No cached data to update");
-    }
+    // All propagation to friendRequests, friendships, notifications, and Quick Access
+    // is handled by the syncUserAvatarPhotoChanges Cloud Function in functions/index.js.
   } catch (error) {
     console.error("❌ Cache sync failed:", error);
     // Don't throw - this is a background operation
   }
-}
-
-/**
- * @deprecated Use syncUserDataCache() instead - this function is kept for backward compatibility
- * Will be removed in future versions
- */
-export async function updateCachedUserData(userId, newUserInfo) {
-  console.warn(
-    "⚠️ updateCachedUserData is deprecated. Use syncUserDataCache() instead."
-  );
-  return syncUserDataCache(userId, newUserInfo);
 }
 
 // --- END OF FILE ---

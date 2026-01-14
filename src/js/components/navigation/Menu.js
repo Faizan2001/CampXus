@@ -1,11 +1,23 @@
 // js/menu.js - Enhanced dark/light mode toggle with glassmorphism design
 
-// Import DataManager for all user data operations
 import { currentUser } from "../../store/userStore.js";
 import { navigateTo } from "../../app.js";
 import { authManager } from "../../services/auth/AuthService.js";
-import { avatarManager } from "../../utils/avatar/avatarManager.js";
-import { dataManager } from "../../services/data/DataService.js";
+import { getAvatarUrl } from "../../utils/avatar/avatarUtils.js";
+
+// Lazy DataService loader so Firestore bundle is only pulled in when needed
+let menuDataManagerPromise = null;
+function getMenuDataManager() {
+  if (!menuDataManagerPromise) {
+    menuDataManagerPromise = import("../../services/data/DataService.js")
+      .then((mod) => mod.dataManager)
+      .catch((error) => {
+        console.warn("Menu: Failed to load DataService:", error);
+        return null;
+      });
+  }
+  return menuDataManagerPromise;
+}
 
 // Lightweight local debug gate for chatty logs
 const __LOG_PROFILE__ = (
@@ -37,9 +49,17 @@ let activeNotifUid = null; // Prevent re-initializing listeners on unrelated use
 // Unified indicator state (avoid reading DOM which caused stale badges)
 let _notifDocsHasAlert = false; // any unseen notifications of target types
 let _pendingFriendHasAlert = false; // any pending friend requests
-// Notify indicator vars predeclared to avoid TDZ
-let notifyRespUnsub = null;
-let _notifyHasAlert = false;
+
+// Messages (class spaces) unread indicator
+let messagesSpacesUnsub = null;
+let _messagesHasUnread = false;
+let _messagesSpacesCache = []; // Cache for recalculation on view
+let _messagesUserId = null; // Track which user's spaces are cached
+
+// Clubs notification indicator
+let clubsNotifUnsub = null;
+let activeClubsNotifUid = null;
+let _clubsHasAlert = false; // any unread club notifications
 
 // 🎯 CRITICAL FIX: Initialize immediately when module loads (for SPA compatibility)
 // Don't wait for DOMContentLoaded in SPA mode - initialize when script loads
@@ -82,8 +102,11 @@ function initializeInteractiveElements() {
   // Initialize notifications nav indicator (real-time)
   initializeNotificationsIndicator();
 
-  // Initialize notify-friends button and indicator
-  initializeNotifyFriendsEntry();
+  // Initialize clubs nav indicator (real-time club notifications)
+  initializeClubsIndicator();
+
+  // Initialize Messages button and indicator (class spaces entry)
+  initializeMessagesEntry();
 
   // Set initial auth body class to avoid flash for authenticated users on load
   try {
@@ -172,7 +195,9 @@ function toggleDarkMode() {
   try {
     // Update the first theme-color meta without media (fallback) if present,
     // otherwise update all theme-color tags so Android/iOS reflect app toggle.
-    const metas = Array.from(document.querySelectorAll('meta[name="theme-color"]'));
+    const metas = Array.from(
+      document.querySelectorAll('meta[name="theme-color"]')
+    );
     const darkColor = "#0d021a";
     const lightColor = "#ffffff";
     const color = isDarkMode ? darkColor : lightColor;
@@ -623,50 +648,25 @@ function updateUserAvatarDisplays(userData) {
   const avatarTrigger = document.getElementById("userAvatarTrigger");
   const avatarLarge = document.getElementById("userAvatarLarge");
 
-  // Handle both direct profile data and nested userData structure
-  const avatarConfig =
-    userData?.avatarConfig || userData?.profile?.avatarConfig;
-  const hasAvatarConfig = !!avatarConfig;
-
-  // Skip rendering if avatar config hasn't changed (performance optimization)
+  // Skip rendering if avatar "signature" hasn't changed (performance optimization)
+  const avatarUrl = getAvatarUrl(userData);
   if (
-    cachedAvatarConfig &&
-    avatarConfig &&
-    JSON.stringify(cachedAvatarConfig) === JSON.stringify(avatarConfig) &&
-    cachedAvatarHtml
+    cachedAvatarConfig === avatarUrl &&
+    cachedAvatarHtml &&
+    typeof avatarUrl === "string"
   ) {
     return;
   }
 
-  // 🎯 FIX: Check for avatarManager and the correct function `generateAvatarUrl`
-  if (
-    hasAvatarConfig &&
-    avatarManager &&
-    typeof avatarManager.generateAvatarUrl === "function"
-  ) {
-    try {
-      const avatarUrl = avatarManager.generateAvatarUrl(avatarConfig);
-      const avatarHtml = `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img">`;
-
-      if (avatarTrigger) avatarTrigger.innerHTML = avatarHtml;
-      if (avatarLarge) avatarLarge.innerHTML = avatarHtml;
-
-      // Cache the rendered avatar for performance
-      cachedAvatarConfig = avatarConfig;
-      cachedAvatarHtml = avatarHtml;
-
-      console.log("🎨 Custom avatar rendered successfully.");
-    } catch (error) {
-      console.error(
-        "❌ Error generating avatar URL, falling back to default.",
-        error
-      );
-      displayDefaultAvatarIcons(avatarTrigger, avatarLarge);
-      cachedAvatarConfig = null;
-      cachedAvatarHtml = null;
-    }
+  if (avatarUrl) {
+    const avatarHtml = `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img">`;
+    if (avatarTrigger) avatarTrigger.innerHTML = avatarHtml;
+    if (avatarLarge) avatarLarge.innerHTML = avatarHtml;
+    cachedAvatarConfig = avatarUrl;
+    cachedAvatarHtml = avatarHtml;
+    console.log("🎨 User avatar rendered successfully.");
   } else {
-    // Fallback for no config or no avatar manager
+    // Fallback for no config or photo
     displayDefaultAvatarIcons(avatarTrigger, avatarLarge);
     cachedAvatarConfig = null;
     cachedAvatarHtml = null;
@@ -1090,20 +1090,27 @@ function initializeMobileBottomNav() {
         if (sheetEmailEl) {
           sheetEmailEl.textContent = info.email || "";
         }
-        if (sheetAvatar && avatarManager) {
+        if (sheetAvatar) {
           try {
-            const avatarCfg = info.avatarConfig;
-            if (
-              avatarCfg &&
-              typeof avatarManager.generateAvatarUrl === "function"
-            ) {
-              const url = avatarManager.generateAvatarUrl(avatarCfg);
-              sheetAvatar.innerHTML = `<img src="${url}" alt="User Avatar">`;
+            const url = getAvatarUrl(info);
+            if (url) {
+              // Render avatar image via DOM APIs to avoid innerHTML injection
+              sheetAvatar.innerHTML = "";
+              const img = document.createElement("img");
+              img.src = url;
+              img.alt = "User Avatar";
+              sheetAvatar.appendChild(img);
             } else {
-              sheetAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+              sheetAvatar.innerHTML = "";
+              const icon = document.createElement("i");
+              icon.className = "fas fa-user-circle";
+              sheetAvatar.appendChild(icon);
             }
           } catch {
-            sheetAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+            sheetAvatar.innerHTML = "";
+            const icon = document.createElement("i");
+            icon.className = "fas fa-user-circle";
+            sheetAvatar.appendChild(icon);
           }
         }
       }
@@ -1147,22 +1154,29 @@ function updateMobileUserAvatar(userData) {
   const mobileUserAvatar = document.getElementById("mobileUserAvatar");
   if (!mobileUserAvatar) return;
 
-  const avatarConfig =
-    userData?.avatarConfig || userData?.profile?.avatarConfig;
-
-  if (
-    avatarConfig &&
-    avatarManager &&
-    typeof avatarManager.generateAvatarUrl === "function"
-  ) {
-    try {
-      const avatarUrl = avatarManager.generateAvatarUrl(avatarConfig);
-      mobileUserAvatar.innerHTML = `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img" style="width: 24px; height: 24px; border-radius: 50%;">`;
-    } catch (error) {
-      mobileUserAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+  try {
+    const avatarUrl = getAvatarUrl(userData);
+    if (avatarUrl) {
+      mobileUserAvatar.innerHTML = "";
+      const img = document.createElement("img");
+      img.src = avatarUrl;
+      img.alt = "User Avatar";
+      img.className = "user-avatar-img";
+      img.style.width = "24px";
+      img.style.height = "24px";
+      img.style.borderRadius = "50%";
+      mobileUserAvatar.appendChild(img);
+    } else {
+      mobileUserAvatar.innerHTML = "";
+      const icon = document.createElement("i");
+      icon.className = "fas fa-user-circle";
+      mobileUserAvatar.appendChild(icon);
     }
-  } else {
-    mobileUserAvatar.innerHTML = '<i class="fas fa-user-circle"></i>';
+  } catch (error) {
+    mobileUserAvatar.innerHTML = "";
+    const icon = document.createElement("i");
+    icon.className = "fas fa-user-circle";
+    mobileUserAvatar.appendChild(icon);
   }
 }
 
@@ -1292,15 +1306,22 @@ function initializeNotificationsIndicator() {
   }
 }
 
-function setupNotificationsIndicatorListener(userId) {
+async function setupNotificationsIndicatorListener(userId) {
   try {
     // Cleanup previous
     teardownNotificationsIndicator();
+    const dm = await getMenuDataManager();
+    if (!dm) {
+      console.warn(
+        "Menu: DataService unavailable; notifications indicator disabled"
+      );
+      return;
+    }
     // Attach new realtime listener
-    notificationsUnsub = dataManager.setupNotificationsListener(
+    notificationsUnsub = dm.setupNotificationsListener(
       userId,
       (notifications) => {
-        // Show dot if there are any unseen friend/location/availability pings
+        // Show dot if there are any unseen friend/location notifications
         _notifDocsHasAlert = notifications.some((n) => {
           // Check for both timestamp fields AND status field (backwards compatibility)
           const isUnseen =
@@ -1309,9 +1330,7 @@ function setupNotificationsIndicatorListener(userId) {
             n.status !== "read" &&
             n.status !== "dismissed";
           const isTargetType =
-            n.type === "friend_request" ||
-            n.type === "location_share_request" ||
-            n.type === "availability_ping";
+            n.type === "friend_request" || n.type === "location_share_request";
           return isUnseen && isTargetType;
         });
         recomputeNotificationsDot();
@@ -1319,13 +1338,10 @@ function setupNotificationsIndicatorListener(userId) {
     );
 
     // Also listen to pending friend requests directly
-    friendReqUnsub = dataManager.listenToPendingFriendRequests(
-      userId,
-      (requests) => {
-        _pendingFriendHasAlert = Array.isArray(requests) && requests.length > 0;
-        recomputeNotificationsDot();
-      }
-    );
+    friendReqUnsub = dm.listenToPendingFriendRequests(userId, (requests) => {
+      _pendingFriendHasAlert = Array.isArray(requests) && requests.length > 0;
+      recomputeNotificationsDot();
+    });
   } catch (e) {
     console.warn("⚠️ Could not set notifications listener:", e);
   }
@@ -1353,15 +1369,7 @@ function toggleNotificationsDot(show) {
   if (link) {
     link.classList.toggle("has-alert", !!show);
   }
-  // Update mobile badge (same behavior and style on both form-factors)
-  const mobileBadge = document.querySelector(
-    '.mobile-bottom-nav .mobile-nav-item[data-spa-route="notifications"] .mobile-nav-badge'
-  );
-  if (mobileBadge) {
-    mobileBadge.style.display = show ? "block" : "none";
-    // For dot style, we don't show numbers; clear any text if present
-    if (!show) mobileBadge.textContent = "";
-  }
+  // Note: Mobile bottom nav no longer has a notifications item - it's top-right only
 }
 
 function recomputeNotificationsDot() {
@@ -1369,20 +1377,103 @@ function recomputeNotificationsDot() {
 }
 
 // =========================
-// Notify Friends Entry + Indicator
+// Clubs Nav Indicator
+// =========================
+// Shows red dot on Clubs nav when there are unread club notifications
+
+function initializeClubsIndicator() {
+  try {
+    if (currentUser && typeof currentUser.subscribe === "function") {
+      currentUser.subscribe(() => {
+        const uid = currentUser.uid;
+        // Only (re)setup listeners when UID changes
+        if (uid === activeClubsNotifUid) {
+          return;
+        }
+
+        activeClubsNotifUid = uid || null;
+        if (!uid) {
+          teardownClubsIndicator();
+          toggleClubsDot(false);
+          return;
+        }
+        setupClubsIndicatorListener(uid);
+      });
+    }
+  } catch (e) {
+    console.warn("⚠️ Failed to initialize clubs indicator:", e);
+  }
+}
+
+async function setupClubsIndicatorListener(userId) {
+  try {
+    teardownClubsIndicator();
+    const dm = await getMenuDataManager();
+    if (!dm) {
+      console.warn("Menu: DataService unavailable; clubs indicator disabled");
+      return;
+    }
+
+    // Listen to user's notifications for unread club notifications
+    clubsNotifUnsub = dm.setupNotificationsListener(userId, (notifications) => {
+      // Check for any unread club notifications (type starts with "club_")
+      _clubsHasAlert = notifications.some((n) => {
+        const isUnseen =
+          !n.readAt &&
+          !n.dismissedAt &&
+          n.status !== "read" &&
+          n.status !== "dismissed";
+        const isClubType =
+          typeof n.type === "string" && n.type.startsWith("club_");
+        return isUnseen && isClubType;
+      });
+      toggleClubsDot(_clubsHasAlert);
+    });
+  } catch (e) {
+    console.warn("⚠️ Could not set clubs indicator listener:", e);
+  }
+}
+
+function teardownClubsIndicator() {
+  if (clubsNotifUnsub && typeof clubsNotifUnsub === "function") {
+    try {
+      clubsNotifUnsub();
+    } catch (_) {}
+  }
+  clubsNotifUnsub = null;
+}
+
+function toggleClubsDot(show) {
+  // Desktop nav - Clubs tab
+  const desktopLink = document.querySelector(
+    '.nav-link[data-spa-route="clubs"]'
+  );
+  if (desktopLink) {
+    desktopLink.classList.toggle("has-alert", !!show);
+  }
+
+  // Mobile bottom nav
+  const mobileLink = document.querySelector(
+    '.mobile-nav-item[data-spa-route="clubs"]'
+  );
+  if (mobileLink) {
+    mobileLink.classList.toggle("has-alert", !!show);
+  }
+}
+
+// =========================
+// Messages Entry (former Notify Friends)
 // =========================
 
-function initializeNotifyFriendsEntry() {
+function initializeMessagesEntry() {
   try {
-    const btn = document.getElementById("notifyFriendsBtn");
+    const btn = document.getElementById("messagesNavBtn");
     if (btn) {
       // Make an immediate best-effort decision so the button isn't invisible until the
       // auth subscription fires (affects iOS PWA on cold start).
       try {
         if (typeof currentUser?.isLoggedIn === "function") {
-          btn.style.display = currentUser.isLoggedIn()
-            ? "inline-flex"
-            : "none";
+          btn.style.display = currentUser.isLoggedIn() ? "inline-flex" : "none";
         }
       } catch (_) {}
 
@@ -1390,125 +1481,175 @@ function initializeNotifyFriendsEntry() {
         e.preventDefault();
         e.stopPropagation();
 
-        // Check if overlay is already open
-        const existingOverlay = document.querySelector(".notify-overlay");
-        if (existingOverlay) {
-          // Close the overlay if it's already open
-          try {
-            const mod = await import("../../pages/NotifyFriendsPage.js");
-            if (
-              mod.notifyFriendsPage &&
-              typeof mod.notifyFriendsPage.closeOverlay === "function"
-            ) {
-              mod.notifyFriendsPage.closeOverlay();
-            }
-          } catch (err) {
-            console.warn("⚠️ Failed to close Notify overlay:", err);
-          }
-          return;
-        }
-
-        // Open the overlay if it's not open
+        // Navigate to Messages (group chats)
         try {
-          const mod = await import("../../pages/NotifyFriendsPage.js");
-          if (typeof mod.openNotifyOverlay === "function") {
-            await mod.openNotifyOverlay();
-            try {
-              sessionStorage.setItem("notify:lastClearTs", String(Date.now()));
-            } catch (_) {}
-            setNotifyDot(false);
-          }
+          navigateTo("messages");
         } catch (err) {
-          console.warn("⚠️ Failed to open Notify overlay:", err);
+          console.warn("⚠️ Failed to navigate to messages:", err);
+          try {
+            window.location.hash = "#messages";
+          } catch (_) {}
         }
       });
     }
 
-    // Show/hide by auth state
+    // Show/hide by auth state and setup unread indicator
     if (currentUser && typeof currentUser.subscribe === "function") {
       currentUser.subscribe(({ isLoggedIn }) => {
-        const b = document.getElementById("notifyFriendsBtn");
+        const b = document.getElementById("messagesNavBtn");
         if (!b) return;
         b.style.display = isLoggedIn ? "inline-flex" : "none";
-        if (!isLoggedIn) setNotifyDot(false);
+        if (!isLoggedIn) {
+          setMessagesDot(false);
+          teardownMessagesIndicator();
+        } else {
+          // Setup unread messages listener when logged in
+          const uid = currentUser?.uid;
+          if (uid) setupMessagesIndicator(uid);
+        }
       });
     }
-
-    // Setup indicator
-    setupNotifyFriendsIndicator();
-
-    // Clear dot when overlay opens via custom event
-    document.addEventListener("notify:overlay:open", () => {
-      try {
-        sessionStorage.setItem("notify:lastClearTs", String(Date.now()));
-      } catch (_) {}
-      setNotifyDot(false);
-    });
   } catch (e) {
-    console.warn("⚠️ Failed to initialize Notify Friends entry:", e);
+    console.warn("⚠️ Failed to initialize Messages entry:", e);
   }
 }
 
-function setupNotifyFriendsIndicator() {
+function setMessagesDot(show) {
+  // Desktop nav button dot
+  const btn = document.getElementById("messagesNavBtn");
+  if (btn) {
+    const dot = btn.querySelector(".nav-dot");
+    if (dot) {
+      dot.style.display = show ? "inline-block" : "none";
+    }
+  }
+  // Mobile nav item dot (add has-alert class like notifications)
+  const mobileLink = document.querySelector(
+    '.mobile-bottom-nav .mobile-nav-item[data-spa-route="messages"]'
+  );
+  if (mobileLink) {
+    mobileLink.classList.toggle("has-alert", !!show);
+  }
+}
+
+/**
+ * Setup realtime listener for unread class space messages
+ * Uses the same pattern as notifications indicator
+ */
+async function setupMessagesIndicator(userId) {
   try {
-    // Cleanup previous
-    if (notifyRespUnsub) {
-      try {
-        notifyRespUnsub();
-      } catch (_) {}
-      notifyRespUnsub = null;
-    }
+    teardownMessagesIndicator();
+    if (!userId) return;
 
-    // Listen for responded availability pings sent BY me in the last 30 minutes
-    if (currentUser && typeof currentUser.subscribe === "function") {
-      currentUser.subscribe(({ isLoggedIn }) => {
-        if (!isLoggedIn || !currentUser.uid) {
-          if (notifyRespUnsub) {
-            try {
-              notifyRespUnsub();
-            } catch (_) {}
-            notifyRespUnsub = null;
-          }
-          setNotifyDot(false);
-          return;
+    _messagesUserId = userId;
+
+    // Dynamically import to keep Menu.js bundle light
+    const [{ db }, { collection, query, where, onSnapshot }] =
+      await Promise.all([
+        import("../../lib/firebase/firebase-config.js"),
+        import("firebase/firestore"),
+      ]);
+    const { unreadTracker } = await import(
+      "../../services/groups/UnreadTracker.js"
+    );
+
+    // Helper to calculate unread state from cached spaces
+    const recalculateUnread = () => {
+      let hasAnyUnread = false;
+      for (const space of _messagesSpacesCache) {
+        if (unreadTracker.hasUnread(space.spaceId, space, userId)) {
+          hasAnyUnread = true;
+          break;
         }
-        const uid = currentUser.uid;
-        
-        // 🎯 FIX: Initialize lastClearTs on first login to prevent showing old notifications as "new"
-        try {
-          if (!sessionStorage.getItem("notify:lastClearTs")) {
-            sessionStorage.setItem("notify:lastClearTs", String(Date.now()));
-          }
-        } catch (_) {}
-        
-        // Use DataService to set up a lightweight listener
-        try {
-          if (notifyRespUnsub) {
-            try {
-              notifyRespUnsub();
-            } catch (_) {}
-          }
-          notifyRespUnsub = dataManager.setupAvailabilityResponsesListener(
-            uid,
-            (hasUnseen) => {
-              _notifyHasAlert = !!hasUnseen;
-              setNotifyDot(_notifyHasAlert);
-            }
-          );
-        } catch (err) {
-          console.warn("⚠️ Could not start Notify indicator listener", err);
-        }
-      });
-    }
+      }
+      _messagesHasUnread = hasAnyUnread;
+      setMessagesDot(_messagesHasUnread);
+    };
+
+    // Listen for space view events to recalculate badge immediately
+    const viewHandler = (e) => {
+      if (e.detail?.userId === userId) {
+        recalculateUnread();
+      }
+    };
+    document.addEventListener("classspace:viewed", viewHandler);
+
+    // Listen to user's class spaces
+    const spacesRef = collection(db, "classSpaces");
+    const q = query(spacesRef, where("memberIds", "array-contains", userId));
+
+    messagesSpacesUnsub = onSnapshot(
+      q,
+      (snapshot) => {
+        // Cache spaces for recalculation
+        _messagesSpacesCache = [];
+        snapshot.forEach((docSnap) => {
+          _messagesSpacesCache.push({ spaceId: docSnap.id, ...docSnap.data() });
+        });
+        recalculateUnread();
+      },
+      (error) => {
+        console.warn("⚠️ Messages unread listener error:", error);
+      }
+    );
+
+    // Store view handler reference for cleanup
+    messagesSpacesUnsub._viewHandler = viewHandler;
   } catch (e) {
-    console.warn("⚠️ Failed to set notify indicator:", e);
+    console.warn("⚠️ Failed to setup messages indicator:", e);
   }
 }
 
-function setNotifyDot(show) {
-  const btn = document.getElementById("notifyFriendsBtn");
-  if (!btn) return;
-  const dot = btn.querySelector(".nav-dot");
-  if (!dot) return;
-  dot.style.display = show ? "inline-block" : "none";
+function teardownMessagesIndicator() {
+  if (messagesSpacesUnsub) {
+    // Remove event listener if attached
+    if (messagesSpacesUnsub._viewHandler) {
+      try {
+        document.removeEventListener(
+          "classspace:viewed",
+          messagesSpacesUnsub._viewHandler
+        );
+      } catch (_) {}
+    }
+    // Unsubscribe from Firestore
+    if (typeof messagesSpacesUnsub === "function") {
+      try {
+        messagesSpacesUnsub();
+      } catch (_) {}
+    }
+  }
+  messagesSpacesUnsub = null;
+  _messagesHasUnread = false;
+  _messagesSpacesCache = [];
+  _messagesUserId = null;
+}
+
+// =========================
+// Clubs Badge Clear (exported for ClubsPage)
+// =========================
+
+/**
+ * Mark club notifications as read and clear the clubs nav badge.
+ * Called when user visits the Clubs page.
+ * 
+ * @param {string[]} [types] - Optional array of specific club notification types to mark as read.
+ *                             If not provided, marks all club_* notifications as read.
+ */
+export async function clearClubsBadge(types = null) {
+  try {
+    const uid = currentUser?.uid;
+    if (!uid) return;
+
+    // Immediately clear the visual badge
+    toggleClubsDot(false);
+    _clubsHasAlert = false;
+
+    // Mark club notifications as read in Firestore
+    const dm = await getMenuDataManager();
+    if (dm && typeof dm.markClubNotificationsAsRead === "function") {
+      await dm.markClubNotificationsAsRead(uid, types);
+    }
+  } catch (e) {
+    console.warn("⚠️ Failed to clear clubs badge:", e);
+  }
 }

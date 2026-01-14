@@ -7,20 +7,29 @@ import {
   sendPasswordResetEmail,
   onAuthStateChanged,
 } from "firebase/auth";
-import {
-  serverTimestamp,
-  disableNetwork,
-  enableNetwork,
-} from "firebase/firestore";
+import { serverTimestamp, disableNetwork, enableNetwork } from "firebase/firestore";
 import { auth, db } from "../../lib/firebase/firebase-config.js";
 import {
   validateUniversityEmail,
   getFriendlyEmailError,
 } from "./UniversityValidator.js";
-import { dataManager } from "../data/DataService.js";
 import { notificationManager } from "../realtime/NotificationService.js";
 import { currentUser } from "../../store/userStore.js";
 import { logManager } from "../../utils/debug/LogManager.js";
+
+// Lazy DataService loader so Firestore bundle is only pulled in when needed
+let authDataManagerPromise = null;
+function loadDataManagerForAuth() {
+  if (!authDataManagerPromise) {
+    authDataManagerPromise = import("../data/DataService.js")
+      .then((mod) => mod.dataManager)
+      .catch((error) => {
+        console.warn("AuthService: Failed to load DataService:", error);
+        return null;
+      });
+  }
+  return authDataManagerPromise;
+}
 
 /**
  * Custom error class for authentication vs other types of errors
@@ -481,7 +490,10 @@ class AuthManager {
       console.log(
         `✅ User ${email} authenticated. Checking for Firestore profile...`
       );
-      let profile = await dataManager.getUserProfile(user.uid);
+      const dmForSignIn = await loadDataManagerForAuth();
+      let profile = dmForSignIn
+        ? await dmForSignIn.getUserProfile(user.uid)
+        : null;
 
       if (!profile) {
         console.log(
@@ -517,8 +529,11 @@ class AuthManager {
 
       // 🚀 IMMEDIATE PRESENCE UPDATE: Update lastActive immediately on successful login
       try {
-        await dataManager.updateUserLastActive(user.uid);
-        console.log("⚡ Immediate lastActive update on login successful");
+        const dmLastActive = await loadDataManagerForAuth();
+        if (dmLastActive) {
+          await dmLastActive.updateUserLastActive(user.uid);
+          console.log("⚡ Immediate lastActive update on login successful");
+        }
       } catch (lastActiveError) {
         console.warn(
           "⚠️ Failed to update lastActive on login (non-critical):",
@@ -758,7 +773,11 @@ class AuthManager {
       console.log("📧 User email:", user.email);
       console.log("✅ User emailVerified:", user.emailVerified);
 
-      const result = await dataManager.saveUserProfile(user.uid, userProfile);
+      const dmProfile = await loadDataManagerForAuth();
+      if (!dmProfile) {
+        throw new Error("DataService unavailable while saving profile");
+      }
+      const result = await dmProfile.saveUserProfile(user.uid, userProfile);
       if (!result.success) {
         throw new Error(result.error || "Unknown error saving profile");
       }
@@ -809,7 +828,10 @@ class AuthManager {
           const isDevUnverified =
             this.isDevelopmentEmail(user.email) && !user.emailVerified;
           if (isDevUnverified) {
-            const existingProfile = await dataManager.getUserProfile(user.uid);
+            const dmGuard = await loadDataManagerForAuth();
+            const existingProfile = dmGuard
+              ? await dmGuard.getUserProfile(user.uid)
+              : null;
             if (!existingProfile) {
               await this.handleDevCreationDisabled();
               this.resolveAuthReady();
@@ -826,7 +848,10 @@ class AuthManager {
         // 3. Fetch the user's profile from Firestore
         try {
           console.log("👤 Fetching user profile...");
-          const userProfile = await dataManager.getUserProfile(user.uid);
+          const dmProfileFetch = await loadDataManagerForAuth();
+          const userProfile = dmProfileFetch
+            ? await dmProfileFetch.getUserProfile(user.uid)
+            : null;
 
           if (userProfile) {
             console.log("✅ Profile loaded successfully.");
@@ -942,16 +967,7 @@ class AuthManager {
           { duration: 6000 }
         );
       } catch (e) {
-        // Fallback to DataService if NotificationService fails for any reason
-        if (
-          typeof dataManager !== "undefined" &&
-          dataManager.showNotification
-        ) {
-          dataManager.showNotification(
-            "Verify your email to sign in. Check your inbox for the link.",
-            "warning"
-          );
-        }
+        console.warn("Notification failed:", e);
       }
     }
     this.showAuthModal();
@@ -971,12 +987,7 @@ class AuthManager {
         { duration: 6000 }
       );
     } catch (_) {
-      if (typeof dataManager !== "undefined" && dataManager.showNotification) {
-        dataManager.showNotification(
-          "Dev account creation is disabled. Try again later.",
-          "warning"
-        );
-      }
+      console.warn("Notification failed");
     }
     this.showAuthModal();
   }
@@ -1080,7 +1091,11 @@ class AuthManager {
     if (!this.currentUser) return;
     try {
       // Use dataManager for last active update
-      const result = await dataManager.updateUserLastActive(
+      const dmLastActive = await loadDataManagerForAuth();
+      if (!dmLastActive) {
+        throw new Error("DataService unavailable while updating lastActive");
+      }
+      const result = await dmLastActive.updateUserLastActive(
         this.currentUser.uid
       );
       if (!result.success) {

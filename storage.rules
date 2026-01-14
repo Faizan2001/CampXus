@@ -1,0 +1,128 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() { return request.auth != null; }
+
+    // =========================================================================
+    // SUPER ADMIN CHECK (via Firestore lookup)
+    // =========================================================================
+    // Super admins are stored in /admin/superAdmins.uids array
+    function isSuperAdmin() {
+      let superAdmins = firestore.get(/databases/(default)/documents/admin/superAdmins);
+      return superAdmins != null && request.auth.uid in superAdmins.data.uids;
+    }
+
+    // =========================================================================
+    // SAF MODERATOR CHECK (via Firestore lookup)
+    // =========================================================================
+    // SAF moderators are stored in /safModerators/{uid} collection (not on user doc)
+    function isSafModerator() {
+      let safMod = firestore.get(/databases/(default)/documents/safModerators/$(request.auth.uid));
+      return safMod != null;
+    }
+
+    // =========================================================================
+    // CLUB OWNERSHIP VERIFICATION (via Firestore lookup)
+    // =========================================================================
+    // Checks if the authenticated user is an authorized club official:
+    // - Super admin or SAF moderator can manage any club
+    // - devOwnerUid: For dev/testing clubs (devTest == true)
+    // - presidentId: For production clubs
+    // - createdBy: The club creator
+    // - officialIds: Additional club officials
+    function isClubOfficial(clubId) {
+      let club = firestore.get(/databases/(default)/documents/clubs/$(clubId));
+      // Super admin or SAF moderator bypass
+      let hasAdminAccess = isSuperAdmin() || isSafModerator();
+      
+      return club != null && (
+        hasAdminAccess ||
+        // Dev/test club: only devOwnerUid can manage
+        (club.data.devTest == true && club.data.devOwnerUid == request.auth.uid) ||
+        // Production club: presidentId, createdBy, or officialIds member can manage
+        (
+          club.data.presidentId == request.auth.uid ||
+          club.data.createdBy == request.auth.uid ||
+          (
+            ('officialIds' in club.data) &&
+            (club.data.officialIds is list) &&
+            club.data.officialIds.hasAny([request.auth.uid])
+          )
+        )
+      );
+    }
+
+    // Profile photos bucket
+    match /profilePhotos/{uid}/{file} {
+      // Read allowed to signed-in users (you can tighten later)
+      allow read: if isSignedIn();
+
+      // Create/Update: enforce owner, size and content-type
+      allow create, update: if isSignedIn()
+                            && request.auth.uid == uid
+                            && request.resource.size < 400 * 1024
+                            && request.resource.contentType.matches('image/.*');
+
+      // Delete: owner can delete; request.resource is null during delete, so do not check size/type
+      allow delete: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // =========================================================================
+    // CLUB EVENT IMAGES
+    // =========================================================================
+    // Path: clubEvents/{clubId}/{eventId}/{ownerUid}_{file}
+    // Security: Only verified club officials (devOwnerUid or presidentId) can write/delete
+    // The UID prefix in filename provides an audit trail of who uploaded the file
+    match /clubEvents/{clubId}/{eventId}/{file} {
+      // Read allowed to any signed-in user
+      allow read: if isSignedIn();
+
+      // Create/Update: 
+      // 1. Must be authenticated
+      // 2. File must be prefixed with uploader's UID (audit trail)
+      // 3. User must be a verified club official (Firestore lookup)
+      // 4. File size and type constraints
+      allow create, update: if isSignedIn()
+                            && file.matches(request.auth.uid + '_.*')
+                            && isClubOfficial(clubId)
+                            && request.resource.size < 1024 * 1024
+                            && request.resource.contentType.matches('image/.*');
+
+      // Delete: 
+      // 1. UID prefix must match authenticated user (only delete your own uploads)
+      // 2. User must still be a club official
+      allow delete: if isSignedIn()
+                    && file.matches(request.auth.uid + '_.*')
+                    && isClubOfficial(clubId);
+    }
+
+    // =========================================================================
+    // CLUB ASSETS (logos, banners)
+    // =========================================================================
+    // Path: clubAssets/{clubId}/{ownerUid}_{file}
+    // Security: Only verified club officials can write/delete their club's assets
+    match /clubAssets/{clubId}/{file} {
+      allow read: if isSignedIn();
+
+      // Create/Update:
+      // 1. UID prefix for audit trail
+      // 2. Must be verified club official
+      // 3. File size and type constraints
+      allow create, update: if isSignedIn()
+                            && file.matches(request.auth.uid + '_.*')
+                            && isClubOfficial(clubId)
+                            && request.resource.size < 500 * 1024
+                            && request.resource.contentType.matches('image/.*');
+
+      // Delete: must be authenticated, own the file, and be a club official
+      allow delete: if isSignedIn()
+                    && file.matches(request.auth.uid + '_.*')
+                    && isClubOfficial(clubId);
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

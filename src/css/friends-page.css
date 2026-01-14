@@ -17,7 +17,9 @@
 body.page-friends .main-content {
   overflow: hidden; /* Page should not scroll */
   padding: 0 !important; /* Full viewport width */
-  height: var(--main-content-available-height); /* Desktop default - full height */
+  height: var(
+    --main-content-available-height
+  ); /* Desktop default - full height */
   width: 100%;
   max-width: 100%;
   display: flex;
@@ -402,7 +404,7 @@ body.page-friends .friends-container {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: var(--friends-student-card-border);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 12px;
   margin-bottom: 6px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -414,33 +416,76 @@ body.page-friends .friends-container {
   overflow: hidden;
   box-shadow: var(--friends-student-card-shadow);
 }
+
 .student-card:last-child {
   margin-bottom: 0;
 }
+
 .student-card:hover {
   background: var(--friends-student-card-hover-bg);
   border-color: var(--friends-student-card-hover-border-color);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   box-shadow: var(--friends-student-card-hover-shadow);
 }
-.student-avatar {
-  flex-shrink: 0;
+
+.student-card:active {
+  transform: translateY(0);
 }
+
+.student-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--glass-bg-light, rgba(255, 255, 255, 0.5));
+  border: 2px solid rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+.student-avatar .user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.student-avatar .avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 22px;
+  font-weight: 600;
+}
+
 .student-info {
   flex: 1;
   min-width: 0; /* allow ellipsis in flex children */
 }
 .student-name {
-  margin: 0 0 var(--space-xs) 0;
+  margin: 0 0 4px 0;
   color: var(--text-primary);
   font-weight: 600;
-  font-size: 1.1em;
+  font-size: 15px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
 .student-major,
 .student-university {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.9em;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .student-actions {
   flex-shrink: 0;
@@ -450,11 +495,11 @@ body.page-friends .friends-container {
   background: var(--friends-btn-send-request-bg);
   color: var(--friends-color-white);
   border: var(--friends-btn-send-request-border);
-  padding: 8px 12px;
+  padding: 8px 16px;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: 14px;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
@@ -462,11 +507,21 @@ body.page-friends .friends-container {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   box-shadow: var(--friends-btn-send-request-shadow);
+  white-space: nowrap;
 }
+
+.btn-send-request i {
+  font-size: 13px;
+}
+
 .btn-send-request:hover {
   background: var(--friends-btn-send-request-hover-bg);
   transform: translateY(-1px);
   box-shadow: var(--friends-btn-send-request-hover-shadow);
+}
+
+.btn-send-request:active {
+  transform: translateY(0);
 }
 .btn-send-request:disabled {
   background: var(--friends-btn-send-request-disabled-bg);
@@ -1908,7 +1963,6 @@ div.friend-options-menu.show div.options-dropdown,
   border: none !important;
   background: none !important;
   width: 100% !important;
-  text-align: left !important;
 }
 .glassmorphism-dropdown-active .menu-option + .menu-option {
   border-top: 1px solid rgba(var(--text-primary-rgb), 0.08) !important;
@@ -2305,7 +2359,7 @@ body.dark-mode.page-friends
     0 8px 24px var(--friends-options-dark-shadow-medium),
     0 4px 12px var(--friends-options-dark-shadow-light),
     inset 0 1px 0 var(--friends-options-dark-highlight-medium),
-    inset 0 -1px 0 var(--friends-white-highlight-faint) !important;
+    inset 0 -1px 0 var(--friends-options-dark-highlight-medium) !important;
 }
 body.dark-mode.page-friends .friend-options-menu .options-dropdown::before {
   background: linear-gradient(
@@ -2608,12 +2662,27 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   }
 
   /* Friend card compacting */
-  .friend-card {
-    padding: 14px;
+  .friend-card,
+  .student-card {
+    padding: 12px;
     gap: 12px;
     margin-bottom: 6px;
-    min-height: 76px;
+    min-height: 72px;
   }
+
+  .student-avatar {
+    width: 48px;
+    height: 48px;
+  }
+
+  .student-name {
+    font-size: 14px;
+  }
+
+  .student-major {
+    font-size: 12px;
+  }
+
   .friend-info {
     gap: 2px;
   }
@@ -2803,12 +2872,19 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     box-shadow: var(--friends-search-shadow-active); /* slightly stronger */
   }
   .friend-card,
-  .friend-request-card {
+  .friend-request-card,
+  .student-card {
     padding: 14px;
     gap: 14px;
     border-radius: 10px;
     min-height: 60px;
   }
+
+  .student-avatar {
+    width: 52px;
+    height: 52px;
+  }
+
   .friend-actions {
     min-width: fit-content;
     justify-content: flex-end;
@@ -2828,26 +2904,6 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   .mutual-friends {
     font-size: 0.875rem;
   }
-  .user-avatar,
-  .avatar-placeholder {
-    width: 44px;
-    height: 44px;
-    font-size: 20px;
-  }
-  .user-avatar i.fas {
-    font-size: 1.5rem;
-  }
-  .btn-friend-menu {
-    width: 32px;
-    height: 32px;
-    padding: 8px;
-  }
-  .btn-accept-request,
-  .btn-reject-request {
-    padding: 8px 12px;
-    font-size: 0.875rem;
-    gap: 6px;
-  }
 }
 
 /* --- D. ≥1024px (Desktop) ------------------------------------------------- */
@@ -2864,11 +2920,26 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
     max-height: 500px;
   }
   .friend-card,
-  .friend-request-card {
+  .friend-request-card,
+  .student-card {
     padding: 16px;
     gap: 16px;
     min-height: 68px;
   }
+
+  .student-avatar {
+    width: 52px;
+    height: 52px;
+  }
+
+  .student-name {
+    font-size: 16px;
+  }
+
+  .student-major {
+    font-size: 14px;
+  }
+
   .friend-actions {
     min-width: fit-content;
   }
@@ -3074,5 +3145,50 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   .friend-options-menu .menu-option {
     transition: none !important;
     transform: none !important;
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+/* Skeleton Loading State */
+:root {
+  --skeleton-base: rgba(0, 0, 0, 0.06);
+  --skeleton-highlight: rgba(0, 0, 0, 0.12);
+}
+
+body.dark-mode {
+  --skeleton-base: rgba(255, 255, 255, 0.06);
+  --skeleton-highlight: rgba(255, 255, 255, 0.12);
+}
+
+.skeleton-loader {
+  animation: skeleton-loading 1.5s infinite linear;
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 25%,
+    var(--skeleton-highlight) 50%,
+    var(--skeleton-base) 75%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--radius-md);
+  height: 80px; /* Approximate height of a friend card */
+  margin-bottom: var(--spacing-sm);
+  width: 100%;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .skeleton-loader {
+    height: 60px; /* Adjusted height for smaller screens */
   }
 }

@@ -45,10 +45,27 @@
     <!-- CSP is set via hosting headers to avoid duplication/conflicts. -->
     <title>MeetchuThere - Schedule & Availability Tracker</title>
 
+    <!-- Google Fonts: preconnect FIRST for faster font loading -->
+    <!-- fonts.googleapis.com serves CSS, fonts.gstatic.com serves actual font files -->
+    <!-- Font files REQUIRE crossorigin for CORS (W3C Font spec requirement) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@500&family=Poppins:wght@400;500;600;700;800&family=Sora:wght@500;600;700&display=swap"
       rel="stylesheet"
+      crossorigin="anonymous"
     />
+
+    <!-- Font Awesome: preconnect and crossorigin for proper CORS -->
+    <!-- CSS from cdnjs, actual font files from ka-f.fontawesome.com -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css"
+      rel="stylesheet"
+      crossorigin="anonymous"
+    />
+
+    <!-- Firebase preconnects -->
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
     <link
       rel="preconnect"
@@ -56,20 +73,27 @@
       crossorigin
     />
     <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
-    <link
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css"
-      rel="stylesheet"
-    />
 
     <!-- Main application styles -->
     <link rel="stylesheet" href="/src/css/styles.css" />
 
     <!-- PWA and Icon Configuration -->
     <!-- Unified dark status bar for iOS/Android (system-aware) -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d021a" />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: light)"
+      content="#ffffff"
+    />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: dark)"
+      content="#0d021a"
+    />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <meta name="color-scheme" content="dark light" />
     <meta name="apple-mobile-web-app-title" content="MeetchuThere" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -168,7 +192,9 @@
         <div class="top-nav-inner">
           <div class="nav-left nav-brand">
             <div class="logo">
-              <span data-spa-route="home" style="cursor: pointer">MeetchuThere</span>
+              <span data-spa-route="home" style="cursor: pointer"
+                >MeetchuThere</span
+              >
             </div>
           </div>
 
@@ -182,31 +208,74 @@
                 <i class="fas fa-user-group"></i>
                 <span class="nav-text">Friends</span>
               </a>
-              <a data-spa-route="notifications" class="nav-link" href="#notifications">
-                <i class="fas fa-bell"></i>
-                <span class="nav-text">Notifications</span>
+              <a data-spa-route="clubs" class="nav-link" href="#clubs">
+                <i class="fa-regular fa-handshake"></i>
+                <span class="nav-text">Clubs</span>
               </a>
+              <!-- Messages (moved from right CTA; shows when authenticated) -->
+              <button
+                id="messagesNavBtn"
+                class="nav-link nav-cta"
+                type="button"
+                style="display: none"
+                data-spa-route="messages"
+                aria-label="Messages"
+                title="Messages"
+              >
+                <i class="far fa-paper-plane"></i>
+                <span class="nav-text">Messages</span>
+                <span
+                  class="nav-dot"
+                  aria-hidden="true"
+                  style="display: none"
+                ></span>
+              </button>
             </div>
           </div>
 
           <div class="nav-right">
-            <!-- Notify Friends (mobile+desktop; shows when authenticated) -->
-            <button id="notifyFriendsBtn" class="nav-link nav-cta" type="button" style="display: none" aria-label="Notify friends" title="Notify friends">
-              <i class="far fa-paper-plane"></i>
-              <span class="nav-text">Notify</span>
-              <span class="nav-dot" aria-hidden="true" style="display: none"></span>
-            </button>
+            <!-- Notifications (moved to top-right, icon-only) -->
+            <a
+              data-spa-route="notifications"
+              class="nav-link nav-cta"
+              href="#notifications"
+              aria-label="Notifications"
+              title="Notifications"
+            >
+              <i class="fas fa-bell"></i>
+            </a>
             <!-- Mobile Install PWA button (shown under 480px when eligible) -->
-            <button id="installPwaBtn" class="nav-link nav-cta nav-install" type="button" style="display: none" aria-label="Install app" title="Install app">
+            <button
+              id="installPwaBtn"
+              class="nav-link nav-cta nav-install"
+              type="button"
+              style="display: none"
+              aria-label="Install app"
+              title="Install app"
+            >
               <span class="nav-text">Install</span>
             </button>
             <!-- About (visible to all, even when signed out) -->
-            <a data-spa-route="about" class="nav-link nav-cta" id="aboutBtn" href="#about" aria-label="About" title="About">
+            <a
+              data-spa-route="about"
+              class="nav-link nav-cta"
+              id="aboutBtn"
+              href="#about"
+              aria-label="About"
+              title="About"
+            >
               <span class="nav-text">About</span>
             </a>
             <!-- User Profile Menu (shown when authenticated) -->
             <div class="user-menu" id="userMenu" style="display: none">
-              <button type="button" class="user-menu-trigger" id="userMenuTrigger" aria-expanded="false" aria-label="User menu" title="Open user menu">
+              <button
+                type="button"
+                class="user-menu-trigger"
+                id="userMenuTrigger"
+                aria-expanded="false"
+                aria-label="User menu"
+                title="Open user menu"
+              >
                 <!-- Default avatar icon (will be replaced with custom avatar) -->
                 <div class="user-avatar-trigger" id="userAvatarTrigger">
                   <i class="fas fa-user-circle"></i>
@@ -219,13 +288,22 @@
                     <i class="fas fa-user-circle"></i>
                   </div>
                   <div class="user-details">
-                    <strong class="user-name" id="userDropdownName">John Doe</strong>
-                    <span class="user-email" id="userDropdownEmail">john@university.edu</span>
+                    <strong class="user-name" id="userDropdownName"
+                      >John Doe</strong
+                    >
+                    <span class="user-email" id="userDropdownEmail"
+                      >john@university.edu</span
+                    >
                   </div>
                 </div>
 
                 <div class="dropdown-menu">
-                  <a data-spa-route="profile" class="dropdown-item" id="profileSetupBtn" href="#profile">
+                  <a
+                    data-spa-route="profile"
+                    class="dropdown-item"
+                    id="profileSetupBtn"
+                    href="#profile"
+                  >
                     <i class="fas fa-user-edit"></i>
                     <span>My Profile</span>
                   </a>
@@ -234,7 +312,12 @@
                     <span>About Developer</span>
                   </a>
                   <!-- Dark Mode Toggle (moved to dropdown) -->
-                  <button type="button" class="dropdown-item" id="darkModeToggle" aria-label="Toggle dark mode">
+                  <button
+                    type="button"
+                    class="dropdown-item"
+                    id="darkModeToggle"
+                    aria-label="Toggle dark mode"
+                  >
                     <i class="fas fa-sun"></i>
                     <span id="darkModeText">Light Mode</span>
                   </button>
@@ -248,6 +331,460 @@
           </div>
         </div>
       </nav>
+
+      <!-- ════════════════════════════════════════════════════════════════════
+           PWA INSTANT SKELETON - Shows immediately while JS loads
+           Matches the actual home page layout for seamless transition
+           ════════════════════════════════════════════════════════════════════ -->
+      <style id="pwa-instant-styles">
+        @keyframes pwa-shimmer {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(100%);
+          }
+        }
+
+        .pwa-skeleton {
+          background: rgba(255, 255, 255, 0.06);
+          overflow: hidden;
+          position: relative;
+        }
+        .pwa-skeleton::after {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.08),
+            transparent
+          );
+          animation: pwa-shimmer 1.5s infinite;
+        }
+
+        .pwa-instant-skeleton {
+          position: fixed;
+          top: calc(
+            env(safe-area-inset-top, 0px) + 56px
+          ); /* Nav height + safe area */
+          left: 0;
+          right: 0;
+          bottom: 0;
+          padding-top: 8px;
+          background: #0d021a; /* Dark mode default */
+          z-index: 50;
+          overflow-y: auto;
+        }
+
+        /* Light mode skeleton background */
+        @media (prefers-color-scheme: light) {
+          .pwa-instant-skeleton {
+            background: #f8f8f8;
+          }
+          .pwa-instant-skeleton .pwa-skeleton {
+            background: rgba(0, 0, 0, 0.08);
+          }
+          .pwa-instant-skeleton .pwa-skeleton::after {
+            background: linear-gradient(
+              90deg,
+              transparent,
+              rgba(0, 0, 0, 0.05),
+              transparent
+            );
+          }
+          .pwa-instant-skeleton .pwa-skel-schedule {
+            background: rgba(0, 0, 0, 0.03);
+            border-color: rgba(0, 0, 0, 0.08);
+          }
+          .pwa-instant-skeleton .pwa-skel-day {
+            background: rgba(0, 0, 0, 0.05);
+          }
+          .pwa-instant-skeleton .pwa-skel-slot {
+            background: rgba(0, 0, 0, 0.03);
+            border-color: rgba(0, 0, 0, 0.06);
+          }
+          .pwa-instant-skeleton .pwa-skel-pill {
+            background: rgba(180, 180, 180, 0.9);
+          }
+        }
+        /* Override if user explicitly set dark mode */
+        body.dark-mode .pwa-instant-skeleton {
+          background: #0d021a;
+        }
+        body.dark-mode .pwa-instant-skeleton .pwa-skeleton {
+          background: rgba(255, 255, 255, 0.06);
+        }
+
+        /* ═══ HORIZONTAL FRIENDS BAR ═══ */
+        .pwa-skel-friends-section {
+          padding: 4px 0;
+        }
+
+        .pwa-skel-friends-bar {
+          display: flex;
+          gap: 4px;
+          padding: 0 12px;
+          overflow: hidden;
+        }
+
+        .pwa-skel-friend {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          min-width: 64px;
+          padding: 4px;
+        }
+
+        .pwa-skel-avatar-wrap {
+          position: relative;
+          width: 52px;
+          height: 52px;
+        }
+
+        .pwa-skel-avatar {
+          width: 52px;
+          height: 52px;
+          border-radius: 50%;
+        }
+
+        .pwa-skel-friend.user .pwa-skel-avatar {
+          box-shadow: 0 0 0 2.5px #8b5cf6;
+        }
+
+        /* Presence pill - overlaps bottom of avatar */
+        .pwa-skel-pill {
+          position: absolute;
+          bottom: -4px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 56px;
+          height: 14px;
+          border-radius: 7px;
+          background: rgba(75, 75, 75, 0.9);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .pwa-skel-pill::after {
+          display: none;
+        }
+
+        .pwa-skel-name {
+          width: 36px;
+          height: 10px;
+          border-radius: 3px;
+          margin-top: 10px;
+        }
+
+        /* ═══ SCHEDULE CARD ═══ */
+        .pwa-skel-schedule {
+          margin: 8px 12px 16px;
+          padding: 16px;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .pwa-skel-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
+        }
+
+        .pwa-skel-title {
+          width: 72px;
+          height: 20px;
+          border-radius: 4px;
+        }
+
+        .pwa-skel-chevron {
+          width: 24px;
+          height: 24px;
+          border-radius: 6px;
+        }
+
+        /* Day selector buttons */
+        .pwa-skel-days {
+          display: flex;
+          gap: 6px;
+          margin-bottom: 12px;
+        }
+
+        .pwa-skel-day {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 2px;
+          padding: 8px 4px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.03);
+        }
+        .pwa-skel-day.active {
+          background: #8b5cf6;
+        }
+        .pwa-skel-day.active .pwa-skel-day-abbr,
+        .pwa-skel-day.active .pwa-skel-day-num {
+          background: rgba(255, 255, 255, 0.3);
+        }
+
+        .pwa-skel-day-abbr {
+          width: 16px;
+          height: 10px;
+          border-radius: 2px;
+        }
+
+        .pwa-skel-day-num {
+          width: 18px;
+          height: 14px;
+          border-radius: 3px;
+        }
+
+        /* Time slots */
+        .pwa-skel-slots {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .pwa-skel-slot {
+          display: flex;
+          align-items: center;
+          padding: 14px 12px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .pwa-skel-slot-time {
+          width: 100px;
+          height: 13px;
+          border-radius: 4px;
+          flex-shrink: 0;
+          margin-right: 12px;
+        }
+
+        .pwa-skel-slot-status {
+          width: 32px;
+          height: 13px;
+          border-radius: 4px;
+        }
+
+        .pwa-skel-slot.busy {
+          background: rgba(139, 92, 246, 0.15);
+          border-color: rgba(139, 92, 246, 0.25);
+        }
+
+        .pwa-skel-slot-class {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .pwa-skel-class-code {
+          width: 56px;
+          height: 14px;
+          border-radius: 3px;
+        }
+
+        .pwa-skel-class-room {
+          width: 44px;
+          height: 11px;
+          border-radius: 3px;
+        }
+
+        /* Hide skeleton once app loads */
+        .app-loaded .pwa-instant-skeleton {
+          display: none !important;
+        }
+
+        /* Offline banner */
+        .pwa-offline-banner {
+          position: fixed;
+          top: calc(env(safe-area-inset-top, 0px) + 60px);
+          left: 50%;
+          transform: translateX(-50%);
+          background: #f59e0b;
+          color: #000;
+          padding: 8px 16px;
+          border-radius: 20px;
+          font-size: 13px;
+          font-weight: 500;
+          z-index: 1000;
+          display: none;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+        .pwa-offline-banner.show {
+          display: block;
+        }
+      </style>
+
+      <!-- Skeleton matching actual home page structure -->
+      <div
+        class="pwa-instant-skeleton"
+        id="pwaInstantSkeleton"
+        aria-hidden="true"
+      >
+        <!-- Horizontal Friends Bar -->
+        <section class="pwa-skel-friends-section">
+          <div class="pwa-skel-friends-bar">
+            <!-- User avatar (You) -->
+            <div class="pwa-skel-friend user">
+              <div class="pwa-skel-avatar-wrap">
+                <div class="pwa-skeleton pwa-skel-avatar"></div>
+                <div class="pwa-skel-pill"></div>
+              </div>
+              <div class="pwa-skeleton pwa-skel-name"></div>
+            </div>
+            <!-- Friend avatars -->
+            <div class="pwa-skel-friend">
+              <div class="pwa-skel-avatar-wrap">
+                <div class="pwa-skeleton pwa-skel-avatar"></div>
+                <div class="pwa-skel-pill"></div>
+              </div>
+              <div class="pwa-skeleton pwa-skel-name"></div>
+            </div>
+            <div class="pwa-skel-friend">
+              <div class="pwa-skel-avatar-wrap">
+                <div class="pwa-skeleton pwa-skel-avatar"></div>
+                <div class="pwa-skel-pill"></div>
+              </div>
+              <div class="pwa-skeleton pwa-skel-name"></div>
+            </div>
+            <div class="pwa-skel-friend">
+              <div class="pwa-skel-avatar-wrap">
+                <div class="pwa-skeleton pwa-skel-avatar"></div>
+                <div class="pwa-skel-pill"></div>
+              </div>
+              <div class="pwa-skeleton pwa-skel-name"></div>
+            </div>
+            <div class="pwa-skel-friend">
+              <div class="pwa-skel-avatar-wrap">
+                <div class="pwa-skeleton pwa-skel-avatar"></div>
+                <div class="pwa-skel-pill"></div>
+              </div>
+              <div class="pwa-skeleton pwa-skel-name"></div>
+            </div>
+            <div class="pwa-skel-friend">
+              <div class="pwa-skel-avatar-wrap">
+                <div class="pwa-skeleton pwa-skel-avatar"></div>
+                <div class="pwa-skel-pill"></div>
+              </div>
+              <div class="pwa-skeleton pwa-skel-name"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Schedule Card -->
+        <div class="pwa-skel-schedule">
+          <!-- Header: "Schedule" + chevron -->
+          <div class="pwa-skel-header">
+            <div class="pwa-skeleton pwa-skel-title"></div>
+            <div class="pwa-skeleton pwa-skel-chevron"></div>
+          </div>
+
+          <!-- Day selector (Su, M, Tu, W, Th, F, Sa) -->
+          <div class="pwa-skel-days">
+            <div class="pwa-skel-day">
+              <div class="pwa-skeleton pwa-skel-day-abbr"></div>
+              <div class="pwa-skeleton pwa-skel-day-num"></div>
+            </div>
+            <div class="pwa-skel-day">
+              <div class="pwa-skeleton pwa-skel-day-abbr"></div>
+              <div class="pwa-skeleton pwa-skel-day-num"></div>
+            </div>
+            <div class="pwa-skel-day">
+              <div class="pwa-skeleton pwa-skel-day-abbr"></div>
+              <div class="pwa-skeleton pwa-skel-day-num"></div>
+            </div>
+            <div class="pwa-skel-day">
+              <div class="pwa-skeleton pwa-skel-day-abbr"></div>
+              <div class="pwa-skeleton pwa-skel-day-num"></div>
+            </div>
+            <div class="pwa-skel-day">
+              <div class="pwa-skeleton pwa-skel-day-abbr"></div>
+              <div class="pwa-skeleton pwa-skel-day-num"></div>
+            </div>
+            <div class="pwa-skel-day active">
+              <div class="pwa-skeleton pwa-skel-day-abbr"></div>
+              <div class="pwa-skeleton pwa-skel-day-num"></div>
+            </div>
+            <div class="pwa-skel-day">
+              <div class="pwa-skeleton pwa-skel-day-abbr"></div>
+              <div class="pwa-skeleton pwa-skel-day-num"></div>
+            </div>
+          </div>
+
+          <!-- Time slots (day view) -->
+          <div class="pwa-skel-slots">
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot busy">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skel-slot-class">
+                <div class="pwa-skeleton pwa-skel-class-code"></div>
+                <div class="pwa-skeleton pwa-skel-class-room"></div>
+              </div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+            <div class="pwa-skel-slot">
+              <div class="pwa-skeleton pwa-skel-slot-time"></div>
+              <div class="pwa-skeleton pwa-skel-slot-status"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Offline banner -->
+      <div class="pwa-offline-banner" id="pwaOfflineBanner">
+        📴 You're offline – viewing cached data
+      </div>
 
       <!-- Main Content Area - SPA Dynamic Container -->
       <main class="main-content">
@@ -313,8 +850,18 @@
         aria-label="Schedule"
         aria-current="false"
       >
-        <i class="fas fa-calendar-week"></i>
+        <i class="fa-regular fa-calendar-minus"></i>
         <span class="mobile-nav-label">Schedule</span>
+      </a>
+      <a
+        data-spa-route="clubs"
+        href="#clubs"
+        class="mobile-nav-item"
+        aria-label="Clubs"
+        aria-current="false"
+      >
+        <i class="fa-regular fa-handshake"></i>
+        <span class="mobile-nav-label">Clubs</span>
       </a>
       <a
         data-spa-route="friends"
@@ -323,23 +870,18 @@
         aria-label="Friends"
         aria-current="false"
       >
-        <i class="fas fa-user-group"></i>
+        <i class="fa-regular fa-user"></i>
         <span class="mobile-nav-label">Friends</span>
       </a>
       <a
-        data-spa-route="notifications"
-        href="#notifications"
+        data-spa-route="messages"
+        href="#messages"
         class="mobile-nav-item"
-        aria-label="Notifications"
+        aria-label="Messages"
         aria-current="false"
       >
-        <i class="fas fa-bell"></i>
-        <span class="mobile-nav-label">Notifications</span>
-        <span
-          class="mobile-nav-badge"
-          aria-label="Unread notifications"
-          aria-live="polite"
-        ></span>
+        <i class="fa-regular fa-paper-plane"></i>
+        <span class="mobile-nav-label">Messages</span>
       </a>
       <button
         class="mobile-nav-item mobile-profile-trigger"
@@ -417,6 +959,80 @@
         </button>
       </nav>
     </aside>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         PWA INSTANT SCRIPTS - Run immediately, before main app JS
+         Handles: offline detection, dark mode, skeleton hiding
+         ════════════════════════════════════════════════════════════════════ -->
+    <script>
+      (function () {
+        "use strict";
+
+        // 1. DARK MODE - Apply immediately to prevent flash
+        var darkMode = localStorage.getItem("darkMode");
+        if (
+          darkMode === "enabled" ||
+          (!darkMode &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches)
+        ) {
+          document.body.classList.add("dark-mode");
+        }
+
+        // 2. OFFLINE DETECTION - Show/hide offline banner
+        var offlineBanner = document.getElementById("pwaOfflineBanner");
+        function updateOfflineStatus() {
+          if (offlineBanner) {
+            offlineBanner.classList.toggle("show", !navigator.onLine);
+          }
+        }
+        updateOfflineStatus();
+        window.addEventListener("online", updateOfflineStatus);
+        window.addEventListener("offline", updateOfflineStatus);
+
+        // 3. SKELETON HIDING - Hide when main content loads
+        function hideSkeleton() {
+          var skeleton = document.getElementById("pwaInstantSkeleton");
+          var mainContent = document.querySelector(".main-content");
+          if (skeleton && mainContent && mainContent.children.length > 0) {
+            skeleton.style.display = "none";
+            document.body.classList.add("app-loaded");
+          }
+        }
+
+        // Check periodically until content loads (max 10 seconds)
+        var checkCount = 0;
+        var maxChecks = 100;
+        var checkInterval = setInterval(function () {
+          hideSkeleton();
+          checkCount++;
+          if (
+            checkCount >= maxChecks ||
+            document.body.classList.contains("app-loaded")
+          ) {
+            clearInterval(checkInterval);
+          }
+        }, 100);
+
+        // Also hide on DOMContentLoaded as backup
+        document.addEventListener("DOMContentLoaded", function () {
+          setTimeout(hideSkeleton, 500);
+        });
+
+        // 4. SERVICE WORKER REGISTRATION (moved here for earlier registration)
+        if ("serviceWorker" in navigator) {
+          window.addEventListener("load", function () {
+            navigator.serviceWorker
+              .register("/sw.js")
+              .then(function (reg) {
+                console.log("[PWA] Service worker registered");
+              })
+              .catch(function (err) {
+                console.warn("[PWA] Service worker registration failed:", err);
+              });
+          });
+        }
+      })();
+    </script>
 
     <script type="module" src="/src/js/app.js"></script>
   </body>

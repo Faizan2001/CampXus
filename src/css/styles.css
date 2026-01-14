@@ -45,7 +45,8 @@ IMPORTED MODULES:
 @import url("./friends-page.css"); /* Friends page styles */
 @import url("./presence.css"); /* Campus presence dots and indicators */
 @import url("./notifications.css"); /* Notifications page styles */
-@import url("./notify.css"); /* Notify Friends overlay styles */
+@import url("./groups.css"); /* Groups & Group detail styles */
+@import url("./report-modal.css"); /* Report modal for moderation */
 @import url("./theme-light.css"); /* Light theme overrides and enhancements */
 
 /*
@@ -69,7 +70,6 @@ IMPORTED MODULES:
 ✅ Friends page styling - friends-page.css
 ✅ Campus presence indicators - presence.css
 ✅ Notifications page styling - notifications.css
-✅ Notify Friends overlay styling - notify.css
 
 🎯 BENEFITS ACHIEVED:
 ✅ Easy debugging - isolated component styles
@@ -120,8 +120,8 @@ IMPORTED MODULES:
   opacity: 0;
   pointer-events: none;
   transform: translateY(-12px);
-  transition: opacity 0.28s ease, transform 0.28s ease,
-    padding 0.28s ease, margin 0.28s ease, max-height 0.28s ease;
+  transition: opacity 0.28s ease, transform 0.28s ease, padding 0.28s ease,
+    margin 0.28s ease, max-height 0.28s ease;
   visibility: hidden;
   max-height: 0;
   overflow: hidden;

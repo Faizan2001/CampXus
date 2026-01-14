@@ -475,6 +475,11 @@ export class FriendsManager {
       handle: friendship.friendInfo?.handle || "unknown",
       major: friendship.friendInfo?.major || "Unknown Major",
       avatarConfig: friendship.friendInfo?.avatarConfig || null,
+      profilePhotoUrl: friendship.friendInfo?.profilePhotoUrl || null,
+      useAvatar:
+        typeof friendship.friendInfo?.useAvatar === "boolean"
+          ? friendship.friendInfo.useAvatar
+          : undefined,
       friendsSince: friendship.createdAt,
       lastInteraction: friendship.lastInteraction,
       connectionStrength: friendship.connectionStrength || "normal",
@@ -536,15 +541,24 @@ export class FriendsManager {
    * - Handle: prefix match on `handles` collection by documentId, limit 3.
    * - ID: exact match on users.universityInfo.studentId within viewer's university.
    */
-  async searchStudentsHandleAware(rawTerm) {
+  async searchStudentsHandleAware(rawTerm, options = {}) {
+    const allowAllUniversities = options.allowAllUniversities === true;
+    const includeFriends = options.includeFriends === true;
+    const allowMissingProfile = options.allowMissingProfile === true;
+    const respectViewerUniversity = options.respectViewerUniversity !== false; // default true
+    const bypassSearchable = options.bypassSearchable === true; // for admin flows
     const term = (rawTerm || "").trim();
     if (term.length < 1) return [];
 
-    const viewerProfile =
-      (await currentUser
-        .waitForProfileWithTimeout?.(5000)
-        .catch(() => null)) || (await currentUser.waitForProfile());
-    if (!viewerProfile) return [];
+    let viewerProfile =
+      (await currentUser.waitForProfileWithTimeout?.(5000).catch(() => null)) ||
+      (await currentUser.waitForProfile().catch(() => null));
+    if (!viewerProfile && !allowMissingProfile) return [];
+    if (!viewerProfile) {
+      viewerProfile = {
+        universityInfo: {},
+      };
+    }
 
     // Student ID exact (6+ digits)
     if (/^\d{6,}$/.test(term)) {
@@ -554,18 +568,22 @@ export class FriendsManager {
           term,
           1
         );
-        return await this.filterSearchResults(results);
+        return await this.filterSearchResults(results, { includeFriends });
       } catch (error) {
         console.error("❌ Student ID lookup error:", error);
         return [];
       }
     }
 
-    // Handle prefix (3+ chars, optional @)
+    // Handle prefix (2+ chars, optional @)
     const normalized = term.startsWith("@")
       ? term.slice(1).toLowerCase()
       : term.toLowerCase();
-    if (!/^[a-z][a-z0-9_]{2,}$/.test(normalized)) {
+    // Relax: start with letter, then 1+ alphanumeric/underscore chars (2+ total)
+    if (!/^[a-z][a-z0-9_]+$/.test(normalized)) {
+      console.log(
+        `🔍 Search term "${normalized}" did not match handle pattern`
+      );
       return [];
     }
 
@@ -594,62 +612,116 @@ export class FriendsManager {
         limit(3)
       );
       const snap = await getDocs(q);
+      console.log(
+        `🔍 Handle prefix query for "${normalized}": ${snap.size} docs found`
+      );
       if (snap.empty) return [];
 
       const viewerUniversityId = viewerProfile?.universityInfo?.university;
       const viewerUniversityName =
         viewerProfile?.universityInfo?.universityName?.toLowerCase?.();
+      console.log(
+        `🔍 Search options: allowAllUniversities=${allowAllUniversities}, respectViewerUniversity=${respectViewerUniversity}, bypassSearchable=${bypassSearchable}`
+      );
 
       const candidates = [];
       for (const d of snap.docs) {
         const userId = d.data()?.userId;
-        if (!userId) continue;
+        const handleDoc = d.id;
+        if (!userId) {
+          console.log(`🔍 Handle doc ${handleDoc}: no userId`);
+          continue;
+        }
         const userRef = doc(db, "users", userId);
         const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) continue;
+        if (!userSnap.exists()) {
+          console.log(`🔍 Handle doc ${handleDoc}: user ${userId} not found`);
+          continue;
+        }
         const userData = userSnap.data();
-        if (!userData?.socialInfo?.searchable) continue;
+        // Skip users who have disabled search unless bypassSearchable is set (admin flow)
+        if (!bypassSearchable && !userData?.socialInfo?.searchable) {
+          console.log(
+            `🔍 Handle doc ${handleDoc}: user ${userId} not searchable (bypassSearchable=${bypassSearchable})`
+          );
+          continue;
+        }
 
         // Enforce same university until cross-university is supported
         const targetUniversityId = userData?.universityInfo?.university;
         const targetUniversityName =
           userData?.universityInfo?.universityName?.toLowerCase?.();
-        const sameUniversityById =
-          viewerUniversityId &&
-          targetUniversityId &&
-          viewerUniversityId === targetUniversityId;
-        const sameUniversityByName =
-          viewerUniversityName &&
-          targetUniversityName &&
-          viewerUniversityName === targetUniversityName;
-        if (!(sameUniversityById || sameUniversityByName)) continue;
+        if (!allowAllUniversities && respectViewerUniversity) {
+          const sameUniversityById =
+            viewerUniversityId &&
+            targetUniversityId &&
+            viewerUniversityId === targetUniversityId;
+          const sameUniversityByName =
+            viewerUniversityName &&
+            targetUniversityName &&
+            viewerUniversityName === targetUniversityName;
+          if (!(sameUniversityById || sameUniversityByName)) {
+            console.log(
+              `🔍 Handle doc ${handleDoc}: user ${userId} not same university (viewer=${viewerUniversityId}, target=${targetUniversityId})`
+            );
+            continue;
+          }
+        }
+        console.log(
+          `🔍 Handle doc ${handleDoc}: user ${userId} passed all filters, adding to candidates`
+        );
 
         candidates.push({
           id: userId,
           profile: {
+            firstName: userData.profile?.firstName || null,
+            lastName: userData.profile?.lastName || null,
+            displayName: userData.profile?.displayName || null,
             handle: userData.profile?.handle,
             handle_lower: userData.profile?.handle_lower,
             major: userData.profile?.major,
             major_lower: userData.profile?.major_lower,
+            profilePhotoUrl: userData.profile?.profilePhotoUrl || null,
+            useAvatar:
+              typeof userData.profile?.useAvatar === "boolean"
+                ? userData.profile.useAvatar
+                : undefined,
           },
           universityInfo: userData.universityInfo || {},
           avatarConfig: userData.avatarConfig || null,
+          profilePhotoUrl: userData.profile?.profilePhotoUrl || null,
+          useAvatar:
+            typeof userData.profile?.useAvatar === "boolean"
+              ? userData.profile.useAvatar
+              : undefined,
         });
       }
 
       // Prefer exact match first, then lexicographic
       candidates.sort((a, b) => {
-        const aExact = (a.profile?.handle_lower || a.profile?.handle || "").toLowerCase() === normalized;
-        const bExact = (b.profile?.handle_lower || b.profile?.handle || "").toLowerCase() === normalized;
+        const aExact =
+          (a.profile?.handle_lower || a.profile?.handle || "").toLowerCase() ===
+          normalized;
+        const bExact =
+          (b.profile?.handle_lower || b.profile?.handle || "").toLowerCase() ===
+          normalized;
         if (aExact && !bExact) return -1;
         if (!aExact && bExact) return 1;
-        const ah = (a.profile?.handle_lower || a.profile?.handle || "").toLowerCase();
-        const bh = (b.profile?.handle_lower || b.profile?.handle || "").toLowerCase();
+        const ah = (
+          a.profile?.handle_lower ||
+          a.profile?.handle ||
+          ""
+        ).toLowerCase();
+        const bh = (
+          b.profile?.handle_lower ||
+          b.profile?.handle ||
+          ""
+        ).toLowerCase();
         return ah.localeCompare(bh);
       });
 
       // Filter out existing friends and incoming pending requests
-      return await this.filterSearchResults(candidates);
+      return await this.filterSearchResults(candidates, { includeFriends });
     } catch (error) {
       console.error("❌ Handle prefix search error:", error);
       return [];
@@ -659,11 +731,19 @@ export class FriendsManager {
   /**
    * �🚫 Filter out existing friends and pending requests from search results
    * @param {Array} searchResults - Raw search results from database
+   * @param {Object} opts
+   * @param {boolean} opts.includeFriends - if true, do NOT filter out friends
    * @returns {Promise<Array>} Filtered results ready for display
    */
-  async filterSearchResults(searchResults) {
+  async filterSearchResults(searchResults, opts = {}) {
+    const includeFriends = opts.includeFriends === true;
     if (!searchResults || searchResults.length === 0) {
       return [];
+    }
+
+    // When includeFriends is true, skip all friend filtering entirely (just exclude self)
+    if (includeFriends) {
+      return searchResults.filter((student) => student.id !== currentUser.uid);
     }
 
     // Cache key for filtering data
@@ -698,14 +778,17 @@ export class FriendsManager {
       }
     }
 
-    console.log(
-      `📊 Excluding: ${filterData.friendIds.size} friends, ${filterData.incomingRequestIds.size} incoming requests`
-    );
+    if (filterData) {
+      console.log(
+        `📊 Excluding: ${filterData.friendIds.size} friends, ${filterData.incomingRequestIds.size} incoming requests`
+      );
+    }
 
     // Filter out unwanted results
     const filteredResults = searchResults.filter((student) => {
+      if (student.id === currentUser.uid) return false;
+      if (!filterData) return true;
       return (
-        student.id !== currentUser.uid &&
         !filterData.friendIds.has(student.id) &&
         !filterData.incomingRequestIds.has(student.id)
       );
@@ -722,9 +805,9 @@ export class FriendsManager {
    * @param {string} searchTerm - Search term
    * @returns {Promise<Array>} Search results (cached when possible)
    */
-  async searchStudentsWithCache(searchTerm) {
+  async searchStudentsWithCache(searchTerm, options = {}) {
     // Handle-aware path; caching for other modes removed as we only support handle/ID
-    return this.searchStudentsHandleAware(searchTerm);
+    return this.searchStudentsHandleAware(searchTerm, options);
   }
 
   /**
@@ -792,6 +875,11 @@ export class FriendsManager {
           major: userProfile.profile.major,
           university: userProfile.universityInfo.university,
           avatarConfig: userProfile.avatarConfig,
+          profilePhotoUrl: userProfile.profile.profilePhotoUrl || null,
+          useAvatar:
+            typeof userProfile.profile.useAvatar === "boolean"
+              ? userProfile.profile.useAvatar
+              : undefined,
         },
         toUserInfo: {
           handle:
@@ -802,6 +890,11 @@ export class FriendsManager {
             targetUniversityInfo.universityName ||
             "",
           avatarConfig: targetUserData?.avatarConfig,
+          profilePhotoUrl: targetUserData?.profile?.profilePhotoUrl || null,
+          useAvatar:
+            typeof targetUserData?.profile?.useAvatar === "boolean"
+              ? targetUserData.profile.useAvatar
+              : undefined,
         },
       };
 
@@ -818,6 +911,13 @@ export class FriendsManager {
           message: `Friend request sent to @${requestData.toUserInfo.handle}!`,
         };
       } else {
+        const err = (result.error || "").toLowerCase();
+        if (err.includes("already friends")) {
+          return { success: false, message: "You are already friends!" };
+        }
+        if (err.includes("already sent")) {
+          return { success: false, message: "Friend request already sent!" };
+        }
         return {
           success: false,
           message: "Failed to send friend request. Please try again.",
@@ -896,82 +996,129 @@ export class FriendsManager {
         requestData.fromUserInfo?.handle
       );
 
-      // 🎯 STEP 1: Create the friendship document first
-      // (We'll delete the request after successful friendship creation)
+      const [{ db }, { runTransaction, doc, serverTimestamp }] =
+        await Promise.all([
+          import("../../lib/firebase/firebase-config.js"),
+          import("firebase/firestore"),
+        ]);
+      const { getFriendshipId } = await import(
+        "../../utils/friendship-utils.js"
+      );
 
-      // 🎯 STEP 1: Create the friendship document with bilateral privacy
-      const friendshipData = {
-        users: [requestData.fromUserId, requestData.toUserId], // Array for easy querying
-        user1Id: requestData.fromUserId,
-        user2Id: requestData.toUserId,
-        createdAt: new Date(),
-        mutualFriends: 0,
-        lastInteraction: new Date(),
+      const sanitizeInfo = (rawInfo, fallback = {}) => {
+        const source = rawInfo || {};
+        const info = {
+          handle: source.handle || fallback.handle || "unknown",
+          major: source.major || fallback.major || "",
+        };
 
-        // Cache user info from the request (already available!)
-        user1Info: {
-          handle: requestData.fromUserInfo.handle,
-          major: requestData.fromUserInfo.major,
-          avatarConfig:
-            requestData.fromUserInfo.avatarConfig ||
-            requestData.fromUserInfo.avatar,
-        },
+        const avatarConfig =
+          source.avatarConfig || source.avatar || fallback.avatarConfig;
+        if (avatarConfig) info.avatarConfig = avatarConfig;
 
-        user2Info: {
-          handle: requestData.toUserInfo.handle,
-          major: requestData.toUserInfo.major,
-          avatarConfig:
-            requestData.toUserInfo.avatarConfig ||
-            requestData.toUserInfo.avatar ||
-            userProfile.avatarConfig,
-        },
+        const photoUrl =
+          source.profilePhotoUrl || source.photoUrl || fallback.profilePhotoUrl;
+        if (photoUrl) info.profilePhotoUrl = photoUrl;
 
-        // 🔐 NEW: Bilateral Privacy Controls (default to visible)
-        scheduleVisibility: {
-          [requestData.fromUserId]: true, // User1's schedule IS visible to User2 (default: visible)
-          [requestData.toUserId]: true, // User2's schedule IS visible to User1 (default: visible)
-        },
+        if (source.useAvatar !== undefined) info.useAvatar = source.useAvatar;
+        else if (fallback.useAvatar !== undefined) info.useAvatar = fallback.useAvatar;
 
-        // Privacy metadata for auditing and debugging
-        privacyMetadata: {
-          lastPrivacyUpdate: new Date(),
-          privacyUpdatedBy: null, // Last user who modified privacy settings
-          privacyVersion: 1, // For future privacy feature migrations
-        },
+        return info;
       };
 
-      const friendshipResult = await dataManager.createFriendship(
-        friendshipData
-      );
+      const friendName = requestData.fromUserInfo?.handle || "new_friend";
 
-      if (!friendshipResult.success) {
-        console.error("❌ Failed to create friendship");
-        return { success: false, message: "Failed to create friendship" };
-      }
+      // Atomic accept: create friendship + delete request in one transaction
+      let friendshipId = null;
 
-      // 🎯 STEP 2: Delete the friend request (clean lifecycle approach)
-      console.log(
-        "🗑️ Deleting friend request after successful friendship creation"
-      );
-      const deleteResult = await dataManager.deleteFriendRequest(requestId);
-      if (!deleteResult.success) {
-        console.warn(
-          "⚠️ Friendship created but failed to delete request:",
-          deleteResult.error
-        );
-        // Don't fail the operation, just log the warning
-      }
+      await runTransaction(db, async (transaction) => {
+        const requestRef = doc(db, "friendRequests", requestId);
+        const reqSnap = await transaction.get(requestRef);
 
-      // 🎯 STEP 3: Clear search filter cache since friendship status changed
+        // If the request was already consumed, treat as success if friendship exists.
+        if (!reqSnap.exists()) {
+          const fallbackFriendshipId = getFriendshipId(
+            requestData.fromUserId,
+            requestData.toUserId
+          );
+          const fallbackRef = doc(db, "friendships", fallbackFriendshipId);
+          const friendshipSnap = await transaction.get(fallbackRef);
+          if (friendshipSnap.exists()) {
+            friendshipId = fallbackFriendshipId;
+            return;
+          }
+          throw new Error("Friend request no longer exists");
+        }
+
+        const fr = reqSnap.data() || {};
+        friendshipId = getFriendshipId(fr.fromUserId, fr.toUserId);
+        const friendshipRef = doc(db, "friendships", friendshipId);
+        const friendshipSnap = await transaction.get(friendshipRef);
+
+        // Idempotent: if friendship already exists, just clean up any lingering request
+        if (friendshipSnap.exists()) {
+          transaction.delete(requestRef);
+          return;
+        }
+        if (fr.toUserId !== currentUser.uid) {
+          throw new Error("You can only accept your own friend requests");
+        }
+        if (fr.status && fr.status !== "pending") {
+          throw new Error("Friend request is no longer pending");
+        }
+
+        const fromUserId = fr.fromUserId;
+        const toUserId = fr.toUserId;
+
+        const user1Info = sanitizeInfo(fr.fromUserInfo);
+        const user2Info = sanitizeInfo(fr.toUserInfo, {
+          avatarConfig: userProfile.avatarConfig,
+          profilePhotoUrl:
+            userProfile.profile?.profilePhotoUrl ||
+            userProfile.profilePhotoUrl ||
+            null,
+          useAvatar:
+            typeof userProfile.profile?.useAvatar === "boolean"
+              ? userProfile.profile.useAvatar
+              : typeof userProfile.useAvatar === "boolean"
+              ? userProfile.useAvatar
+              : undefined,
+        });
+
+        transaction.set(friendshipRef, {
+          users: [fromUserId, toUserId],
+          user1Id: fromUserId,
+          user2Id: toUserId,
+          createdAt: serverTimestamp(),
+          mutualFriends: 0,
+          lastInteraction: serverTimestamp(),
+          user1Info,
+          user2Info,
+
+          // 🔐 Bilateral Privacy Controls (default to visible)
+          scheduleVisibility: {
+            [fromUserId]: true,
+            [toUserId]: true,
+          },
+
+          privacyMetadata: {
+            lastPrivacyUpdate: serverTimestamp(),
+            privacyUpdatedBy: null,
+            privacyVersion: 1,
+          },
+        });
+
+        transaction.delete(requestRef);
+      });
+
+      // Clear search filter cache since friendship status changed
       this.clearSearchFilterCache();
 
       console.log("🎉 Friend request accepted successfully!");
-      const friendName = requestData.fromUserInfo?.handle || "new_friend";
-
       return {
         success: true,
         message: `You are now friends with ${friendName}!`,
-        friendshipId: friendshipResult.friendshipId,
+        friendshipId,
       };
     } catch (error) {
       console.error("❌ Error accepting friend request:", error);
@@ -1172,7 +1319,7 @@ export class FriendsManager {
         return [];
       }
 
-      // 🎯 Transform friendship documents with simple avatar handling
+      // 🎯 Transform friendship documents with avatar + photo handling
       const friends = friendships.map((friendship) => {
         // Determine which user info to show (the friend, not the current user)
         const isUser1 = friendship.user1Id === currentUser.uid;
@@ -1190,6 +1337,11 @@ export class FriendsManager {
           handle: friendInfo?.handle || "unknown",
           major: friendInfo?.major || "Unknown Major",
           avatarConfig: friendInfo?.avatarConfig || null,
+          profilePhotoUrl: friendInfo?.profilePhotoUrl || null,
+          useAvatar:
+            typeof friendInfo?.useAvatar === "boolean"
+              ? friendInfo.useAvatar
+              : undefined,
 
           // Friendship metadata
           friendsSince: friendship.createdAt,
@@ -1404,9 +1556,14 @@ export class FriendsManager {
         handle: friendInfo.handle,
         major: friendInfo.major,
         avatarConfig: friendInfo.avatarConfig,
+        profilePhotoUrl: friendInfo.profilePhotoUrl || null,
         starredAt: now,
         lastInteraction: now, // For recent-first ordering
       };
+
+      if (typeof friendInfo.useAvatar === "boolean") {
+        quickAccessEntry.useAvatar = friendInfo.useAvatar;
+      }
 
       // 🌍 Campus Presence: Add friendshipId if available (required for bilateral location sharing)
       if (friendInfo.friendshipId) {
@@ -1424,10 +1581,11 @@ export class FriendsManager {
       );
 
       if (result.success) {
-        // Clear Quick Access cache to force fresh data
+        // Clear FriendsService cache to force fresh read from DataManager
         this.clearCache(`quick_access_${currentUser.uid}`);
-        // Also clear DataManager cache
-        dataManager.clearCache(`quick_access_${currentUser.uid}`);
+        // DON'T clear DataManager cache - it was just optimistically updated with fresh data!
+        // Clearing it would force a Firestore read that returns stale data due to eventual consistency
+        // dataManager.clearCache(`quick_access_${currentUser.uid}`);
 
         // ⭐ Trigger UI callback for immediate update (before real-time sync)
         if (this.uiCallbacks.onQuickAccessUpdated) {
@@ -1510,10 +1668,11 @@ export class FriendsManager {
       );
 
       if (result.success) {
-        // Clear Quick Access cache to force fresh data
+        // Clear FriendsService cache to force fresh read from DataManager
         this.clearCache(`quick_access_${currentUser.uid}`);
-        // Also clear DataManager cache
-        dataManager.clearCache(`quick_access_${currentUser.uid}`);
+        // DON'T clear DataManager cache - it was just optimistically updated with fresh data!
+        // Clearing it would force a Firestore read that returns stale data due to eventual consistency
+        // dataManager.clearCache(`quick_access_${currentUser.uid}`);
 
         // ⭐ Trigger UI callback for immediate update (before real-time sync)
         if (this.uiCallbacks.onQuickAccessUpdated) {
@@ -1573,16 +1732,6 @@ export class FriendsManager {
       return [];
     }
 
-    // Try cache first if requested
-    if (useCache) {
-      const cacheKey = `quick_access_${currentUser.uid}`;
-      const cachedResults = this.getCached(cacheKey);
-      if (cachedResults) {
-        console.log("📦 Using cached Quick Access friends");
-        return cachedResults;
-      }
-    }
-
     try {
       console.log(
         "📋 Getting Quick Access friends for handle:",
@@ -1597,22 +1746,53 @@ export class FriendsManager {
         return [];
       }
 
+      // Ensure starredFriends is an array (defensive check)
+      const rawFriends = quickAccessData.starredFriends;
+      if (!Array.isArray(rawFriends)) {
+        console.warn(
+          "⚠️ [FriendsService] starredFriends is not an array:",
+          typeof rawFriends,
+          rawFriends
+        );
+        return [];
+      }
+
+      const toJsDate = (value) => {
+        if (!value) return null;
+        if (value instanceof Date) return value;
+        if (value && typeof value.toDate === "function") {
+          try {
+            return value.toDate();
+          } catch (_e) {
+            // fall through
+          }
+        }
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          if (
+            typeof value.seconds === "number" &&
+            typeof value.nanoseconds === "number"
+          ) {
+            return new Date(value.seconds * 1000 + value.nanoseconds / 1e6);
+          }
+          if (
+            typeof value._seconds === "number" &&
+            typeof value._nanoseconds === "number"
+          ) {
+            return new Date(value._seconds * 1000 + value._nanoseconds / 1e6);
+          }
+        }
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+      };
+
       // Sort by recent-first ordering (most recently interacted with first)
-      const sortedFriends = quickAccessData.starredFriends.sort((a, b) => {
+      const sortedFriends = rawFriends.sort((a, b) => {
         const dateA =
-          a.lastInteraction?.toDate?.() ||
-          new Date(a.lastInteraction || a.starredAt);
+          toJsDate(a.lastInteraction) || toJsDate(a.starredAt) || new Date(0);
         const dateB =
-          b.lastInteraction?.toDate?.() ||
-          new Date(b.lastInteraction || b.starredAt);
+          toJsDate(b.lastInteraction) || toJsDate(b.starredAt) || new Date(0);
         return dateB - dateA; // Most recent first
       });
-
-      // Cache results for performance
-      if (useCache && sortedFriends.length > 0) {
-        const cacheKey = `quick_access_${currentUser.uid}`;
-        this.setCached(cacheKey, sortedFriends);
-      }
 
       console.log(
         `✅ Found ${sortedFriends.length} Quick Access friends (unlimited system!)`
@@ -2032,11 +2212,12 @@ export class FriendsManager {
 
       // 🚧 Prevent duplicate pending requests (spam guard)
       try {
-        const hasPending = await dataManager.hasPendingOutgoingLocationShareRequest(
-          currentUser.uid,
-          friendId,
-          friendshipId
-        );
+        const hasPending =
+          await dataManager.hasPendingOutgoingLocationShareRequest(
+            currentUser.uid,
+            friendId,
+            friendshipId
+          );
         if (hasPending) {
           return {
             success: false,
@@ -2071,6 +2252,11 @@ export class FriendsManager {
           handle: userProfile.profile.handle,
           avatarConfig: userProfile.avatarConfig,
           major: userProfile.profile.major,
+          profilePhotoUrl: userProfile.profile.profilePhotoUrl || null,
+          useAvatar:
+            typeof userProfile.profile.useAvatar === "boolean"
+              ? userProfile.profile.useAvatar
+              : undefined,
         },
         locationRequest: {
           friendshipId: friendshipId,

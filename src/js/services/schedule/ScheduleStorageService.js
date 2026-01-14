@@ -31,6 +31,7 @@ import {
 } from "../realtime/RealtimeService.js";
 import { currentUser } from "../../store/userStore.js";
 import { DEFAULT_TIMESLOTS } from "../../utils/constants.js";
+import { normalizeCourseForSave } from "../../utils/schedule/courseNormalization.js";
 
 /**
  * Phase-1 Schedule Storage Service
@@ -55,101 +56,123 @@ export class ScheduleStorageService {
    * @param {string} userId - User ID to load schedule for
    * @returns {Promise<Object|null>} Schedule data or null
    */
-  async loadUserSchedule(userId) {
+  async loadUserSchedule(userId, { mode = "cache-first" } = {}) {
     this.isLoading = true;
     this.lastError = null;
 
     try {
-      let scheduleData = null;
+      const revalidatePromise = this._loadFromFirestoreAndMaybeInitDefaults(
+        userId
+      ).then((fresh) => {
+        if (fresh) this.cacheScheduleData(userId, fresh);
+        return fresh;
+      });
 
-      // Try Firestore first (if online)
-      if (this.isOnline) {
-        try {
-          scheduleData = await this.dataManager.getUserSchedule(userId);
-
-          if (scheduleData) {
-            // Cache successful Firestore load
-            this.cacheScheduleData(userId, scheduleData);
-            console.log("✅ Schedule loaded from Firestore and cached");
-          }
-        } catch (error) {
-          console.warn(
-            "⚠️ Firestore load failed, trying cache:",
-            error.message
-          );
-
-          // Categorize error types for better handling
-          if (error.code === "permission-denied") {
-            this.lastError = "Access denied. Please check your authentication.";
-            console.error("Schedule access denied - Authentication Error");
-          } else if (error.code === "unavailable") {
-            this.lastError =
-              "Firestore temporarily unavailable. Using cached data.";
-            console.warn("Using offline schedule data - Connection Issue");
-          } else {
-            this.lastError = `Firestore error: ${error.message}`;
-          }
+      if (mode === "cache-first") {
+        const cached = this.getCachedScheduleData(userId);
+        if (cached) {
+          console.log("📱 Schedule loaded from localStorage cache (instant)");
+          // Kick off background refresh; swallow errors
+          revalidatePromise.catch(() => {});
+          return { data: cached, source: "cache", revalidatePromise };
         }
       }
 
-      // Fallback to localStorage cache
-      if (!scheduleData) {
-        scheduleData = this.getCachedScheduleData(userId);
-        if (scheduleData) {
-          console.log("📱 Schedule loaded from localStorage cache");
-        }
-      }
-
-      // Initialize default timeSlots for IUB users (first load) when none exist
-      try {
-        const selfUser = currentUser.user;
-        const isCurrent = selfUser && userId === selfUser.uid;
-        const email = (selfUser?.email || "").toLowerCase();
-        const profileUni = (currentUser?.profile?.universityInfo?.university || "").toLowerCase();
-        const isIub = email.endsWith("@iub.edu.bd") || profileUni === "iub";
-
-        if (isCurrent && isIub) {
-          const hasNoTimeSlots = !scheduleData || !Array.isArray(scheduleData.timeSlots) || scheduleData.timeSlots.length === 0;
-          if (hasNoTimeSlots) {
-            console.log("🧭 Initializing IUB default time slots for current user");
-            const defaultSlots = DEFAULT_TIMESLOTS;
-            const slotsLen = defaultSlots.length;
-            // Always create fresh matrices sized to default slots
-            const buildMatrix = (fillObj = false) =>
-              Array.from({ length: 7 }, () =>
-                Array.from({ length: slotsLen }, () =>
-                  fillObj ? { courseCode: "", classroomNumber: "" } : false
-                )
-              );
-
-            const updated = {
-              schedule: buildMatrix(false),
-              slotInfo: buildMatrix(true),
-              pinnedSlots: buildMatrix(false),
-              timeBasedPins:
-                scheduleData?.timeBasedPins || { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
-              timeSlots: defaultSlots,
-              metadata: scheduleData?.metadata || {},
-            };
-
-            // Persist to Firestore and cache
-            await this.saveUserSchedule(userId, updated);
-            this.cacheScheduleData(userId, updated);
-            scheduleData = updated;
-          }
-        }
-      } catch (e) {
-        console.warn("⚠️ Failed to initialize default time slots:", e);
-      }
-
-      return scheduleData;
+      // Network-first (or cache miss)
+      const scheduleData = await revalidatePromise;
+      return { data: scheduleData, source: "network", revalidatePromise };
     } catch (error) {
       console.error("❌ Failed to load schedule:", error);
       this.lastError = error.message;
-      return null;
+      return { data: null, source: "error", revalidatePromise: null };
     } finally {
       this.isLoading = false;
     }
+  }
+
+  /**
+   * Internal helper: load from Firestore and apply default slot initialization.
+   * @private
+   */
+  async _loadFromFirestoreAndMaybeInitDefaults(userId) {
+    let scheduleData = null;
+
+    // Try Firestore first (if online)
+    if (this.isOnline) {
+      try {
+        scheduleData = await this.dataManager.getUserSchedule(userId);
+
+        if (scheduleData) {
+          console.log("✅ Schedule loaded from Firestore and cached");
+        }
+      } catch (error) {
+        console.warn("⚠️ Firestore load failed:", error.message);
+
+        // Categorize error types for better handling
+        if (error.code === "permission-denied") {
+          this.lastError = "Access denied. Please check your authentication.";
+          console.error("Schedule access denied - Authentication Error");
+        } else if (error.code === "unavailable") {
+          this.lastError =
+            "Firestore temporarily unavailable. Using cached data.";
+          console.warn("Using offline schedule data - Connection Issue");
+        } else {
+          this.lastError = `Firestore error: ${error.message}`;
+        }
+      }
+    }
+
+    // Fallback to localStorage cache when offline or Firestore failed
+    if (!scheduleData) {
+      scheduleData = this.getCachedScheduleData(userId);
+      if (scheduleData) {
+        console.log("📱 Schedule loaded from localStorage cache (offline/failed)");
+      }
+    }
+
+    // Initialize default timeSlots for IUB users (first load) when none exist
+    try {
+      const selfUser = currentUser.user;
+      const isCurrent = selfUser && userId === selfUser.uid;
+      const email = (selfUser?.email || "").toLowerCase();
+      const profileUni = (currentUser?.profile?.universityInfo?.university || "").toLowerCase();
+      const isIub = email.endsWith("@iub.edu.bd") || profileUni === "iub";
+
+      if (isCurrent && isIub) {
+        const hasNoTimeSlots = !scheduleData || !Array.isArray(scheduleData.timeSlots) || scheduleData.timeSlots.length === 0;
+        if (hasNoTimeSlots) {
+          console.log("🧭 Initializing IUB default time slots for current user");
+          const defaultSlots = DEFAULT_TIMESLOTS;
+          const slotsLen = defaultSlots.length;
+          // Always create fresh matrices sized to default slots
+          const buildMatrix = (fillObj = false) =>
+            Array.from({ length: 7 }, () =>
+              Array.from({ length: slotsLen }, () =>
+                fillObj ? { courseCode: "", classroomNumber: "" } : false
+              )
+            );
+
+          const updated = {
+            schedule: buildMatrix(false),
+            slotInfo: buildMatrix(true),
+            pinnedSlots: buildMatrix(false),
+            timeBasedPins:
+              scheduleData?.timeBasedPins || { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
+            timeSlots: defaultSlots,
+            metadata: scheduleData?.metadata || {},
+          };
+
+          // Persist to Firestore and cache
+          await this.saveUserSchedule(userId, updated);
+          this.cacheScheduleData(userId, updated);
+          scheduleData = updated;
+        }
+      }
+    } catch (e) {
+      console.warn("⚠️ Failed to initialize default time slots:", e);
+    }
+
+    return scheduleData;
   }
 
   /**
@@ -181,6 +204,31 @@ export class ScheduleStorageService {
             currentUser.uid
           );
           console.log("☁️ Schedule synced to Firestore");
+
+          // ✅ Also persist normalized courses[] for grouping (only when provided)
+          try {
+            const rawCourses = Array.isArray(scheduleForSave?.courses)
+              ? scheduleForSave.courses
+              : [];
+            if (rawCourses.length > 0) {
+              const normalized = rawCourses
+                .map((c) => normalizeCourseForSave(c))
+                .filter(Boolean)
+                .filter((c) =>
+                  c && c.section > 0 && c.dayPattern && c.timeSlot && c.classroom && c.classroom !== "" && !/^(ONLINE|TBA|NA|NONE)$/i.test(c.classroom)
+                );
+              if (normalized.length > 0) {
+                await this.dataManager.updateUserCourses(userId, normalized);
+                console.log("📘 users.courses updated (normalized)", normalized.length);
+              } else {
+                console.log("ℹ️ users.courses normalization produced 0 valid entries");
+              }
+            } else {
+              console.log("ℹ️ No raw courses on schedule save (skipping users.courses)");
+            }
+          } catch (e) {
+            console.warn("⚠️ Failed to update users.courses (non-blocking)", e);
+          }
         } catch (error) {
           console.error("⚠️ Firestore sync failed:", error);
           // Queue for offline sync

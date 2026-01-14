@@ -13,10 +13,27 @@
 
 import { authManager } from "../services/auth/AuthService.js"; // 🎯 NEW: Import authManager for authentication checks
 import { currentUser } from "../store/userStore.js"; // 🎯 NEW: Import currentUser for better auth state checking
-import { dataManager } from "../services/data/DataService.js"; // 🎯 NEW: Import dataManager for notifications
+import { notificationManager } from "../services/realtime/NotificationService.js"; // 🎯 NEW: Import notificationManager
 import { logManager } from "../utils/debug/LogManager.js";
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js"; // 📊 Track page views
 import { profileCache } from "../cache/profileCache.js"; // 🚀 Session hint for faster initial route
+
+// Lazy DataService loader so Firestore bundle is only pulled in when needed
+let routerDataManagerPromise = null;
+async function getRouterDataManager() {
+  if (!routerDataManagerPromise) {
+    routerDataManagerPromise = import("../services/data/DataService.js")
+      .then((mod) => mod.dataManager)
+      .catch((error) => {
+        logManager.system.warn(
+          "Router: Failed to load DataService (non-critical):",
+          error
+        );
+        return null;
+      });
+  }
+  return routerDataManagerPromise;
+}
 
 /**
  * Helper function to detect if fetched content is a full HTML document
@@ -89,13 +106,48 @@ class SPARouter {
         requiresAuth: true, // 🛡️ This page requires a user to be logged in
         indexable: false,
       },
-      notify: {
-        title: "Notify Friends - MeetchuThere",
-        template: "/templates/notify.html",
-        cssFiles: ["/src/css/styles.css", "/src/css/notify.css"],
-        jsImporters: [() => import("/src/js/pages/NotifyFriendsPage.js")],
-        description:
-          "Ask your starred friends if they're free and see responses",
+      messages: {
+        title: "Messages - MeetchuThere",
+        template: "/templates/groups.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/groups.css"],
+        jsImporters: [() => import("/src/js/pages/GroupsPage.js")],
+        description: "Your class spaces and group chats",
+        requiresAuth: true,
+        indexable: false,
+      },
+      clubs: {
+        title: "Clubs - MeetchuThere",
+        template: "/templates/clubs.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/clubs/index.css"],
+        jsImporters: [() => import("/src/js/pages/ClubsPage.js")],
+        description: "Campus clubs and student organizations",
+        requiresAuth: true,
+        indexable: false,
+      },
+      club: {
+        title: "Club - MeetchuThere",
+        template: "/templates/club.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/clubs/index.css"],
+        jsImporters: [() => import("/src/js/pages/ClubDetailPage.js")],
+        description: "Club detail, members and events",
+        requiresAuth: true,
+        indexable: false,
+      },
+      group: {
+        title: "Group - MeetchuThere",
+        template: "/templates/group.html",
+        cssFiles: ["/src/css/styles.css"],
+        jsImporters: [() => import("/src/js/pages/GroupDetailPage.js")],
+        description: "Class space chat and members",
+        requiresAuth: true,
+        indexable: false,
+      },
+      user: {
+        title: "Profile - MeetchuThere",
+        template: "/templates/user-profile.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/user-profile.css"],
+        jsImporters: [() => import("/src/js/pages/UserProfilePage.js")],
+        description: "View a student profile",
         requiresAuth: true,
         indexable: false,
       },
@@ -108,6 +160,25 @@ class SPARouter {
         canonicalPath: "/about/",
         indexable: true,
         og: { image: "/icons/icon-512x512.png", type: "website" },
+      },
+      admin: {
+        title: "Admin Dashboard - MeetchuThere",
+        template: "/templates/admin.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/admin.css"],
+        jsImporters: [() => import("/src/js/pages/AdminPage.js")],
+        description: "Super Admin Dashboard",
+        requiresAuth: true,
+        requiresSuperAdmin: true, // 🔐 Special flag for super admin only routes
+        indexable: false,
+      },
+      saf: {
+        title: "SAF Moderation - MeetchuThere",
+        template: "/templates/saf.html",
+        cssFiles: ["/src/css/styles.css", "/src/css/admin.css"],
+        jsImporters: [() => import("/src/js/pages/SafModeratePage.js")],
+        description: "Student Affairs event moderation dashboard",
+        requiresAuth: true,
+        indexable: false,
       },
     };
 
@@ -127,9 +198,42 @@ class SPARouter {
     this._suppressAuthRedirects = false;
     // Prevent re-entrant profile gate redirects
     this._profileGateInProgress = false;
+    // Allow SPA init to skip the first full-screen loading overlay
+    this._skipNextLoadingOverlay = false;
+    // Short auth grace window so returning users with a cached
+    // session hint can see their schedule immediately while
+    // Firebase Auth finishes hydrating in the background.
+    this._initialAuthGraceUntil = Date.now() + 5000;
 
     // 🎯 Learning: Initialize the router when created
     this.init();
+  }
+
+  /**
+   * Extract the route name from a location hash, ignoring query params.
+   * Example: "#user?id=123" -> "user" if defined in routes.
+   * Also handles legacy route redirects (e.g., "groups" -> "clubs")
+   */
+  _parseRouteName(rawHash) {
+    try {
+      const raw = String(rawHash || "").replace(/^#/, "");
+      let name = raw.split("?")[0];
+
+      // Legacy redirect: "groups" route is now "clubs"
+      if (name === "groups") {
+        name = "clubs";
+        // Update the URL silently to avoid confusion
+        const queryPart = raw.includes("?")
+          ? raw.substring(raw.indexOf("?"))
+          : "";
+        window.history.replaceState(null, "", `#clubs${queryPart}`);
+      }
+
+      if (name && this.routes[name]) return name;
+      return this.routes[raw] ? raw : "home";
+    } catch (_) {
+      return "home";
+    }
   }
 
   /**
@@ -142,14 +246,14 @@ class SPARouter {
     // Find the main content container
     this.mainContentContainer = document.querySelector(".main-content");
     if (!this.mainContentContainer) {
-      console.error(
+      logManager.system.error(
         "❌ Main content container not found! SPA Router cannot work."
       );
-      console.log(
+      logManager.system.debug(
         "📋 Available elements with class 'main':",
         document.querySelectorAll("[class*='main']")
       );
-      console.log(
+      logManager.system.debug(
         "📋 Body contents:",
         document.body.innerHTML.substring(0, 500) + "..."
       );
@@ -443,8 +547,7 @@ class SPARouter {
       // Try to get route from event state first, then from URL hash
       let route = event.state?.route;
       if (!route) {
-        const hash = window.location.hash.slice(1);
-        route = hash && this.routes[hash] ? hash : "home";
+        route = this._parseRouteName(window.location.hash);
       }
 
       // Navigating via browser
@@ -486,8 +589,7 @@ class SPARouter {
     // Also listen for hash changes (in case someone manually types a URL)
     window.addEventListener("hashchange", (event) => {
       // Hash change detected
-      const hash = window.location.hash.slice(1);
-      const route = hash && this.routes[hash] ? hash : "home";
+      const route = this._parseRouteName(window.location.hash);
 
       // Only navigate if it's different from current page
       if (route !== this.currentPage) {
@@ -507,7 +609,9 @@ class SPARouter {
               ) {
                 await Promise.race([
                   authManager.authReady.catch(() => {}),
-                  new Promise((r) => setTimeout(r, hasSessionHint ? 3500 : 1500)),
+                  new Promise((r) =>
+                    setTimeout(r, hasSessionHint ? 3500 : 1500)
+                  ),
                 ]);
               } else {
                 await new Promise((r) => setTimeout(r, 250));
@@ -536,7 +640,7 @@ class SPARouter {
       const isLoggedIn = state.isLoggedIn;
       const currentRoute = this.currentPage;
 
-      console.log(
+      logManager.auth.login(
         `🔐 Router: Auth state changed - isLoggedIn: ${isLoggedIn}, currentRoute: ${currentRoute}`
       );
 
@@ -572,7 +676,7 @@ class SPARouter {
       if (isLoggedIn) {
         // User just logged in
         if (currentRoute === "landing") {
-          console.log(
+          logManager.auth.login(
             "🏠 User logged in from landing page, redirecting to home"
           );
           this.navigateTo("home");
@@ -589,11 +693,11 @@ class SPARouter {
             sessionStorage.getItem("intentionalLogout") === "true";
           if (wasIntentionalLogout) {
             sessionStorage.removeItem("intentionalLogout");
-            console.log(
+            logManager.auth.logout(
               `👋 User intentionally logged out from ${currentRoute}, redirecting to landing`
             );
           } else {
-            console.log(
+            logManager.auth.logout(
               `🔒 User logged out from protected route (${currentRoute}), redirecting to landing`
             );
           }
@@ -604,7 +708,7 @@ class SPARouter {
         }
       }
     } catch (error) {
-      console.error("❌ Error in handleAuthRedirect:", error);
+      logManager.system.error("❌ Error in handleAuthRedirect:", error);
     }
   }
 
@@ -613,33 +717,10 @@ class SPARouter {
    * 🎯 Learning: When someone visits a direct link, show the right page
    */
   loadInitialPage() {
-    // loadInitialPage called
-
     // Parse the current URL to determine which page to load
-    const hash = window.location.hash.slice(1); // Remove the # symbol
-    let route = hash && this.routes[hash] ? hash : "home";
-
-    // 🛡️ Authentication-aware routing: Check if user is logged in
-    const isAuthenticated = currentUser.isLoggedIn() && currentUser.user;
-
-    if (!isAuthenticated) {
-      // Default conservative behavior (kept for legacy direct calls): go to landing
-      route = "landing";
-      if (hash && this.routes[hash]?.requiresAuth) {
-        window.history.replaceState(null, "", "#landing");
-      }
-    } else {
-      // If authenticated but trying to access landing, redirect to home
-      if (route === "landing") {
-        route = "home";
-        window.history.replaceState(null, "", "#home");
-      }
-    }
-
-    // Initial page load
-
-    // Load the determined route without updating history (since we're loading from URL)
-    // Navigating for initial load
+    const hash = window.location.hash;
+    const route = this._parseRouteName(hash);
+    // Let navigateTo handle all auth gating and redirects.
     this.navigateTo(route, false);
   }
 
@@ -652,15 +733,16 @@ class SPARouter {
    */
   async loadInitialPageSmart(authReadyPromise, timeoutMs = 1500) {
     // Determine desired route from hash (or default to home)
-    const hash = window.location.hash.slice(1);
-    const desiredRoute = hash && this.routes[hash] ? hash : "home";
+    const desiredRoute = this._parseRouteName(window.location.hash);
     const desiredConfig = this.routes[desiredRoute];
     // 🚀 Session hint: if we have a cached profile or store says logged in, prefer waiting longer vs flashing landing
     const hasSessionHint =
       !!authManager?.auth?.currentUser ||
       !!profileCache.peek() ||
       (currentUser && currentUser.isLoggedIn && currentUser.isLoggedIn());
-    const effectiveTimeout = hasSessionHint ? Math.max(timeoutMs, 3500) : timeoutMs;
+    const effectiveTimeout = hasSessionHint
+      ? Math.max(timeoutMs, 3500)
+      : timeoutMs;
 
     // If the URL explicitly points to landing, avoid flashing it for users who are already (or will soon be) authenticated
     const firebaseUser = authManager?.auth?.currentUser;
@@ -701,7 +783,9 @@ class SPARouter {
 
     // Route requires auth but Firebase auth user is not yet known — avoid flashing landing and wait briefly
     this._suppressAuthRedirects = true;
-    this.showLoading();
+    if (!hasSessionHint) {
+      this.showLoading();
+    }
     try {
       if (authReadyPromise && typeof authReadyPromise.then === "function") {
         await Promise.race([
@@ -722,7 +806,11 @@ class SPARouter {
           ]);
         } catch (_) {}
       }
-      const target = !!authManager?.auth?.currentUser ? desiredRoute : "landing";
+      const authedUser = authManager?.auth?.currentUser;
+      // With a strong session hint (cached profile / user store), prefer
+      // rendering the intended protected route instead of bouncing through
+      // the landing page, even if Firebase auth has not fully hydrated yet.
+      const target = authedUser || hasSessionHint ? desiredRoute : "landing";
       await this.navigateTo(target, true);
     } finally {
       this._suppressAuthRedirects = false;
@@ -765,7 +853,7 @@ class SPARouter {
    */
   async navigateTo(route, updateHistory = true) {
     if (!this.routes[route]) {
-      console.error(`❌ Route not found: ${route}`);
+      logManager.error(`❌ Route not found: ${route}`);
       this.showErrorFeedback(`Page not found: ${route}`);
       return;
     }
@@ -777,7 +865,7 @@ class SPARouter {
       (this._lastNavigation.route === route &&
         now - this._lastNavigation.ts < 300)
     ) {
-      console.log("⏭️ Duplicate navigation to same route ignored");
+      logManager.debug("⏭️ Duplicate navigation to same route ignored");
       return;
     }
     this._pendingRoute = route;
@@ -808,11 +896,33 @@ class SPARouter {
         isAuthenticated = !!authManager?.auth?.currentUser;
       }
 
+      // During the very first navigation after app startup, allow a brief
+      // optimistic window where a strong session hint (cached profile/user)
+      // can unlock protected routes even if Firebase hasn't populated
+      // auth.currentUser yet. This lets returning users see their schedule
+      // immediately from local cache while auth/network hydrate in the background.
       if (!isAuthenticated) {
-        console.warn(
+        const hasSessionHint =
+          !!authManager?.auth?.currentUser ||
+          !!profileCache.peek() ||
+          currentUser.isLoggedIn();
+        const withinInitialGrace =
+          typeof this._initialAuthGraceUntil === "number" &&
+          Date.now() <= this._initialAuthGraceUntil;
+
+        if (hasSessionHint && withinInitialGrace) {
+          logManager.auth.login(
+            `🕒 Initial auth grace: allowing optimistic access to protected route: ${route}`
+          );
+          isAuthenticated = true;
+        }
+      }
+
+      if (!isAuthenticated) {
+        logManager.auth.error(
           `🔒 Access denied to route: ${route}. Redirecting to landing page.`
         );
-        console.log("🔍 Debug auth state:", {
+        logManager.dev.debug("🔍 Debug auth state:", {
           hasFirebaseUser: !!authManager?.auth?.currentUser,
           hasUserStore: !!currentUser.user,
           isLoggedInStore: currentUser.isLoggedIn(),
@@ -837,6 +947,19 @@ class SPARouter {
           return; // navigation has been redirected to profile setup
         }
       }
+
+      // 🔐 Super Admin Gate: check if route requires super admin privileges
+      if (routeConfig.requiresSuperAdmin) {
+        const isSuperAdmin = await this._checkSuperAdmin();
+        if (!isSuperAdmin) {
+          logManager.auth.warn(
+            `🚫 Super admin access denied for route: ${route}`
+          );
+          this.navigateTo("home", updateHistory);
+          if (this._pendingRoute === route) this._pendingRoute = null;
+          return;
+        }
+      }
     }
 
     // 🛡️ If authenticated user tries to access landing page, redirect to home
@@ -846,7 +969,7 @@ class SPARouter {
         sessionStorage.getItem("intentionalLogout") === "true";
 
       if (hasFirebaseUser) {
-        console.log(
+        logManager.info(
           "🏠 Authenticated user accessing landing, redirecting to home"
         );
         this.navigateTo("home", updateHistory);
@@ -871,7 +994,7 @@ class SPARouter {
           ]);
         } catch (_) {}
         if (authManager?.auth?.currentUser) {
-          console.log(
+          logManager.info(
             "🏠 Authenticated user accessing landing (post-wait), redirecting to home"
           );
           this.navigateTo("home", updateHistory);
@@ -895,29 +1018,20 @@ class SPARouter {
       (route === "home" || route === "friends")
     ) {
       try {
-        await dataManager.updateUserLastActive(currentUser.user.uid);
-        console.log(`⚡ Immediate lastActive update on navigation to ${route}`);
+        const dm = await getRouterDataManager();
+        if (dm && currentUser.user?.uid) {
+          await dm.updateUserLastActive(currentUser.user.uid);
+          logManager.system.info(
+            `⚡ Immediate lastActive update on navigation to ${route}`
+          );
+        }
       } catch (lastActiveError) {
-        console.warn(
+        logManager.system.warn(
           `⚠️ Failed to update lastActive on ${route} navigation (non-critical):`,
           lastActiveError
         );
       }
     }
-    // Special-case: open Notify overlay without route reload
-    if (route === "notify") {
-      try {
-        const mod = await import("../pages/NotifyFriendsPage.js");
-        if (mod && typeof mod.openNotifyOverlay === "function") {
-          await mod.openNotifyOverlay();
-        }
-      } catch (e) {
-        console.warn("⚠️ Failed to open notify overlay via route:", e);
-      }
-      this._pendingRoute = null;
-      return;
-    }
-
     try {
       // 🎯 LEARNING: Show the loading indicator at the start of the navigation process.
       this.showLoading();
@@ -925,17 +1039,32 @@ class SPARouter {
       // Update browser history if requested
       if (updateHistory) {
         const routeData = this.routes[route];
-        history.pushState(
-          { route },
-          routeData.title,
-          `#${route}` // Use hash for simplicity
-        );
+        const currentHash = window.location.hash || "";
+        const targetHash = currentHash.startsWith(`#${route}?`)
+          ? currentHash
+          : `#${route}`;
+        const historyStateRoute =
+          (history.state && history.state.route) || null;
+        const isDuplicate =
+          historyStateRoute === route && currentHash === targetHash;
+        const isInitialLoadSameHash =
+          !history.state && currentHash === targetHash; // page reload scenario
+        // Avoid pushing duplicate history entries (prevents double-back issue after reload)
+        if (!isDuplicate && !isInitialLoadSameHash) {
+          history.pushState({ route }, routeData.title, targetHash);
+        } else {
+          logManager.dev &&
+            logManager.dev.debug(
+              "[Router] Skipped pushState (duplicate/initial reload) for route",
+              route
+            );
+        }
       }
 
       // Load the page content
       await this.loadPage(route);
     } catch (error) {
-      console.error(`❌ Error loading page ${route}:`, error);
+      logManager.error(`❌ Error loading page ${route}:`, error);
       this.showErrorFeedback(`Failed to load ${route}.`);
     } finally {
       // 🎯 LEARNING: The finally block ensures the loading indicator is always hidden,
@@ -982,16 +1111,19 @@ class SPARouter {
       // Last resort: fetch from Firestore directly
       if (!isComplete) {
         try {
-          const profileDoc = await dataManager.getUserProfile(firebaseUser.uid);
-          if (profileDoc) {
-            isComplete = !!(
-              profileDoc?.systemInfo?.profileSetupComplete === true
-            );
-            // Opportunistically hydrate store for consistency
-            if (!currentUser?.profile) {
-              try {
-                currentUser.setProfile(profileDoc);
-              } catch (_) {}
+          const dm = await getRouterDataManager();
+          if (dm) {
+            const profileDoc = await dm.getUserProfile(firebaseUser.uid);
+            if (profileDoc) {
+              isComplete = !!(
+                profileDoc?.systemInfo?.profileSetupComplete === true
+              );
+              // Opportunistically hydrate store for consistency
+              if (!currentUser?.profile) {
+                try {
+                  currentUser.setProfile(profileDoc);
+                } catch (_) {}
+              }
             }
           }
         } catch (_) {}
@@ -1018,7 +1150,7 @@ class SPARouter {
   async loadPage(route, _updateHistory = true) {
     const routeData = this.routes[route];
     if (!routeData) {
-      console.error(`❌ Route data not found for: ${route}`);
+      logManager.error(`❌ Route data not found for: ${route}`);
       return;
     }
 
@@ -1064,7 +1196,7 @@ class SPARouter {
 
       // If a newer navigation started, abandon this one
       if (this._navId !== navId) {
-        console.log(
+        logManager.debug(
           "⏭️ Navigation superseded, abandoning DOM updates for",
           route
         );
@@ -1085,7 +1217,7 @@ class SPARouter {
           detail: { route: leavingRoute, router: this, targetRoute: route },
         });
         document.dispatchEvent(unloadEvent);
-        console.log(
+        logManager.debug(
           `🔔 Dispatched spa:page:unload for route: ${leavingRoute} → ${route}`
         );
       }
@@ -1101,10 +1233,10 @@ class SPARouter {
         htmlContent.includes('class="top-nav"') ||
         htmlContent.includes('class="nav-')
       ) {
-        console.error(
+        logManager.error(
           `🚨 Template content contains navigation elements - this indicates index.html was loaded instead of template`
         );
-        console.error(
+        logManager.error(
           "Template content preview:",
           htmlContent.substring(0, 500)
         );
@@ -1114,7 +1246,7 @@ class SPARouter {
       }
 
       // Update the main content
-      console.log(
+      logManager.debug(
         `📝 Injecting template content into main-content (${htmlContent.length} chars)`
       );
       this.mainContentContainer.innerHTML = htmlContent;
@@ -1145,27 +1277,71 @@ class SPARouter {
     this.updateLayoutChromeState(route);
 
     // Update URL hash to match current route (for direct linking and refresh)
-    if (window.location.hash !== `#${route}`) {
-      history.replaceState({ route }, routeData.title, `#${route}`);
-    }      // Dispatch custom event for other parts of the app
+    // IMPORTANT: Only update if the route part differs; preserve query params
+    const currentHash = window.location.hash || "";
+    const currentRoutePart = this._parseRouteName(currentHash);
+    if (currentRoutePart !== route) {
+      // Only replace if the route actually changed (preserve query params otherwise)
+      history.replaceState(
+        { route },
+        routeData.title,
+        currentHash.startsWith(`#${route}?`) ? currentHash : `#${route}`
+      );
+    }
+
+    // Dispatch custom event for other parts of the app
       this.dispatchNavigationEvent(route);
 
       // Dispatch route changed event for mobile navigation
       this.dispatchRouteChangedEvent(route);
 
       // 🎯 NEW: Announce that the page content is loaded and ready for initialization
-      this.dispatchPageLoadEvent(route);
+      // Pass the full hash so page controllers can access query params
+      this.dispatchPageLoadEvent(route, currentHash);
 
-      console.log(`✅ Successfully loaded page: ${route}`);
+      logManager.info(`✅ Successfully loaded page: ${route}`);
     } catch (error) {
       if (error?.name === "AbortError") {
-        console.log("🛑 Navigation aborted (newer route started)");
+        logManager.debug("🛑 Navigation aborted (newer route started)");
         if (this._pendingRoute === route) this._pendingRoute = null;
         return;
       }
-      console.error(`❌ Error loading page ${route}:`, error);
+      logManager.error(`❌ Error loading page ${route}:`, error);
       // 🎯 REFACTOR: The navigateTo method's finally block will handle hiding the loader.
       this.showErrorPage(error);
+    }
+  }
+
+  /**
+   * Check if the current user is a super admin.
+   * Super admins are listed in /admin/superAdmins.uids array.
+   * @returns {Promise<boolean>} True if user is a super admin
+   */
+  async _checkSuperAdmin() {
+    try {
+      const firebaseUser = authManager?.auth?.currentUser;
+      if (!firebaseUser) return false;
+
+      // Use existing Firebase config (db) to avoid duplicating initialization
+      const { db } = await import("../lib/firebase/firebase-config.js");
+      const { doc, getDoc } = await import("firebase/firestore");
+
+      const adminDoc = await getDoc(doc(db, "admin", "superAdmins"));
+      if (!adminDoc.exists()) {
+        logManager.warn("Super admin document does not exist");
+        return false;
+      }
+
+      const superAdmins = adminDoc.data()?.uids || [];
+      const isSuper = superAdmins.includes(firebaseUser.uid);
+      logManager.auth.user("Router: Super admin check", {
+        uid: firebaseUser.uid,
+        isSuperAdmin: isSuper,
+      });
+      return isSuper;
+    } catch (error) {
+      logManager.auth.error("Error checking super admin status:", error);
+      return false;
     }
   }
 
@@ -1209,7 +1385,7 @@ class SPARouter {
           resolve();
         };
         link.onerror = (error) => {
-          console.error(`❌ Failed to load CSS: ${cssFile}`, error);
+          logManager.error(`❌ Failed to load CSS: ${cssFile}`, error);
           reject(error);
         };
         document.head.appendChild(link);
@@ -1234,7 +1410,7 @@ class SPARouter {
 
     const response = await fetch(url, { signal });
     if (!response.ok) {
-      console.error(`❌ Template fetch failed: ${url} (${response.status})`);
+      logManager.error(`❌ Template fetch failed: ${url} (${response.status})`);
       throw new Error(
         `Failed to load template: ${url} - ${response.status} ${response.statusText}`
       );
@@ -1246,13 +1422,13 @@ class SPARouter {
     // instead of a template fragment (happens when Vite's history API fallback
     // serves index.html for 404'd template requests)
     if (looksLikeFullDocument(html)) {
-      console.error(
+      logManager.error(
         `🚨 Template fetch returned full HTML document instead of fragment: ${url}`
       );
-      console.error(
+      logManager.error(
         "This usually means the template file wasn't found and Vite served index.html as fallback"
       );
-      console.error("First 200 chars of response:", html.substring(0, 200));
+      logManager.error("First 200 chars of response:", html.substring(0, 200));
       throw new Error(
         `Template loading error: ${url} returned a full HTML document instead of a template fragment. Check that the template file exists.`
       );
@@ -1275,7 +1451,7 @@ class SPARouter {
         try {
           await importer();
         } catch (e) {
-          console.error("❌ Failed to load route module via importer", e);
+          logManager.error("❌ Failed to load route module via importer", e);
           throw e;
         }
       }
@@ -1331,10 +1507,15 @@ class SPARouter {
       robots.name = "robots";
       document.head.appendChild(robots);
     }
-    robots.setAttribute(
-      "content",
-      indexable ? "index,follow" : "noindex,nofollow"
-    );
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    const isLocalHost =
+      host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+    const allowIndexForLocalPreview = isLocalHost;
+    const content =
+      indexable || allowIndexForLocalPreview
+        ? "index,follow"
+        : "noindex,nofollow";
+    robots.setAttribute("content", content);
   }
 
   /**
@@ -1424,28 +1605,102 @@ class SPARouter {
     // New logic: ensure the visual active state is applied to primary nav links (.nav-link),
     // not the logo or dropdown items that also have data-spa-route attributes.
 
-    // 1. Clear existing active classes only from top-level nav links & any stray elements
-    document
-      .querySelectorAll(".nav-link.active")
-      .forEach((el) => el.classList.remove("active"));
+    const setIconState = (el, route, isActive) => {
+      const icon = el?.querySelector?.("i");
+      if (!icon) return;
+      const iconMap = {
+        home: {
+          active: {
+            add: ["fa-solid", "fa-calendar-minus"],
+            remove: ["fa-regular"],
+          },
+          inactive: {
+            add: ["fa-regular", "fa-calendar-minus"],
+            remove: ["fa-solid"],
+          },
+        },
+        groups: {
+          active: {
+            add: ["fa-solid", "fa-handshake"],
+            remove: ["fa-regular"],
+          },
+          inactive: {
+            add: ["fa-regular", "fa-handshake"],
+            remove: ["fa-solid"],
+          },
+        },
+        friends: {
+          active: {
+            add: ["fa-solid", "fa-users"],
+            remove: ["fa-regular", "fa-user"],
+          },
+          inactive: {
+            add: ["fa-regular", "fa-user"],
+            remove: ["fa-solid", "fa-users"],
+          },
+        },
+        messages: {
+          active: {
+            add: ["fa-solid", "fa-paper-plane"],
+            remove: ["fa-regular"],
+          },
+          inactive: {
+            add: ["fa-regular", "fa-paper-plane"],
+            remove: ["fa-solid"],
+          },
+        },
+        notifications: {
+          active: { add: ["fa-solid", "fa-bell"], remove: ["fa-regular"] },
+          inactive: { add: ["fa-regular", "fa-bell"], remove: ["fa-solid"] },
+        },
+      };
+      const state = iconMap[route];
+      const target = state ? (isActive ? state.active : state.inactive) : null;
+      const remove = target?.remove || [];
+      const add = target?.add || [];
+      remove.forEach((cls) => icon.classList.remove(cls));
+      add.forEach((cls) => icon.classList.add(cls));
+      // Fallback: if no mapping, just flip solid/regular where present
+      if (!state) {
+        if (
+          icon.classList.contains("fa-solid") ||
+          icon.classList.contains("fa-regular")
+        ) {
+          icon.classList.toggle("fa-solid", !!isActive);
+          icon.classList.toggle("fa-regular", !isActive);
+        }
+      }
+    };
+
+    // Treat certain routes as aliases in the navigation so the correct
+    // tab remains highlighted even when legacy hashes are used elsewhere.
+    const resolveActiveNavRoutes = (route) => {
+      // Legacy 'groups' route should highlight 'clubs' tab
+      if (route === "groups") return ["clubs"];
+      return [route];
+    };
+
+    // 1. Clear existing active classes on any SPA route element (top nav + mobile nav)
+    document.querySelectorAll("[data-spa-route].active").forEach((el) => {
+      el.classList.remove("active");
+      setIconState(el, el?.dataset?.spaRoute, false);
+    });
     // Also remove from logo if previously applied (legacy behavior)
     const brand = document.querySelector(".logo [data-spa-route].active");
     if (brand) brand.classList.remove("active");
 
-    // 2. Find matching nav links for the active route
-    const matchingNavLinks = document.querySelectorAll(
-      `.nav-link[data-spa-route="${activeRoute}"]`
+    // 2. Activate all elements that match the current route (top + mobile)
+    const navRoutesToMatch = resolveActiveNavRoutes(activeRoute);
+    const matchingRouteEls = document.querySelectorAll(
+      navRoutesToMatch.map((route) => `[data-spa-route="${route}"]`).join(", ")
     );
-    if (matchingNavLinks.length > 0) {
-      matchingNavLinks.forEach((el) => el.classList.add("active"));
+    if (matchingRouteEls.length > 0) {
+      matchingRouteEls.forEach((el) => {
+        el.classList.add("active");
+        setIconState(el, el?.dataset?.spaRoute, true);
+      });
       return;
     }
-
-    // 3. Fallback: if no .nav-link found (e.g., future minimal route), apply to first element with the route
-    const fallback = document.querySelector(
-      `[data-spa-route="${activeRoute}"]`
-    );
-    if (fallback) fallback.classList.add("active");
   }
 
   /**
@@ -1470,7 +1725,7 @@ class SPARouter {
         mobileBottomNav.style.display = "none";
       }
       if (this._navVisibility.hidden !== true) {
-        console.log(`🔒 Navigation hidden - ${route} page, not logged in`);
+        logManager.debug(`🔒 Navigation hidden - ${route} page, not logged in`);
         this._navVisibility.hidden = true;
       }
     } else {
@@ -1481,10 +1736,15 @@ class SPARouter {
         mobileBottomNav.style.display = "";
       }
       if (this._navVisibility.hidden !== false) {
-        console.log("🔓 Navigation shown - authenticated or protected route");
+        logManager.debug(
+          "🔓 Navigation shown - authenticated or protected route"
+        );
         this._navVisibility.hidden = false;
       }
     }
+
+    // Sync layout offsets (safe areas + nav chrome) for current route
+    this.updateLayoutChromeState(route);
 
     // Let Menu.js control auth-dependent body class; CSS handles About visibility
   }
@@ -1522,6 +1782,10 @@ class SPARouter {
    * 🎯 Learning: Smooth transitions make the app feel more professional
    */
   showLoading() {
+    if (this._skipNextLoadingOverlay) {
+      this._skipNextLoadingOverlay = false;
+      return;
+    }
     if (this.loadingIndicator) {
       this.loadingIndicator.style.display = "block";
       // Small delay to ensure display is set before adding animation class
@@ -1553,7 +1817,7 @@ class SPARouter {
    * Enhanced to handle offline scenarios gracefully
    */
   showErrorPage(error) {
-    console.log("🔍 Analyzing error for appropriate response:", error);
+    logManager.debug("🔍 Analyzing error for appropriate response:", error);
 
     // 🛡️ SAFETY: Ensure error has a message property
     const errorMessage =
@@ -1569,20 +1833,16 @@ class SPARouter {
       (errorName === "TypeError" && errorMessage.includes("fetch"));
 
     if (isOfflineError) {
-      console.log("📱 Detected offline error - showing appropriate message");
+      logManager.info(
+        "📱 Detected offline error - showing appropriate message"
+      );
 
       // Use the notification system for offline errors instead of replacing content
-      if (window.dataManager?.showNotification) {
-        window.dataManager.showNotification(
-          "📱 You're offline! Some features may not work until you reconnect.",
-          "warning",
-          { duration: 8000 }
-        );
-      } else {
-        console.warn(
-          "📱 Offline detected but notification system not available"
-        );
-      }
+      notificationManager.show(
+        "📱 You're offline! Some features may not work until you reconnect.",
+        "warning",
+        { duration: 8000 }
+      );
 
       // Don't replace the current page content when offline
       // Instead, just stay where we are with a helpful message
@@ -1665,13 +1925,19 @@ Stack: ${error?.stack || "No stack trace available"}
   /**
    * 🎯 NEW: Dispatch event after page content is loaded into the DOM.
    * This is the signal for page-specific scripts to initialize.
+   * @param {string} route - The route name
+   * @param {string} fullHash - The complete hash including query params
    */
-  dispatchPageLoadEvent(route) {
+  dispatchPageLoadEvent(route, fullHash = "") {
     const event = new CustomEvent("spa:page:load", {
-      detail: { route, router: this },
+      detail: {
+        route,
+        router: this,
+        hash: fullHash || window.location.hash,
+      },
     });
     document.dispatchEvent(event);
-    console.log(`🔔 Dispatched spa:page:load event for route: ${route}`);
+    logManager.debug(`🔔 Dispatched spa:page:load event for route: ${route}`);
   }
 
   /**
@@ -1679,12 +1945,12 @@ Stack: ${error?.stack || "No stack trace available"}
    * 🎯 Learning: Provide user-friendly error messages
    */
   showErrorFeedback(message) {
-    console.error("🚨 SPA Router Error:", message);
+    logManager.error("🚨 SPA Router Error:", message);
 
-    // Use data manager for notifications if available
-    if (window.dataManager?.showNotification) {
-      window.dataManager.showNotification(message, "error", { duration: 5000 });
-    } else {
+    // Use notification manager for notifications
+    try {
+      notificationManager.show(message, "error", { duration: 5000 });
+    } catch (e) {
       // Fallback to alert if notification system not available
       alert(message);
     }

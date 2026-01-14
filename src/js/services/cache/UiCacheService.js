@@ -61,6 +61,8 @@ export const uiCache = {
     friendsList(userId) {
       return buildKey("ui.friendsList", userId);
     },
+    quickAccessFriends(userId) {
+      return buildKey("ui.quickAccessFriends", userId);
+    },
   },
 };
-

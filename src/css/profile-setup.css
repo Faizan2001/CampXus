@@ -127,6 +127,632 @@ body.page-profile .profile-setup-card.glass-card {
   scrollbar-color: var(--accent-primary) transparent;
 }
 
+/* Q/A section styling */
+.qna-controls,
+.qna-list,
+.qna-item,
+.qna-item label,
+.qna-answer,
+#qna-picker {
+  font-family: var(--font-brand, "Sora", "Poppins", sans-serif);
+}
+.qna-list {
+  display: grid;
+  gap: 12px;
+}
+.qna-item {
+  position: relative;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.qna-item .qna-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  color: #fff;
+  background: #ef4444; /* red */
+  font-size: 18px;
+  line-height: 24px;
+  text-align: center;
+  cursor: pointer;
+}
+.qna-item .qna-remove.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.qna-item label {
+  display: block;
+  margin-bottom: 6px;
+}
+.qna-item .qna-answer {
+  width: 100%;
+  resize: vertical;
+}
+
+/* Active preview highlight for photo/avatar */
+.avatar-preview-display.selected {
+  outline: 2px solid var(--accent-primary, #3b82f6);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INTERESTS SECTION STYLING
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Section wrappers with clear visual separation */
+.interests-selected-wrapper,
+.interests-add-custom,
+.interests-suggestions-wrapper {
+  margin-top: 1rem;
+}
+
+.interests-selected-wrapper {
+  padding: 1.125rem;
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  min-height: 85px;
+}
+
+.interests-suggestions-wrapper {
+  padding: 1.125rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.interests-section-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+  margin-bottom: 0.8rem;
+  opacity: 0.9;
+}
+
+.interests-section-label i {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+/* Empty state for selected interests */
+.interests-selected:empty::after {
+  content: "No interests selected yet. Choose from suggestions below or add your own.";
+  display: block;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.95rem;
+  font-style: italic;
+}
+
+/* Chips grid */
+.chips-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Interest chips - SELECTED (enhanced styling) */
+.interests-selected .interest-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1.5px solid;
+  color: var(--text-primary, #fff);
+  transition: all 0.2s ease;
+  cursor: default;
+}
+
+.interests-selected .interest-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.interests-selected .interest-chip i {
+  font-size: 15px;
+  opacity: 1;
+}
+
+.interests-selected .interest-chip .chip-remove {
+  margin-left: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 22px;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.interests-selected .interest-chip .chip-remove:hover {
+  background: rgba(239, 68, 68, 0.9);
+  transform: scale(1.1);
+}
+
+/* Interest chips - SUGGESTIONS (subtle styling) */
+.interests-suggestions .interest-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 9999px;
+  font-size: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.interests-suggestions .interest-chip:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: var(--text-primary, #fff);
+  transform: translateY(-1px);
+}
+
+.interests-suggestions .interest-chip i {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+/* Enhanced color palette for selected interests - Glassmorphic with gradients */
+
+/* Ocean Blue - Deep and vibrant */
+.interests-selected .interest-chip[data-color="1"] {
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.35),
+    rgba(37, 99, 235, 0.28)
+  );
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25),
+    0 2px 4px rgba(59, 130, 246, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Emerald Green - Fresh and energetic */
+.interests-selected .interest-chip[data-color="2"] {
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.35),
+    rgba(5, 150, 105, 0.28)
+  );
+  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25),
+    0 2px 4px rgba(16, 185, 129, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Amber Gold - Warm and inviting */
+.interests-selected .interest-chip[data-color="3"] {
+  background: linear-gradient(
+    135deg,
+    rgba(245, 158, 11, 0.35),
+    rgba(217, 119, 6, 0.28)
+  );
+  border-color: rgba(245, 158, 11, 0.5);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25),
+    0 2px 4px rgba(245, 158, 11, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Hot Pink - Bold and playful */
+.interests-selected .interest-chip[data-color="4"] {
+  background: linear-gradient(
+    135deg,
+    rgba(236, 72, 153, 0.35),
+    rgba(219, 39, 119, 0.28)
+  );
+  border-color: rgba(236, 72, 153, 0.5);
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.25),
+    0 2px 4px rgba(236, 72, 153, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Indigo Purple - Rich and modern */
+.interests-selected .interest-chip[data-color="5"] {
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.35),
+    rgba(79, 70, 229, 0.28)
+  );
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25),
+    0 2px 4px rgba(99, 102, 241, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Vivid Violet - Creative and expressive */
+.interests-selected .interest-chip[data-color="6"] {
+  background: linear-gradient(
+    135deg,
+    rgba(168, 85, 247, 0.35),
+    rgba(147, 51, 234, 0.28)
+  );
+  border-color: rgba(168, 85, 247, 0.5);
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.25),
+    0 2px 4px rgba(168, 85, 247, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Coral Red - Passionate and energetic */
+.interests-selected .interest-chip[data-color="7"] {
+  background: linear-gradient(
+    135deg,
+    rgba(239, 68, 68, 0.35),
+    rgba(220, 38, 38, 0.28)
+  );
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25),
+    0 2px 4px rgba(239, 68, 68, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Teal Cyan - Cool and refreshing */
+.interests-selected .interest-chip[data-color="8"] {
+  background: linear-gradient(
+    135deg,
+    rgba(20, 184, 166, 0.35),
+    rgba(13, 148, 136, 0.28)
+  );
+  border-color: rgba(20, 184, 166, 0.5);
+  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.25),
+    0 2px 4px rgba(20, 184, 166, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Lime Green - Bright and youthful */
+.interests-selected .interest-chip[data-color="9"] {
+  background: linear-gradient(
+    135deg,
+    rgba(132, 204, 22, 0.35),
+    rgba(101, 163, 13, 0.28)
+  );
+  border-color: rgba(132, 204, 22, 0.5);
+  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.25),
+    0 2px 4px rgba(132, 204, 22, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Sky Blue - Light and airy */
+.interests-selected .interest-chip[data-color="10"] {
+  background: linear-gradient(
+    135deg,
+    rgba(14, 165, 233, 0.35),
+    rgba(2, 132, 199, 0.28)
+  );
+  border-color: rgba(14, 165, 233, 0.5);
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25),
+    0 2px 4px rgba(14, 165, 233, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Rose Pink - Soft and elegant */
+.interests-selected .interest-chip[data-color="11"] {
+  background: linear-gradient(
+    135deg,
+    rgba(244, 114, 182, 0.35),
+    rgba(236, 72, 153, 0.28)
+  );
+  border-color: rgba(244, 114, 182, 0.5);
+  box-shadow: 0 4px 12px rgba(244, 114, 182, 0.25),
+    0 2px 4px rgba(244, 114, 182, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Sunset Orange - Vibrant and warm */
+.interests-selected .interest-chip[data-color="12"] {
+  background: linear-gradient(
+    135deg,
+    rgba(251, 146, 60, 0.35),
+    rgba(249, 115, 22, 0.28)
+  );
+  border-color: rgba(251, 146, 60, 0.5);
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.25),
+    0 2px 4px rgba(251, 146, 60, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Lavender Purple - Calm and soothing */
+.interests-selected .interest-chip[data-color="13"] {
+  background: linear-gradient(
+    135deg,
+    rgba(196, 181, 253, 0.35),
+    rgba(167, 139, 250, 0.28)
+  );
+  border-color: rgba(196, 181, 253, 0.5);
+  box-shadow: 0 4px 12px rgba(196, 181, 253, 0.25),
+    0 2px 4px rgba(196, 181, 253, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Mint Green - Fresh and clean */
+.interests-selected .interest-chip[data-color="14"] {
+  background: linear-gradient(
+    135deg,
+    rgba(52, 211, 153, 0.35),
+    rgba(16, 185, 129, 0.28)
+  );
+  border-color: rgba(52, 211, 153, 0.5);
+  box-shadow: 0 4px 12px rgba(52, 211, 153, 0.25),
+    0 2px 4px rgba(52, 211, 153, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Peach - Soft and friendly */
+.interests-selected .interest-chip[data-color="15"] {
+  background: linear-gradient(
+    135deg,
+    rgba(254, 215, 170, 0.35),
+    rgba(253, 186, 116, 0.28)
+  );
+  border-color: rgba(254, 215, 170, 0.5);
+  box-shadow: 0 4px 12px rgba(254, 215, 170, 0.25),
+    0 2px 4px rgba(253, 186, 116, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Subtle colors for suggestions - Muted with hover enhancement */
+.interests-suggestions .interest-chip[data-color="1"] {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.18);
+}
+.interests-suggestions .interest-chip[data-color="1"]:hover {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+.interests-suggestions .interest-chip[data-color="2"] {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.18);
+}
+.interests-suggestions .interest-chip[data-color="2"]:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+.interests-suggestions .interest-chip[data-color="3"] {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.18);
+}
+.interests-suggestions .interest-chip[data-color="3"]:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.3);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
+}
+
+.interests-suggestions .interest-chip[data-color="4"] {
+  background: rgba(236, 72, 153, 0.08);
+  border-color: rgba(236, 72, 153, 0.18);
+}
+.interests-suggestions .interest-chip[data-color="4"]:hover {
+  background: rgba(236, 72, 153, 0.15);
+  border-color: rgba(236, 72, 153, 0.3);
+  box-shadow: 0 2px 8px rgba(236, 72, 153, 0.2);
+}
+
+.interests-suggestions .interest-chip[data-color="5"] {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.18);
+}
+.interests-suggestions .interest-chip[data-color="5"]:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+}
+
+.interests-suggestions .interest-chip[data-color="6"] {
+  background: rgba(168, 85, 247, 0.08);
+  border-color: rgba(168, 85, 247, 0.18);
+}
+.interests-suggestions .interest-chip[data-color="6"]:hover {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.3);
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.2);
+}
+
+.interests-suggestions .interest-chip[data-color="7"] {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.18);
+}
+.interests-suggestions .interest-chip[data-color="7"]:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+}
+
+.interests-suggestions .interest-chip[data-color="8"] {
+  background: rgba(20, 184, 166, 0.08);
+  border-color: rgba(20, 184, 166, 0.18);
+}
+.interests-suggestions .interest-chip[data-color="8"]:hover {
+  background: rgba(20, 184, 166, 0.15);
+  border-color: rgba(20, 184, 166, 0.3);
+  box-shadow: 0 2px 8px rgba(20, 184, 166, 0.2);
+}
+
+.interests-suggestions .interest-chip[data-color="9"] {
+  background: rgba(132, 204, 22, 0.08);
+  border-color: rgba(132, 204, 22, 0.18);
+}
+.interests-suggestions .interest-chip[data-color="9"]:hover {
+  background: rgba(132, 204, 22, 0.15);
+  border-color: rgba(132, 204, 22, 0.3);
+  box-shadow: 0 2px 8px rgba(132, 204, 22, 0.2);
+}
+
+.interests-suggestions .interest-chip[data-color="10"] {
+  background: rgba(14, 165, 233, 0.08);
+  border-color: rgba(14, 165, 233, 0.18);
+}
+.interests-suggestions .interest-chip[data-color="10"]:hover {
+  background: rgba(14, 165, 233, 0.15);
+  border-color: rgba(14, 165, 233, 0.3);
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.2);
+}
+
+.interests-suggestions .interest-chip[data-color="11"] {
+  background: rgba(244, 114, 182, 0.08);
+  border-color: rgba(244, 114, 182, 0.18);
+}
+.interests-suggestions .interest-chip[data-color="11"]:hover {
+  background: rgba(244, 114, 182, 0.15);
+  border-color: rgba(244, 114, 182, 0.3);
+  box-shadow: 0 2px 8px rgba(244, 114, 182, 0.2);
+}
+
+.interests-suggestions .interest-chip[data-color="12"] {
+  background: rgba(251, 146, 60, 0.08);
+  border-color: rgba(251, 146, 60, 0.18);
+}
+.interests-suggestions .interest-chip[data-color="12"]:hover {
+  background: rgba(251, 146, 60, 0.15);
+  border-color: rgba(251, 146, 60, 0.3);
+  box-shadow: 0 2px 8px rgba(251, 146, 60, 0.2);
+}
+
+.interests-suggestions .interest-chip[data-color="13"] {
+  background: rgba(196, 181, 253, 0.08);
+  border-color: rgba(196, 181, 253, 0.18);
+}
+.interests-suggestions .interest-chip[data-color="13"]:hover {
+  background: rgba(196, 181, 253, 0.15);
+  border-color: rgba(196, 181, 253, 0.3);
+  box-shadow: 0 2px 8px rgba(196, 181, 253, 0.2);
+}
+
+.interests-suggestions .interest-chip[data-color="14"] {
+  background: rgba(52, 211, 153, 0.08);
+  border-color: rgba(52, 211, 153, 0.18);
+}
+.interests-suggestions .interest-chip[data-color="14"]:hover {
+  background: rgba(52, 211, 153, 0.15);
+  border-color: rgba(52, 211, 153, 0.3);
+  box-shadow: 0 2px 8px rgba(52, 211, 153, 0.2);
+}
+
+.interests-suggestions .interest-chip[data-color="15"] {
+  background: rgba(254, 215, 170, 0.08);
+  border-color: rgba(254, 215, 170, 0.18);
+}
+.interests-suggestions .interest-chip[data-color="15"]:hover {
+  background: rgba(254, 215, 170, 0.15);
+  border-color: rgba(253, 186, 116, 0.3);
+  box-shadow: 0 2px 8px rgba(254, 215, 170, 0.2);
+}
+
+/* Social Links */
+.social-links-list {
+  display: grid;
+  gap: 10px;
+}
+.social-link-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+.social-link-item:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateX(2px);
+}
+.social-link-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  color: #fff;
+}
+.social-instagram {
+  background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+}
+.social-facebook {
+  background: #1877f2;
+}
+.social-linkedin {
+  background: #0a66c2;
+}
+.social-github {
+  background: #333;
+}
+.social-x {
+  background: #000;
+}
+.social-custom {
+  background: #6366f1;
+}
+.social-link-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.social-link-type {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #9ca3af);
+  text-transform: capitalize;
+}
+.social-link-url {
+  font-size: 14px;
+  color: var(--text-primary, #fff);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.social-link-remove {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.social-link-remove:hover {
+  background: #ef4444;
+  color: #fff;
+  transform: scale(1.1);
+}
+
 /* Custom scrollbar for setup body (inner scrollable content) */
 .setup-body::-webkit-scrollbar {
   width: 4px; /* Even thinner for inner content */
@@ -276,7 +902,7 @@ body.page-profile .profile-setup-card.glass-card {
 }
 
 .step-title {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: var(--space-sm);
@@ -284,6 +910,7 @@ body.page-profile .profile-setup-card.glass-card {
 
 .step-description {
   color: var(--text-secondary);
+  font-size: 1rem;
   line-height: 1.6;
   max-width: 500px;
   margin: 0 auto;
@@ -313,7 +940,7 @@ body.page-profile .profile-setup-card.glass-card {
   margin-bottom: var(--space-sm);
   font-weight: 500;
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 /* required markers */
@@ -357,7 +984,11 @@ body.page-profile .profile-setup-card.glass-card {
   padding: 0.5rem 1rem;
   border-radius: 999px;
   border: none;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(129, 140, 248, 0.28));
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.18),
+    rgba(129, 140, 248, 0.28)
+  );
   color: var(--text-primary);
   font-weight: 600;
   font-size: 0.95rem;
@@ -390,9 +1021,15 @@ body.page-profile .profile-setup-card.glass-card {
 
 /* Soft pulse glow animation for How button */
 @keyframes helpGlow {
-  0% { box-shadow: 0 0 0 0 rgba(129, 140, 248, 0.25); }
-  50% { box-shadow: 0 0 12px 2px rgba(129, 140, 248, 0.30); }
-  100% { box-shadow: 0 0 0 0 rgba(129, 140, 248, 0.25); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(129, 140, 248, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 12px 2px rgba(129, 140, 248, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(129, 140, 248, 0.25);
+  }
 }
 
 .schedule-help-overlay {
@@ -487,18 +1124,21 @@ body.page-profile .profile-setup-card.glass-card {
 /* inputs */
 .form-input {
   width: 100%;
-  padding: clamp(0.6rem, 2.5vw, 0.9rem) clamp(0.75rem, 3vw, 1.1rem);
+  padding: clamp(0.65rem, 2.5vw, 0.875rem) clamp(0.85rem, 3vw, 1rem);
   background: var(--input-bg);
   border: 2px solid var(--input-border);
   border-radius: var(--radius-md);
   color: var(--text-primary);
-  font-size: clamp(1rem, 2.4vw, 1.1rem);
+  font-size: clamp(1rem, 2.4vw, 1rem);
   transition: all 0.3s var(--animation-smooth);
   backdrop-filter: blur(10px);
 }
 
 /* ===== Custom Dropdowns & Typeahead (light/dark aware, animated) ===== */
-.typeahead-wrapper { position: relative; width: 100%; }
+.typeahead-wrapper {
+  position: relative;
+  width: 100%;
+}
 .typeahead-list,
 .select-dropdown {
   position: absolute;
@@ -726,6 +1366,104 @@ body.page-profile .profile-setup-card.glass-card {
 /* ╭──────────────────────────────────────────────────────────────────────────╮
    │ 6) AVATAR SELECTION (PROFILE)                                            │
    ╰──────────────────────────────────────────────────────────────────────────╯ */
+
+.avatar-photo-group {
+  margin-bottom: var(--space-xl);
+  position: relative;
+}
+
+.avatar-photo-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.photo-primary-section,
+.avatar-secondary-section {
+  background: var(--glass-content-bg, rgba(255, 255, 255, 0.06));
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  border: 1px solid var(--glass-content-border, rgba(255, 255, 255, 0.12));
+  box-shadow: var(--glass-shadow, 0 12px 30px rgba(15, 23, 42, 0.45));
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.photo-primary-section {
+  text-align: center;
+}
+
+.photo-primary-section .avatar-display-container {
+  justify-content: center;
+}
+
+.photo-primary-section .avatar-preview-display {
+  margin: 0 auto var(--space-md);
+}
+
+.photo-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.photo-helper-text {
+  max-width: 420px;
+  margin: var(--space-sm) auto 0;
+}
+
+.avatar-secondary-section {
+  text-align: center;
+}
+
+.avatar-toggle-button {
+  display: inline-flex;
+  margin: var(--space-sm) auto 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+.avatar-toggle-button:hover {
+  color: var(--accent-primary);
+  transform: translateY(-1px);
+}
+
+/* Swap animation between photo and avatar sections */
+.avatar-photo-group .photo-primary-section,
+.avatar-photo-group .avatar-secondary-section {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+/* Photo mode - photo UI visible, avatar UI hidden */
+.avatar-photo-group.avatar-photo-mode-photo .photo-primary-section {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.avatar-photo-group.avatar-photo-mode-photo .avatar-secondary-section {
+  display: none;
+}
+
+/* Avatar mode - avatar UI visible, photo UI hidden */
+.avatar-photo-group.avatar-photo-mode-avatar .avatar-secondary-section {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.avatar-photo-group.avatar-photo-mode-avatar .photo-primary-section {
+  display: none;
+}
 
 .avatar-selection-section {
   text-align: center;
@@ -988,7 +1726,7 @@ body.page-profile .profile-setup-card.glass-card {
   border: none;
   border-radius: var(--radius-md);
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 1rem;
   cursor: pointer;
   transition: all 0.3s var(--animation-smooth);
   position: relative;
@@ -2223,7 +2961,7 @@ body.page-profile .profile-setup-card.glass-card {
     white-space: nowrap;
     min-width: auto !important;
   }
-  
+
   .controls-content {
     padding: 1rem;
   }
@@ -2256,36 +2994,154 @@ body.page-profile .profile-setup-card.glass-card {
   .avatar-editor-content {
     grid-template-rows: 190px 1fr !important;
   }
-  
+
   .avatar-preview-section {
     padding: 0.5rem !important;
     gap: 0.5rem !important;
   }
-  
+
   .avatar-preview-container {
     width: 90px !important;
     height: 90px !important;
   }
-  
+
   .avatar-preview-label {
     font-size: 0.8rem !important;
     line-height: 1.2;
   }
-  
+
   .randomize-btn {
     padding: 0.4rem 0.6rem !important;
     font-size: 0.8rem !important;
   }
-  
+
   .controls-content {
     padding: 0.75rem !important;
   }
-  
+
   .control-group {
     margin-bottom: 1.25rem !important;
   }
 
- 
+  /* Reduce step title size on mobile */
+  .step-title {
+    font-size: 1.25rem !important;
+  }
+
+  /* Reduce section labels in interests */
+  .interests-section-label {
+    font-size: 0.8rem !important;
+    margin-bottom: 0.6rem !important;
+  }
+
+  .interests-section-label i {
+    font-size: 0.75rem !important;
+  }
+
+  /* Tighter wrapper padding on very small screens */
+  .interests-selected-wrapper,
+  .interests-add-custom,
+  .interests-suggestions-wrapper {
+    margin-top: 0.75rem !important;
+  }
+
+  .interests-selected-wrapper {
+    padding: 0.75rem !important;
+    min-height: 65px !important;
+  }
+
+  .interests-suggestions-wrapper {
+    padding: 0.75rem !important;
+  }
+
+  /* Further reduce chip sizing on very small screens */
+  .interests-selected .interest-chip {
+    gap: 4px !important;
+    padding: 5px 8px !important;
+    font-size: 11.5px !important;
+  }
+
+  .interests-selected .interest-chip i {
+    font-size: 12px !important;
+  }
+
+  .interests-selected .interest-chip .chip-remove {
+    width: 18px !important;
+    height: 18px !important;
+    font-size: 13px !important;
+    line-height: 18px !important;
+    margin-left: 2px !important;
+  }
+
+  .interests-suggestions .interest-chip {
+    gap: 4px !important;
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+  }
+
+  .interests-suggestions .interest-chip i {
+    font-size: 11px !important;
+  }
+
+  /* Reduce chips grid gap */
+  .chips-grid {
+    gap: 6px !important;
+  }
+
+  /* Adjust empty state text size */
+  .interests-selected:empty::after {
+    padding: 1.25rem 0.75rem !important;
+    font-size: 0.825rem !important;
+  }
+
+  /* Reduce form label size */
+  .form-label {
+    font-size: 0.875rem !important;
+    margin-bottom: 0.4rem !important;
+  }
+
+  /* Adjust form input sizing */
+  .form-input {
+    font-size: 1rem !important;
+    padding: 0.65rem 0.85rem !important;
+  }
+
+  /* Reduce field hints */
+  .form-hint,
+  .field-hint {
+    font-size: 0.75rem !important;
+  }
+
+  /* Tighter form group spacing */
+  .form-group {
+    margin-bottom: 1rem !important;
+  }
+
+  /* Adjust step description */
+  .step-description {
+    font-size: 0.9rem !important;
+    line-height: 1.5 !important;
+  }
+
+  /* Social links section adjustments */
+  .social-link-item {
+    gap: 0.5rem !important;
+  }
+
+  /* Icebreaker questions compact mode */
+  .icebreaker-question {
+    padding: 0.75rem !important;
+  }
+
+  .icebreaker-question-text {
+    font-size: 0.875rem !important;
+  }
+
+  /* Reduce character counter size */
+  .char-counter,
+  .char-counter-container {
+    font-size: 0.75rem !important;
+  }
 }
 
 /* D) ≤ 768px – avatar modal sizing */

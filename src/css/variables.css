@@ -22,6 +22,17 @@ design system for the MeetchuThere application. It includes:
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent; /* Remove blue tap flash on mobile/PWA */
+}
+
+/* Global touch feedback for interactive elements */
+button:active,
+a:active,
+[role="button"]:active,
+.clickable:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+  transition: transform 0.1s ease, opacity 0.1s ease;
 }
 
 /* Root font-size for consistent rem calculations across all environments */
@@ -568,7 +579,7 @@ body.dark-mode {
     --nav-item-hover: var(--surface-hover);
     --nav-item-active: var(--accent-primary);
     --nav-link-highlight: rgba(255, 255, 255, 0.1);
-    --nav-link-color: var(--text-secondary);
+    --nav-link-color: var(--accent-primary);
     --nav-link-hover-color: var(--accent-primary);
     --nav-link-hover-bg: var(--surface-hover);
 
@@ -721,7 +732,7 @@ body:not(.dark-mode) {
   --nav-item-hover: rgba(162, 148, 249, 0.1);
   --nav-item-active: var(--accent-primary);
   --nav-link-highlight: rgba(162, 148, 249, 0.15);
-  --nav-link-color: var(--text-secondary);
+  --nav-link-color: var(--accent-primary);
   --nav-link-hover-color: var(--accent-primary);
   --nav-link-hover-bg: var(--surface-hover);
 

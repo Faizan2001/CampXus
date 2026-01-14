@@ -1,11 +1,10 @@
 import { defineConfig } from "vite";
 
 // Optional: configure HMR to work over ngrok HTTPS
-const NGROK_HOST =
-  process.env.NGROK_HOST || process.env.NGROK_DOMAIN || null;
+const NGROK_HOST = process.env.NGROK_HOST || process.env.NGROK_DOMAIN || null;
 
 export default defineConfig(({ mode }) => {
-  const isProd = mode === 'production';
+  const isProd = mode === "production";
   return {
     build: {
       copyPublicDir: true,
@@ -15,7 +14,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            firebase: ["firebase/app", "firebase/auth", "firebase/firestore"]
+            firebase: ["firebase/app", "firebase/auth", "firebase/firestore"],
           },
           assetFileNames: (assetInfo) => {
             const info = assetInfo.name.split(".");
@@ -51,7 +50,17 @@ export default defineConfig(({ mode }) => {
           }
         : undefined,
 
-      // For dev server on other devices visit: https://preburlesque-hypertropical-karlene.ngrok-free.app/  
+      // Ignore large folders that don't need watching
+      watch: {
+        ignored: [
+          "**/node_modules/**",
+          "**/.venv/**",
+          "**/.git/**",
+          "**/firebase-export-*/**",
+        ],
+      },
+
+      // For dev server on other devices visit: https://preburlesque-hypertropical-karlene.ngrok-free.app/
       // ngrok http 5173 --url=preburlesque-hypertropical-karlene.ngrok-free.app
       // Allow ngrok + future production domains
       allowedHosts: [

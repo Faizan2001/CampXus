@@ -202,6 +202,25 @@ class LogManager {
   }
 
   /**
+   * Root level convenience methods for conventional usage
+   */
+  info(message, data) {
+    this.system.info(message, data);
+  }
+
+  warn(message, data) {
+    this.system.warn(message, data);
+  }
+
+  error(message, data) {
+    this.system.error(message, data);
+  }
+
+  debug(message, data) {
+    this.dev.debug(message, data);
+  }
+
+  /**
    * Determine if we are in development mode using multiple fallbacks (Vite + NODE_ENV)
    */
   _isDevEnv() {
@@ -488,6 +507,8 @@ class LogManager {
       this.log(LOG_LEVELS.INFO, "auth", LOG_EMOJIS.AUTH_LOGOUT, message, data),
     user: (message, data) =>
       this.log(LOG_LEVELS.INFO, "auth", LOG_EMOJIS.AUTH_USER, message, data),
+    warn: (message, data) =>
+      this.log(LOG_LEVELS.WARN, "auth", LOG_EMOJIS.AUTH_ERROR, message, data),
     error: (message, data) =>
       this.log(LOG_LEVELS.ERROR, "auth", LOG_EMOJIS.AUTH_ERROR, message, data),
   };
@@ -562,6 +583,8 @@ class LogManager {
         message,
         data
       ),
+    warn: (message, data) =>
+      this.log(LOG_LEVELS.WARN, "system", LOG_EMOJIS.SYS_ERROR, message, data),
     info: (message, data) =>
       this.log(LOG_LEVELS.INFO, "system", LOG_EMOJIS.SYS_INIT, message, data),
     perf: (message, data) =>
@@ -580,6 +603,8 @@ class LogManager {
       this.log(LOG_LEVELS.DEBUG, "dev", LOG_EMOJIS.DEV_TEST, message, data),
     info: (message, data) =>
       this.log(LOG_LEVELS.INFO, "dev", LOG_EMOJIS.DEV_INFO, message, data),
+    warn: (message, data) =>
+      this.log(LOG_LEVELS.WARN, "dev", LOG_EMOJIS.DEV_DEBUG, message, data),
   };
 
   /**

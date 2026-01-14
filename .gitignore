@@ -12,8 +12,15 @@ yarn-error.log*
 
 # Firebase (CRITICAL: Never commit these!)
 firebase-debug.log
+firestore-debug.log
+firestore_dump.json
+firestore_data.json
+firebase_dump.json
+ui-debug.log
 .firebase/
 src/js/lib/firebase/env-config.js
+.emulator-data/
+firebase-export-*/
 
 # Cloud Functions
 functions/node_modules/                   
@@ -43,6 +50,5 @@ Thumbs.db
 build/
 *.log
 requirements/
-
 
 

@@ -1,0 +1,55 @@
+<section class="user-profile-view content-grid">
+  <div class="glass-card" id="profile-card">
+    <div class="profile-header">
+      <div class="profile-photo" id="profile-photo">
+        <!-- Filled by controller: <img src="..."> or avatar -->
+      </div>
+      <div class="profile-header-text">
+        <h1 id="profile-name">Profile</h1>
+        <div class="handle-major">
+          <span id="profile-handle" class="handle"></span>
+          <span id="profile-major" class="major"></span>
+        </div>
+        <div class="header-actions" id="header-actions"></div>
+      </div>
+    </div>
+
+    <div class="profile-sections">
+      <section id="bio-section" class="profile-section hidden">
+        <h2>About</h2>
+        <p id="profile-bio"></p>
+      </section>
+
+      <section id="social-section" class="profile-section hidden">
+        <h2>Social</h2>
+        <div id="social-links" class="social-links"></div>
+      </section>
+
+      <section id="interests-section" class="profile-section hidden">
+        <h2>Interests</h2>
+        <div id="interests-list" class="chips-grid"></div>
+      </section>
+
+      <section id="qa-section" class="profile-section hidden">
+        <h2>Q/A</h2>
+        <div id="qa-list" class="qa-list"></div>
+      </section>
+
+      <section id="mutual-section" class="profile-section hidden">
+        <h2>Mutual Friends</h2>
+        <div id="mutual-friends" class="mutual-friends"></div>
+      </section>
+
+      <section id="classes-section" class="profile-section hidden">
+        <h2>Classes In Common</h2>
+        <div id="common-classes" class="common-classes"></div>
+      </section>
+
+      <section id="privacy-note" class="profile-section hidden">
+        <div class="notice">
+          This profile is only visible within your university.
+        </div>
+      </section>
+    </div>
+  </div>
+</section>

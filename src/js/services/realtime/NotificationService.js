@@ -23,7 +23,7 @@ class NotificationManager {
       id: `friend_request_${Date.now()}`,
       type: "friend_request",
       title: "New Friend Request",
-  message: `@${request.handle || 'unknown'} wants to be your friend`,
+      message: `@${request.handle || "unknown"} wants to be your friend`,
       data: request,
       timestamp: Date.now(),
       priority: "high",
@@ -41,7 +41,7 @@ class NotificationManager {
       id: `friend_accepted_${Date.now()}`,
       type: "friend_accepted",
       title: "Friend Request Accepted",
-  message: `You and @${friend.handle || 'unknown'} are now friends!`,
+      message: `You and @${friend.handle || "unknown"} are now friends!`,
       data: friend,
       timestamp: Date.now(),
       priority: "high",
@@ -224,23 +224,54 @@ class NotificationManager {
     const headerIconColor = this.getHeaderIconColor
       ? this.getHeaderIconColor(notification)
       : '#6b7280';
-    notificationEl.innerHTML = `
-      <div class="notification-content">
-        <div class="notification-text">
-          <div class="notification-title">
-            ${headerIconClass ? `<i class="${headerIconClass}" style="color:${headerIconColor};margin-right:8px;" aria-hidden="true"></i>` : ""}
-            <span>${notification.title}</span>
-          </div>
-          <div class="notification-message">${notification.message}</div>
-          <div class="notification-timestamp">${this.formatTimestamp(
-            notification.timestamp
-          )}</div>
-        </div>
-        <button class="notification-close" title="Close notification" aria-label="Close notification">
-          <i class="fas fa-times" aria-hidden="true"></i>
-        </button>
-      </div>
-    `;
+
+    // Build DOM safely (no innerHTML injection of user-controlled content)
+    const contentEl = document.createElement("div");
+    contentEl.className = "notification-content";
+
+    const textEl = document.createElement("div");
+    textEl.className = "notification-text";
+
+    const titleEl = document.createElement("div");
+    titleEl.className = "notification-title";
+
+    if (headerIconClass) {
+      const iconEl = document.createElement("i");
+      iconEl.className = headerIconClass;
+      iconEl.style.color = headerIconColor;
+      iconEl.style.marginRight = "8px";
+      iconEl.setAttribute("aria-hidden", "true");
+      titleEl.appendChild(iconEl);
+    }
+
+    const titleSpan = document.createElement("span");
+    titleSpan.textContent = notification.title || "";
+    titleEl.appendChild(titleSpan);
+
+    const messageEl = document.createElement("div");
+    messageEl.className = "notification-message";
+    messageEl.textContent = notification.message || "";
+
+    const timestampEl = document.createElement("div");
+    timestampEl.className = "notification-timestamp";
+    timestampEl.textContent = this.formatTimestamp(notification.timestamp);
+
+    textEl.appendChild(titleEl);
+    textEl.appendChild(messageEl);
+    textEl.appendChild(timestampEl);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "notification-close";
+    closeBtn.title = "Close notification";
+    closeBtn.setAttribute("aria-label", "Close notification");
+    const closeIcon = document.createElement("i");
+    closeIcon.className = "fas fa-times";
+    closeIcon.setAttribute("aria-hidden", "true");
+    closeBtn.appendChild(closeIcon);
+
+    contentEl.appendChild(textEl);
+    contentEl.appendChild(closeBtn);
+    notificationEl.appendChild(contentEl);
 
     // Add event listeners
     this.addNotificationEventListeners(notificationEl, notification);

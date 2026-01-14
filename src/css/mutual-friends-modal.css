@@ -1,0 +1,299 @@
+/* ============================================================================
+   MUTUAL FRIENDS MODAL
+   ============================================================================ */
+
+.mutual-friends-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: flex-end;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.mutual-friends-modal-overlay.show {
+  opacity: 1;
+}
+
+.mutual-friends-modal {
+  background: var(--glass-bg, rgba(255, 255, 255, 0.95));
+  border-radius: 20px 20px 0 0;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.mutual-friends-modal-overlay.show .mutual-friends-modal {
+  transform: translateY(0);
+}
+
+.mutual-friends-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.mutual-friends-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+  flex: 1;
+  padding-right: 10px;
+}
+
+.mutual-friends-header .close-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary, #666);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.mutual-friends-header .close-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: scale(1.05);
+}
+
+.mutual-friends-count {
+  padding: 12px 20px;
+  font-size: 14px;
+  color: var(--text-secondary, #666);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+}
+
+.mutual-friends-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mutual-friends-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mutual-friends-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.mutual-friends-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.mutual-friends-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Friend Card */
+.mutual-friend-card {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mutual-friend-card:hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--primary-color, #4a90e2);
+  transform: translateX(4px);
+}
+
+.mutual-friend-card:active {
+  transform: translateX(4px) scale(0.98);
+}
+
+.mutual-friend-card .friend-card-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  margin-right: 12px;
+  background: var(--glass-bg-light, rgba(255, 255, 255, 0.5));
+  border: 2px solid rgba(0, 0, 0, 0.05);
+}
+
+.mutual-friend-card .friend-card-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mutual-friend-card .friend-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 20px;
+}
+
+.mutual-friend-card .friend-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mutual-friend-card .friend-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mutual-friend-card .friend-card-handle {
+  font-size: 13px;
+  color: var(--text-secondary, #666);
+  margin-bottom: 2px;
+}
+
+.mutual-friend-card .friend-card-major {
+  font-size: 12px;
+  color: var(--text-tertiary, #999);
+  margin-top: 2px;
+}
+
+.mutual-friend-card .friend-card-arrow {
+  color: var(--text-tertiary, #999);
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-left: 8px;
+  transition: transform 0.2s ease;
+}
+
+.mutual-friend-card:hover .friend-card-arrow {
+  transform: translateX(4px);
+  color: var(--primary-color, #4a90e2);
+}
+
+/* Loading/Error States - Scoped to modal content only */
+.mutual-friends-list .loading-spinner,
+.mutual-friends-list .no-mutual-friends,
+.mutual-friends-list .error-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary, #666);
+}
+
+.mutual-friends-list .loading-spinner i,
+.mutual-friends-list .no-mutual-friends i,
+.mutual-friends-list .error-message i {
+  font-size: 32px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.mutual-friends-list .loading-spinner i {
+  color: var(--primary-color, #4a90e2);
+}
+
+.mutual-friends-list .error-message i {
+  color: #e74c3c;
+}
+
+.mutual-friends-list .no-mutual-friends p,
+.mutual-friends-list .error-message p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Desktop: Show as centered modal instead of bottom sheet */
+@media (min-width: 768px) {
+  .mutual-friends-modal-overlay {
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mutual-friends-modal {
+    border-radius: 16px;
+    max-width: 480px;
+    max-height: 600px;
+    transform: scale(0.9);
+    opacity: 0;
+  }
+
+  .mutual-friends-modal-overlay.show .mutual-friends-modal {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  .mutual-friends-header {
+    border-radius: 16px 16px 0 0;
+  }
+}
+
+/* Dark mode support (if implemented) */
+@media (prefers-color-scheme: dark) {
+  .mutual-friends-modal {
+    background: rgba(30, 30, 30, 0.95);
+  }
+
+  .mutual-friends-header h3,
+  .mutual-friend-card .friend-card-name {
+    color: #fff;
+  }
+
+  .mutual-friends-count,
+  .mutual-friend-card .friend-card-handle {
+    color: #aaa;
+  }
+
+  .mutual-friend-card .friend-card-major {
+    color: #888;
+  }
+
+  .mutual-friend-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .mutual-friend-card:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .mutual-friends-header .close-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: #aaa;
+  }
+
+  .mutual-friends-header .close-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+}

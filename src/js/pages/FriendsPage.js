@@ -1171,8 +1171,6 @@ class FriendsUI {
     }
   }
 
-
-
   /**
    * 📊 Load initial data when page opens
    */
@@ -1569,6 +1567,11 @@ class FriendsUI {
     }
   }
 
+  _friendsListHasNonSkeletonContent() {
+    const html = this.elements?.friendsList?.innerHTML || "";
+    return html.trim().length > 0 && !html.includes("skeleton-loader");
+  }
+
   /**
    * 👥 Display the friends list with bilateral privacy support
    */
@@ -1602,71 +1605,7 @@ class FriendsUI {
         .join(";");
     } catch (_) {}
 
-    const friendsHTML = friends
-      .map(
-        (friend) => `
-      <div class="friend-card" data-friend-id="${friend.id}">
-        <div class="friend-avatar">
-          ${this.renderAvatar(friend)}
-          ${friend.isOnline ? '<div class="online-indicator"></div>' : ""}
-        </div>
-        <div class="friend-info">
-          <h4 class="friend-name">${escapeHTML(friend.handle || "unknown")}</h4>
-          <p class="friend-major">${escapeHTML(friend.major)}</p>
-          ${
-            friend.mutualFriends > 0
-              ? `
-            <p class="mutual-friends">
-              <i class="fas fa-users"></i>
-              ${friend.mutualFriends} mutual friends
-            </p>
-          `
-              : ""
-          }
-          ${this.renderScheduleAccessStatus(friend)}
-        </div>
-        <div class="friend-actions" data-friend-id="${friend.id}">
-          <div class="friend-actions-compact">
-            <button class="drawer-toggle-btn" 
-                    data-friend-id="${friend.id}"
-                    aria-expanded="false" 
-                    aria-label="Show more options"
-                    title="More options">
-              <i class="fas fa-chevron-down" aria-hidden="true"></i>
-            </button>
-            <button class="quick-access-star" 
-                    data-friend-id="${friend.id}"
-                    aria-label="Add to Quick Access"
-                    title="Add to Quick Access">
-              <i class="fas fa-star" aria-hidden="true"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-      <div class="friend-actions-dropdown" data-friend-id="${
-        friend.id
-      }" aria-hidden="true">
-  <button class="mutual-location-btn unknown" 
-                data-friend-id="${friend.id}"
-                aria-label="Mutual location status"
-                title="Mutual location status">
-          <i class="fas fa-map-marker-alt"></i>
-        </button>
-  <button class="mutual-schedule-btn unknown" 
-                data-friend-id="${friend.id}"
-                aria-label="Mutual schedule status"
-                title="Mutual schedule status">
-          <i class="fas fa-calendar"></i>
-        </button>
-        <div class="friend-options-container" data-friend-id="${friend.id}">
-          <!-- FriendOptionsMenu will be rendered here -->
-        </div>
-      </div>
-    `
-      )
-      .join("");
-
-    this.elements.friendsList.innerHTML = friendsHTML;
+    this._diffAndRenderFriends(friends);
 
     // Persist for next navigation to minimize empty-state flicker
     try {
@@ -1719,6 +1658,126 @@ class FriendsUI {
         });
       }
     }
+  }
+
+  _diffAndRenderFriends(friends) {
+    const listEl = this.elements?.friendsList;
+    if (!listEl) return;
+
+    const existingCards = new Map();
+    const existingDropdowns = new Map();
+
+    listEl.querySelectorAll(".friend-card").forEach((card) => {
+      const id = card.dataset.friendId;
+      if (id) existingCards.set(id, card);
+    });
+    listEl.querySelectorAll(".friend-actions-dropdown").forEach((dd) => {
+      const id = dd.dataset.friendId;
+      if (id) existingDropdowns.set(id, dd);
+    });
+
+    const frag = document.createDocumentFragment();
+
+    friends.forEach((friend) => {
+      const id = friend?.id;
+      if (!id) return;
+
+      let card = existingCards.get(id);
+      if (!card) {
+        card = document.createElement("div");
+        card.className = "friend-card";
+        card.dataset.friendId = id;
+      }
+      card.innerHTML = this._buildFriendCardInner(friend);
+      frag.appendChild(card);
+      existingCards.delete(id);
+
+      let dropdown = existingDropdowns.get(id);
+      if (!dropdown) {
+        dropdown = document.createElement("div");
+        dropdown.className = "friend-actions-dropdown";
+        dropdown.dataset.friendId = id;
+      }
+      dropdown.setAttribute("aria-hidden", "true");
+      dropdown.innerHTML = this._buildFriendDropdownInner(friend);
+      frag.appendChild(dropdown);
+      existingDropdowns.delete(id);
+    });
+
+    // Remove stale elements
+    existingCards.forEach((el) => el.remove());
+    existingDropdowns.forEach((el) => el.remove());
+
+    // Replace list content
+    listEl.innerHTML = "";
+    listEl.appendChild(frag);
+  }
+
+  _buildFriendCardInner(friend) {
+    return `
+      <div class="friend-avatar">
+        ${this.renderAvatar(friend)}
+        ${friend.isOnline ? '<div class="online-indicator"></div>' : ""}
+      </div>
+      <div class="friend-info">
+        <h4 class="friend-name">${escapeHTML(friend.handle || "unknown")}</h4>
+        <p class="friend-major">${escapeHTML(friend.major)}</p>
+        ${
+          friend.mutualFriends > 0
+            ? `
+          <p class="mutual-friends">
+            <i class="fas fa-users"></i>
+            ${friend.mutualFriends} mutual friends
+          </p>
+        `
+            : ""
+        }
+        ${this.renderScheduleAccessStatus(friend)}
+      </div>
+      <div class="friend-actions" data-friend-id="${friend.id}">
+        <div class="friend-actions-compact">
+          <a class="profile-view-btn" 
+             href="#user?id=${encodeURIComponent(friend.id)}&from=friends"
+             aria-label="View profile"
+             title="View profile">
+            <i class="fas fa-id-badge" aria-hidden="true"></i>
+          </a>
+          <button class="drawer-toggle-btn" 
+                  data-friend-id="${friend.id}"
+                  aria-expanded="false" 
+                  aria-label="Show more options"
+                  title="More options">
+            <i class="fas fa-chevron-down" aria-hidden="true"></i>
+          </button>
+          <button class="quick-access-star" 
+                  data-friend-id="${friend.id}"
+                  aria-label="Add to Quick Access"
+                  title="Add to Quick Access">
+            <i class="fas fa-star" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  _buildFriendDropdownInner(friend) {
+    return `
+      <button class="mutual-location-btn unknown" 
+              data-friend-id="${friend.id}"
+              aria-label="Mutual location status"
+              title="Mutual location status">
+        <i class="fas fa-map-marker-alt"></i>
+      </button>
+      <button class="mutual-schedule-btn unknown" 
+              data-friend-id="${friend.id}"
+              aria-label="Mutual schedule status"
+              title="Mutual schedule status">
+        <i class="fas fa-calendar"></i>
+      </button>
+      <div class="friend-options-container" data-friend-id="${friend.id}">
+        <!-- FriendOptionsMenu will be rendered here -->
+      </div>
+    `;
   }
 
   /**
@@ -2335,7 +2394,9 @@ class FriendsUI {
           this.toggleFriendActionsDrawer(firstFriendId, true);
         }
       } catch (e) {
-        logWarn("[Friends Onboarding] Failed to ensure drawer open", { error: e });
+        logWarn("[Friends Onboarding] Failed to ensure drawer open", {
+          error: e,
+        });
       }
     };
 
@@ -2349,7 +2410,8 @@ class FriendsUI {
         buildConfig: () => ({
           id: "friend-actions-star",
           title: "Star friends",
-          description: "Star this friend to see their updates on the schedule page.",
+          description:
+            "Star this friend to see their updates on the schedule page.",
           highlightShape: "circle",
           responsivePlacement: { mobile: "bottom", desktop: "top" },
           maxWidth: getResponsiveCoachmarkWidth(200, 176),
@@ -2365,7 +2427,8 @@ class FriendsUI {
         buildConfig: () => ({
           id: "friend-actions-drawer-toggle",
           title: "Privacy & Options",
-          description: "Open this drawer for privacy toggles, and other options.",
+          description:
+            "Open this drawer for privacy toggles, and other options.",
           highlightShape: "circle",
           responsivePlacement: { mobile: "bottom", desktop: "top" },
           maxWidth: getResponsiveCoachmarkWidth(200, 176),
@@ -2395,7 +2458,8 @@ class FriendsUI {
         buildConfig: () => ({
           id: "friend-actions-location",
           title: "Location Privacy",
-          description: "Toggle this button to hide/share your campus presence with this friend.",
+          description:
+            "Toggle this button to hide/share your campus presence with this friend.",
           highlightShape: "circle",
           responsivePlacement: { mobile: "bottom", desktop: "top" },
           maxWidth: getResponsiveCoachmarkWidth(200, 176),
@@ -2413,7 +2477,8 @@ class FriendsUI {
         buildConfig: () => ({
           id: "friend-actions-schedule",
           title: "Schedule Privacy",
-          description: "Toggle this button to hide/share your schedule with this friend.",
+          description:
+            "Toggle this button to hide/share your schedule with this friend.",
           highlightShape: "circle",
           responsivePlacement: { mobile: "bottom", desktop: "top" },
           maxWidth: getResponsiveCoachmarkWidth(200, 176),
@@ -2538,7 +2603,9 @@ class FriendsUI {
             if (!e?.detail || e.detail.route !== "home") return;
             // Convert outstanding glow intent into showFriendsBarHint
             if (sessionStorage.getItem(glowKey) === "1") {
-              try { target.classList.remove("onboarding-glow"); } catch (_) {}
+              try {
+                target.classList.remove("onboarding-glow");
+              } catch (_) {}
               sessionStorage.setItem(showHintKey, "1");
               sessionStorage.removeItem(glowKey);
             }
@@ -2657,40 +2724,78 @@ class FriendsUI {
    * ⏳ Show loading state
    */
   showLoadingState() {
-    // TODO: Implement a proper loading skeleton
-    // Reduced logging for cleaner console
+    if (this.elements.friendsList) {
+      const hasContent =
+        this.elements.friendsList.innerHTML.trim().length > 0 &&
+        !this.elements.friendsList.innerHTML.includes("skeleton-loader");
+      if (hasContent) return;
+      // Create 5 skeleton items
+      const skeletons = Array(5)
+        .fill('<div class="skeleton-loader"></div>')
+        .join("");
+      this.elements.friendsList.innerHTML = skeletons;
+    }
   }
 
   /**
    * ✅ Hide loading state
    */
   hideLoadingState() {
-    // TODO: Hide loading skeleton
-    // Reduced logging for cleaner console
+    // The render function will overwrite the content, so we just need to ensure
+    // we don't leave skeletons if the list is empty (handled by renderFriends)
+    if (
+      this.elements.friendsList &&
+      this.elements.friendsList.innerHTML.includes("skeleton-loader")
+    ) {
+      this.elements.friendsList.innerHTML = "";
+    }
   }
 
   /**
    * 🔍 Show search loading state
    */
   showSearchLoading() {
-    // TODO: Implement search loading state
-    // Reduced logging for cleaner console
+    const searchInput = this.elements.searchInput;
+    if (searchInput) {
+      searchInput.parentElement.classList.add("is-loading");
+      // Add a spinner icon if not present
+      let spinner = searchInput.parentElement.querySelector(".fa-spinner");
+      if (!spinner) {
+        const icon = searchInput.parentElement.querySelector(".fa-search");
+        if (icon) {
+          icon.classList.remove("fa-search");
+          icon.classList.add("fa-spinner", "fa-spin");
+        }
+      }
+    }
   }
 
   /**
    * 🔍 Hide search loading state
    */
   hideSearchLoading() {
-    // TODO: Hide search loading state
-    // Reduced logging for cleaner console
+    const searchInput = this.elements.searchInput;
+    if (searchInput) {
+      searchInput.parentElement.classList.remove("is-loading");
+      // Restore search icon
+      const icon = searchInput.parentElement.querySelector(".fa-spinner");
+      if (icon) {
+        icon.classList.remove("fa-spinner", "fa-spin");
+        icon.classList.add("fa-search");
+      }
+    }
   }
 
   /**
    * 💬 Show user feedback messages
    */
   showMessage(message, type = "info") {
-    // TODO: Implement a nicer notification system
-    console.log(`[${type.toUpperCase()}] ${message}`);
+    try {
+      notificationManager.show(message, type);
+    } catch (e) {
+      // Fallback if notificationManager isn't ready
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
   }
 
   /**
@@ -2712,7 +2817,11 @@ class FriendsUI {
       const uid = currentUser?.state?.user?.uid;
       if (!uid) return;
       const cached = uiCache.get(uiCache.keys.friendsList(uid));
-      if (Array.isArray(cached) && cached.length > 0 && this.elements?.friendsList) {
+      if (
+        Array.isArray(cached) &&
+        cached.length > 0 &&
+        this.elements?.friendsList
+      ) {
         console.log("👥 Rendering friends from cache before fresh fetch", {
           count: cached.length,
         });
@@ -4027,6 +4136,9 @@ class FriendsUI {
         handle: friend.handle,
         major: friend.major,
         avatarConfig: friend.avatarConfig,
+        profilePhotoUrl: friend.profilePhotoUrl || null,
+        useAvatar:
+          typeof friend.useAvatar === "boolean" ? friend.useAvatar : undefined,
         friendshipId: friend.friendshipId, // 🌍 Campus Presence: Required for bilateral location sharing checks
       };
       // Optimistic UI: flip immediately
@@ -4120,21 +4232,28 @@ class FriendsUI {
       `⭐ Updating Quick Access star states for ${friends.length} friends`
     );
 
-    // Use Promise.all for parallel execution to improve performance
-    const starPromises = friends.map(async (friend) => {
-      const friendId = friend.id;
+    try {
+      // Always fetch a fresh snapshot of Quick Access friends from FriendsService.
+      // FriendsService will still leverage DataManager's cache under the hood,
+      // but this bypasses any stale in-memory TTL cache inside FriendsService itself.
+      const quickAccessFriends = await friendsManager.getQuickAccessFriends(
+        false
+      );
+      const starredFriendIds = new Set(
+        (quickAccessFriends || []).map(
+          (friend) => friend.friendId || friend.userId
+        )
+      );
 
-      try {
-        // Check if friend is in Quick Access
-        const isStarred = await friendsManager.isInQuickAccess(friendId);
+      friends.forEach((friend) => {
+        const friendId = friend.id;
+        const isStarred = starredFriendIds.has(friendId);
 
-        // Find the star button for this friend
         const starButton = this.elements.friendsList.querySelector(
           `.quick-access-star[data-friend-id="${friendId}"]`
         );
 
         if (starButton) {
-          // Update the star button state
           this.updateStarButtonState(starButton, isStarred);
           console.log(
             `⭐ Updated star state for @${friend.handle}: ${
@@ -4144,17 +4263,12 @@ class FriendsUI {
         } else {
           console.warn(`⚠️ Star button not found for friend ${friendId}`);
         }
-      } catch (error) {
-        console.error(
-          `❌ Error updating star state for @${friend.handle}:`,
-          error
-        );
-      }
-    });
+      });
 
-    // Wait for all star updates to complete
-    await Promise.all(starPromises);
-    console.log(`✅ Quick Access star states updated for all friends`);
+      console.log(`✅ Quick Access star states updated for all friends`);
+    } catch (error) {
+      console.error("❌ Error updating all Quick Access star states:", error);
+    }
   }
 
   /**
@@ -4755,17 +4869,6 @@ class FriendsUI {
   }
 
   /**
-   * ⭐ DEPRECATED: This method caused duplicate listeners
-   * Quick Access updates are now handled via onQuickAccessUpdated callback in setupRealTimeCallbacks
-   * Keeping this method for reference but it's no longer called
-   */
-  setupQuickAccessRealTimeListener_DEPRECATED() {
-    console.warn(
-      "⚠️ setupQuickAccessRealTimeListener is deprecated - use onQuickAccessUpdated callback instead"
-    );
-  }
-
-  /**
    * ⭐ Handle real-time Quick Access updates from other tabs/sessions
    * Updates the star states without refetching data
    * @param {Object} quickAccessData - Quick Access update data
@@ -5102,7 +5205,6 @@ class FriendsUI {
       logError("❌ Error during Friends UI cleanup:", { error });
     }
   }
-
 }
 
 // 🌟 Export a single instance

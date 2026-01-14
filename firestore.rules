@@ -6,23 +6,363 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email_verified == true;
     }
 
-    function devCreationEnabled() {
+    // Check if user is a SAF (Student Activities and Facilities) Moderator
+    // SAF moderators can create/delete clubs and approve events for their university
+    function isSafModerator() {
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/safModerators/$(request.auth.uid));
+    }
+
+    // Check if SAF moderator is scoped to a specific university
+    // SAF moderators can only manage clubs within their assigned university
+    // NOTE: Clubs store universityId (the ID like "iub") which matches safModerators.universityId
+    // The 'university' field may contain a human-readable name, so we use universityId for comparison
+    function isSafModeratorForUniversity(clubUniversityId) {
+      return isSafModerator() &&
+        get(/databases/$(database)/documents/safModerators/$(request.auth.uid)).data.universityId == clubUniversityId;
+    }
+
+	    // --- Class Spaces (dev testing + read access) ---
+	    // Reads: allow authenticated users (spaces are university-visible in app logic)
+	    // Writes: disable for clients except a narrow dev-testing path to create/clear spaces you own.
+	    match /classSpaces/{spaceId} {
+	      // Only members may read class spaces (prevents cross-user enumeration)
+	      allow read: if request.auth != null &&
+	        (
+	          (('memberIds' in resource.data) &&
+	           (resource.data.memberIds is list) &&
+	           resource.data.memberIds.hasAny([request.auth.uid])) ||
+	          (('devTest' in resource.data) &&
+	           resource.data.devTest == true &&
+	           ('devOwnerUid' in resource.data) &&
+	           resource.data.devOwnerUid == request.auth.uid)
+	        );
+	      // Allow client writes ONLY for dev test spaces you own
+	      // Create: must be a devTest doc owned by caller
+	      allow create: if request.auth != null &&
+	        request.resource.data.devTest == true &&
+        request.resource.data.devOwnerUid == request.auth.uid;
+      // Update: only permitted on existing devTest docs owned by caller (prevents flipping prod docs to dev)
+      allow update: if request.auth != null &&
+        resource.data.devTest == true &&
+        resource.data.devOwnerUid == request.auth.uid &&
+        request.resource.data.devTest == true &&
+        request.resource.data.devOwnerUid == resource.data.devOwnerUid;
+      allow delete: if request.auth != null &&
+        resource.data.devTest == true &&
+        resource.data.devOwnerUid == request.auth.uid;
+
+      // Messages subcollection: client reads only; writes via Cloud Function (sendGroupMessage)
+      match /messages/{msgId} {
+        // Only members may read messages
+        allow read: if request.auth != null &&
+          (('memberIds' in get(/databases/$(database)/documents/classSpaces/$(spaceId)).data) &&
+           (get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.memberIds is list) &&
+           get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.memberIds.hasAny([request.auth.uid]));
+        // Dev-only: allow creating messages under your own devTest spaces
+        allow create: if request.auth != null &&
+          get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.devTest == true &&
+          get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.devOwnerUid == request.auth.uid
+          || (
+            // Direct write path: allow members to create messages with strict validation
+            request.auth != null &&
+            request.auth.uid == request.resource.data.senderId &&
+            (('memberIds' in get(/databases/$(database)/documents/classSpaces/$(spaceId)).data) &&
+             (get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.memberIds is list) &&
+             get(/databases/$(database)/documents/classSpaces/$(spaceId)).data.memberIds.hasAny([request.auth.uid])) &&
+            request.resource.data.content is string &&
+            request.resource.data.content.size() > 0 &&
+            request.resource.data.content.size() <= 500 &&
+            request.resource.data.createdAt == request.time &&
+            request.resource.data.edited == false &&
+            request.resource.data.deleted == false &&
+            // Prevent client from supplying denormalized or server-controlled fields
+            !('senderInfo' in request.resource.data) &&
+            !('messageId' in request.resource.data)
+          );
+        // Only the original sender may mark edited=true later (soft edits), if you later enable it
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      // Members subcollection (if used): client reads only; membership managed by server/scheduler
+      match /members/{memberId} {
+        allow read: if request.auth != null;
+        allow write: if false;
+      }
+    }
+
+	    // --- Clubs (/clubs) ---
+    // Clubs are read by any authenticated user. Writes are restricted:
+    // - Only SAF moderators or super admins may create clubs (production)
+    // - Dev-only test clubs may be created/edited/deleted by their owner when marked devTest
+	    match /clubs/{clubId} {
+	      allow read: if request.auth != null;
+
+	      // Create: only SAF moderators or super admins can create clubs (controlled creation)
+	      // SECURITY: DevTest clubs can ONLY be created by super admins (not any authenticated user)
+	      // NOTE: followerCount is server-managed; clients must not set it to a non-zero value.
+	      allow create: if request.auth != null &&
+	        (
+	          isSuperAdmin() ||
+	          isSafModerator() ||
+	          // SECURITY FIX: DevTest clubs restricted to super admins only
+	          (
+	            isSuperAdmin() &&
+	            request.resource.data.devTest == true &&
+	            request.resource.data.devOwnerUid == request.auth.uid
+	          )
+	        ) &&
+        (
+          !('followerCount' in request.resource.data) ||
+          request.resource.data.followerCount == 0
+        );
+
+      // Update: 
+      // 1. Creator can update their club (if verified)
+      // 2. DevTest owner can update their devTest club
+      // 3. Current president can update membership-related fields (members/officialIds)
+      //
+	      // NOTE: followerCount is server-managed (Cloud Functions); clients cannot change it directly.
+	      allow update: if request.auth != null && (
+	        // Super admins have full control over clubs (for maintenance / emergency fixes)
+	        isSuperAdmin() ||
+	        // Creator can update (verified) but may not touch followerCount
+        (
+          resource.data.createdBy == request.auth.uid &&
+          isVerified() &&
+          (
+            !('followerCount' in request.resource.data) ||
+            request.resource.data.followerCount == resource.data.followerCount
+          )
+        ) ||
+        // DevTest owner can update their club but may not touch followerCount
+        (
+          resource.data.devTest == true &&
+          resource.data.devOwnerUid == request.auth.uid &&
+          request.resource.data.devTest == true &&
+          request.resource.data.devOwnerUid == resource.data.devOwnerUid &&
+          (
+            !('followerCount' in request.resource.data) ||
+            request.resource.data.followerCount == resource.data.followerCount
+          )
+        ) ||
+        // President can update membership-related fields (members / officialIds) without touching followerCount
+        // or other core club metadata. We enforce:
+        // - President check mirrors isClubPresident() used in events: devOwnerUid for devTest,
+        //   or presidentId/createdBy for production clubs.
+        // - No removed top-level fields; new fields limited to members/officialIds
+        // - All non-membership fields remain identical
+        (
+          (
+            // DevTest club: devOwnerUid acts as president
+            resource.data.devTest == true &&
+            resource.data.devOwnerUid == request.auth.uid
+          ) ||
+          (
+            // Production club: presidentId or createdBy
+            resource.data.devTest != true &&
+            (
+              resource.data.presidentId == request.auth.uid ||
+              resource.data.createdBy == request.auth.uid
+            )
+          )
+          ) &&
+          // Preserve followerCount (if present, it must not change)
+	          (
+	            !('followerCount' in request.resource.data) ||
+	            request.resource.data.followerCount == resource.data.followerCount
+	          ) &&
+	          // Allow only members/officialIds changes; prevent removing existing keys
+	          request.resource.data.keys().hasAll(resource.data.keys()) &&
+	          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members','officialIds']) &&
+	          // For all other top-level fields (non-membership), require equality when present
+	          (
+	            (!('presidentId' in request.resource.data) || request.resource.data.presidentId == resource.data.presidentId) &&
+	            (!('clubId' in request.resource.data) || request.resource.data.clubId == resource.data.clubId) &&
+	            (!('name' in request.resource.data) || request.resource.data.name == resource.data.name) &&
+            (!('description' in request.resource.data) || request.resource.data.description == resource.data.description) &&
+            (!('bannerUrl' in request.resource.data) || request.resource.data.bannerUrl == resource.data.bannerUrl) &&
+            (!('logoUrl' in request.resource.data) || request.resource.data.logoUrl == resource.data.logoUrl) &&
+            (!('accentColor' in request.resource.data) || request.resource.data.accentColor == resource.data.accentColor) &&
+            (!('devTest' in request.resource.data) || request.resource.data.devTest == resource.data.devTest) &&
+            (!('devOwnerUid' in request.resource.data) || request.resource.data.devOwnerUid == resource.data.devOwnerUid) &&
+            (!('createdBy' in request.resource.data) || request.resource.data.createdBy == resource.data.createdBy) &&
+            (!('university' in request.resource.data) || request.resource.data.university == resource.data.university) &&
+            (!('universityCode' in request.resource.data) || request.resource.data.universityCode == resource.data.universityCode) &&
+            (!('requireSafApproval' in request.resource.data) || request.resource.data.requireSafApproval == resource.data.requireSafApproval) &&
+            (!('isActive' in request.resource.data) || request.resource.data.isActive == resource.data.isActive) &&
+            (!('presidentInfo' in request.resource.data) || request.resource.data.presidentInfo == resource.data.presidentInfo) &&
+            (!('memberCount' in request.resource.data) || request.resource.data.memberCount == resource.data.memberCount) &&
+            (!('eventsThisWeek' in request.resource.data) || request.resource.data.eventsThisWeek == resource.data.eventsThisWeek) &&
+            (!('nextEventDate' in request.resource.data) || request.resource.data.nextEventDate == resource.data.nextEventDate) &&
+            (!('createdAt' in request.resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
+            (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt == resource.data.updatedAt) &&
+	            (!('lastEventAt' in request.resource.data) || request.resource.data.lastEventAt == resource.data.lastEventAt)
+	          )
+	        );
+
+	      // Delete: SAF moderators (within their university), super admins, creator (if verified), or devTest owner
+	      // SAF moderators can ONLY delete clubs within their assigned university
+	      // Use universityId (not 'university') as it contains the ID that matches safModerators.universityId
+	      allow delete: if request.auth != null && (
+	        isSuperAdmin() ||
+	        isSafModeratorForUniversity(resource.data.universityId) ||
+	        (resource.data.createdBy == request.auth.uid && isVerified()) ||
+	        (resource.data.devTest == true && resource.data.devOwnerUid == request.auth.uid)
+	      );
+
+      // Events subcollection:
+      // - General authenticated users may only read approved events
+      // - Club presidents/dev owners/officials may read all events (for moderation)
+      // - Super admins may read/manage all events regardless of club fields (robust for legacy docs)
+      // Must match storage.rules isClubOfficial() and UI authorization (ClubDetailPage, EventDetailModal)
+      match /events/{eventId} {
+        allow read: if request.auth != null && (
+          // Super admins always have access and short‑circuit other checks
+          isSuperAdmin() ||
+          // Presidents/devOwner and officials can read all events, regardless of status
+          isClubPresident() ||
+          isClubOfficialMember() ||
+          // Regular authenticated users may only read approved events
+          resource.data.status == 'approved'
+        );
+        
+        // Helper: Check if user is the club president (can approve/manage all)
+        function isClubPresident() {
+          let club = get(/databases/$(database)/documents/clubs/$(clubId)).data;
+
+          // Guard devTest flag so legacy clubs without this field do not cause evaluation errors.
+          let isDevTestClub = ('devTest' in club) && club.devTest == true;
+
+          // DevTest club: devOwnerUid acts as president
+          let devOwnerIsPresident =
+            isDevTestClub &&
+            ('devOwnerUid' in club) &&
+            club.devOwnerUid == request.auth.uid;
+
+          // Production club: presidentId or createdBy (when devTest is not true or missing)
+          let prodPresidentMatch =
+            !isDevTestClub && (
+              (('presidentId' in club) && club.presidentId == request.auth.uid) ||
+              (('createdBy' in club) && club.createdBy == request.auth.uid)
+            );
+
+          return devOwnerIsPresident || prodPresidentMatch;
+        }
+        
+        // Helper: Check if user is a club official (can create/manage certain events)
+        function isClubOfficialMember() {
+          let club = get(/databases/$(database)/documents/clubs/$(clubId)).data;
+
+          // Guard officialIds so legacy clubs without this field do not cause evaluation errors.
+          let hasOfficialIds =
+            ('officialIds' in club) &&
+            (club.officialIds is list);
+
+          // Check if user is in officialIds array (list membership)
+          return hasOfficialIds &&
+                 club.officialIds.hasAny([request.auth.uid]);
+        }
+        
+        // Create: allow for super admins (any status), SAF moderators for their university (any status),
+        // club presidents (any status), and officials (pending_president only)
+        allow create: if request.auth != null && (
+          // Super admin override - full access to any club
+          isSuperAdmin() ||
+          // SAF moderator for this club's university - full access (events go directly to approved)
+          isSafModeratorForUniversity(get(/databases/$(database)/documents/clubs/$(clubId)).data.universityId) ||
+          // President/devOwner may create events with any valid status
+          isClubPresident() ||
+          // Non-president officials must submit events for moderation
+          (
+            isClubOfficialMember() &&
+            request.resource.data.createdBy == request.auth.uid &&
+            request.resource.data.status == 'pending_president' &&
+            // Officials cannot set approval fields on creation
+            request.resource.data.approvedBy == null &&
+            request.resource.data.approvedAt == null &&
+            request.resource.data.safApprovedBy == null &&
+            request.resource.data.safApprovedAt == null
+          )
+        );
+        
+        // Update: super admins, SAF moderators for their university, presidents can update any event;
+        // officials can only update their own pending or rejected events (no self-approval)
+        // and may toggle live state for their approved events.
+        allow update: if request.auth != null && (
+          // Super admin override
+          isSuperAdmin() ||
+          // SAF moderator for this club's university - full control
+          isSafModeratorForUniversity(get(/databases/$(database)/documents/clubs/$(clubId)).data.universityId) ||
+          // President/devOwner: full control over event (including approvals)
+          isClubPresident() || 
+          // Non-president officials: limited edits on their own events
+          (
+            isClubOfficialMember() &&
+            resource.data.createdBy == request.auth.uid &&
+            // Only events that are awaiting or have failed moderation
+            resource.data.status in ['pending_president', 'rejected'] &&
+            // New status must remain unapproved (cannot self-approve)
+            request.resource.data.status in ['pending_president'] &&
+            // Officials cannot change approval fields
+            request.resource.data.approvedBy == resource.data.approvedBy &&
+            request.resource.data.approvedAt == resource.data.approvedAt &&
+            request.resource.data.safApprovedBy == resource.data.safApprovedBy &&
+            request.resource.data.safApprovedAt == resource.data.safApprovedAt
+          ) ||
+          // Officials can toggle live status for approved events they created,
+          // but may not change any other fields.
+          (
+            isClubOfficialMember() &&
+            resource.data.createdBy == request.auth.uid &&
+            resource.data.status == 'approved' &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['isLive', 'startedAt', 'startedBy', 'startedByInfo', 'endedAt', 'endedBy'])
+          )
+        );
+        
+        // Delete: super admins, SAF moderators for their university, and presidents can delete events
+        allow delete: if request.auth != null && (
+          isSuperAdmin() ||
+          isSafModeratorForUniversity(get(/databases/$(database)/documents/clubs/$(clubId)).data.universityId) ||
+          isClubPresident()
+        );
+      }
+
+	      // Members subcollection: read for authenticated users; write via server/authorized flows
+	      // Super admins are also allowed for emergency fixes via the admin dashboard.
+	      match /members/{memberId} {
+	        allow read: if request.auth != null;
+	        allow write: if isSuperAdmin();
+	      }
+	    }
+
+	    function devCreationEnabled() {
       // Toggle stored on document: admin/config
       return exists(/databases/$(database)/documents/admin/config) &&
              get(/databases/$(database)/documents/admin/config).data.devAccountCreationEnabled == true;
     }
 
-    // Dev email must be <anything>.dev@iub.edu.bd (case-insensitive)
-    function isDevEmail() {
-      return request.auth != null &&
-             request.auth.token.email.matches('^[^@]+\\.[dD][eE][vV]@[iI][uU][bB]\\.[eE][dD][uU]\\.[bB][dD]$');
-    }
+	    // Dev email must be <anything>.dev@iub.edu.bd (case-insensitive)
+	    function isDevEmail() {
+	      return request.auth != null &&
+	             request.auth.token.email.matches('^[^@]+\\.[dD][eE][vV]@[iI][uU][bB]\\.[eE][dD][uU]\\.[bB][dD]$');
+	    }
+
+	    // Super admin helper: central definition so we can gate privileged writes.
+	    function isSuperAdmin() {
+	      return request.auth != null &&
+	             exists(/databases/$(database)/documents/admin/superAdmins) &&
+	             request.auth.uid in get(/databases/$(database)/documents/admin/superAdmins).data.uids;
+	    }
 
     // --- Handles Mapping (/handles) ---
     // Provides global uniqueness for user handles
     // NOTE: Weekly cooldown & advanced validations enforced client-side for MVP.
+    // SECURITY: Only authenticated users can look up handles to prevent enumeration attacks
     match /handles/{handle} {
-      allow read: if true; // Public lookup
+      allow read: if request.auth != null; // Authenticated lookup only
       function isReserved() {
         // Sync with client reservedHandles in handleUtils.js
         return handle in ['admin','system','support','root','null','undefined','iub'];
@@ -73,79 +413,174 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow write: if false;
     }
+
+    // --- User Subcollections: Blocks (client-managed) ---
+    // Persist per-user block list across devices.
+    match /users/{userId}/blocks/{targetId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null &&
+        request.auth.uid == userId &&
+        targetId != userId &&
+        request.resource.data.targetId == targetId &&
+        request.resource.data.createdAt == request.time;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow update: if false;
+    }
     
     // --- Friendships (/friendships) ---
     match /friendships/{friendshipId} {
-      // Allow read for both individual documents and collection queries
-      // 1. Individual document reads: check document ID pattern (works for deleted docs)
-      // 2. Collection queries: check if user is in the friendship
-      allow read: if request.auth != null && (
-        // Individual document access by ID pattern
+      // Read access: only participants in the friendship can read
+      // This is enforced at the document level; client queries must include
+      // a filter like where("users", "array-contains", request.auth.uid)
+      // so that only documents containing the caller are ever returned.
+      allow read: if request.auth != null &&
+        (
+          request.auth.uid in resource.data.users ||
+          resource.data.user1Id == request.auth.uid ||
+          resource.data.user2Id == request.auth.uid
+        );
+
+      // Delete requires friendship ID to contain requester's UID  
+      allow delete: if request.auth != null &&
         (friendshipId.split('_')[0] == request.auth.uid || 
-         friendshipId.split('_')[1] == request.auth.uid) ||
-        // Collection query access (for documents that exist)
-        (resource != null && request.auth.uid in resource.data.users)
-      );
-      
-      // Delete requires document to exist, so keep existing check
-      allow delete: if request.auth != null && request.auth.uid in resource.data.users;
-      
-      // Create/update require verified OR dev email
+         friendshipId.split('_')[1] == request.auth.uid);
+
+      // Create/update require verified OR dev email and caller must be a participant
       allow create: if request.auth != null &&
+        request.resource.data.users is list &&
         request.auth.uid in request.resource.data.users &&
         (isVerified() || isDevEmail());
       allow update: if request.auth != null &&
+        resource != null &&
+        resource.data.users is list &&
         request.auth.uid in resource.data.users &&
         (isVerified() || isDevEmail()) &&
         (validateBilateralPrivacyUpdate(request, resource) || validateCachedInfoUpdate(request, resource));
     }
 
-    // --- Friend Requests (/friendRequests) ---
-    match /friendRequests/{requestId} {
-      allow read, delete: if request.auth != null && (resource.data.toUserId == request.auth.uid || resource.data.fromUserId == request.auth.uid);
-      // Create friend request requires verified OR dev email
-      allow create: if request.auth != null && (isVerified() || isDevEmail());
-      allow update: if request.auth != null && 
-        ((resource.data.toUserId == request.auth.uid || resource.data.fromUserId == request.auth.uid) || 
-         validateFriendRequestCachedInfoUpdate(request, resource));
-    }
+	    // --- Friend Requests (/friendRequests) ---
+	    match /friendRequests/{requestId} {
+	      allow read, delete: if request.auth != null && (resource.data.toUserId == request.auth.uid || resource.data.fromUserId == request.auth.uid);
+	      // Create friend request requires verified OR dev email
+	      allow create: if request.auth != null &&
+	        request.resource.data.fromUserId == request.auth.uid &&
+	        request.resource.data.toUserId is string &&
+	        request.resource.data.toUserId != request.auth.uid &&
+	        request.resource.data.status == "pending" &&
+	        request.resource.data.createdAt == request.time &&
+	        (isVerified() || isDevEmail());
+	      // Updates are restricted to cached-info refreshes only (no status/ownership changes)
+	      allow update: if request.auth != null &&
+	        (isVerified() || isDevEmail()) &&
+	        validateFriendRequestCachedInfoUpdate(request, resource);
+	    }
 
-    // --- Universities (Read-Only) ---
-    match /universities/{universityId} {
-      allow read: if request.auth != null;
-      allow write: if false;
-    }
+	    // --- Universities ---
+	    match /universities/{universityId} {
+	      allow read: if request.auth != null;
+	      // Universities are managed via the admin dashboard; only super admins may write.
+	      allow write: if isSuperAdmin();
+	    }
 
-    // --- Notifications (/notifications) - Campus Presence 2025 ---
-    match /notifications/{notificationId} {
-      // Users can read notifications sent TO them or FROM them
+	    // --- Notifications (/notifications) - Campus Presence 2025 ---
+	    match /notifications/{notificationId} {
+      // Users can read notifications sent TO them or FROM them.
+      // Guard field access so legacy/system notifications without userId/fromUserId
+      // do not cause evaluation errors.
       allow read: if request.auth != null && (
-        resource.data.userId == request.auth.uid ||
-        resource.data.fromUserId == request.auth.uid
+        (('userId' in resource.data) && resource.data.userId == request.auth.uid) ||
+        (('fromUserId' in resource.data) && resource.data.fromUserId == request.auth.uid)
       );
       
-      // Users can create notifications they are sending (FROM them) if verified OR dev email
-      allow create: if request.auth != null && 
-        request.resource.data.fromUserId == request.auth.uid &&
-        (isVerified() || isDevEmail());
+	      // Client-created notifications are restricted to friend-to-friend location share requests
+	      allow create: if request.auth != null &&
+	        request.resource.data.fromUserId == request.auth.uid &&
+	        request.resource.data.userId is string &&
+	        request.resource.data.userId != request.auth.uid &&
+	        request.resource.data.type == "location_share_request" &&
+	        request.resource.data.status == "pending" &&
+	        request.resource.data.createdAt == request.time &&
+	        request.resource.data.locationRequest.friendshipId ==
+	          (request.auth.uid < request.resource.data.userId
+	            ? request.auth.uid + '_' + request.resource.data.userId
+	            : request.resource.data.userId + '_' + request.auth.uid) &&
+	        exists(/databases/$(database)/documents/friendships/$(
+	          request.auth.uid < request.resource.data.userId
+	            ? request.auth.uid + '_' + request.resource.data.userId
+	            : request.resource.data.userId + '_' + request.auth.uid
+	        )) &&
+	        (isVerified() || isDevEmail());
       
       // Users can update/delete notifications sent TO them (mark as read, dismiss) if verified OR dev email
       allow update, delete: if request.auth != null && 
-        resource.data.userId == request.auth.uid &&
+        (('userId' in resource.data) && resource.data.userId == request.auth.uid) &&
         (isVerified() || isDevEmail());
     }
 
-    // --- GDPR & Consent Collections ---
-    match /user_consents/{consentId} {
-        allow create, update: if request.auth.uid == request.resource.data.userId;
-        allow read: if request.auth.uid == resource.data.userId;
-        allow delete: if false;
-    }
+	    // --- GDPR & Consent Collections ---
+	    match /user_consents/{consentId} {
+	        allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+	        allow update: if request.auth != null &&
+	          resource.data.userId == request.auth.uid &&
+	          request.resource.data.userId == resource.data.userId;
+	        allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+	        allow delete: if false;
+	    }
 
     match /user_deletion_requests/{requestId} {
         allow create: if request.auth.uid == request.resource.data.userId;
         allow read, update, delete: if false;
     }
+
+    // --- Moderation Reports (/moderationReports) ---
+    // Users can submit reports for review by moderators/admins
+    match /moderationReports/{reportId} {
+      // Only authenticated users can create reports (they are reporting something)
+      allow create: if request.auth != null &&
+        request.resource.data.reporterId == request.auth.uid &&
+        request.resource.data.createdAt == request.time;
+      // Reads/updates/deletes reserved for admin panel (not client-accessible)
+      allow read, update, delete: if false;
+    }
+
+	    // --- Admin Collection (/admin) ---
+	    // Super admin configuration and SAF moderator management
+	    // Only super admins (UIDs listed in /admin/superAdmins) can read/write
+	    match /admin/{docId} {
+	      // The superAdmins doc itself is readable by any authenticated user so that
+	      // client-side code can evaluate super admin status safely. It should only
+	      // be written via console/Admin SDK, never by clients.
+	      allow read: if (docId == 'superAdmins' && request.auth != null) ||
+	                   (docId != 'superAdmins' && isSuperAdmin());
+	      
+	      // Super admins can write to other admin documents; superAdmins is console/Admin SDK only.
+	      allow create, update, delete: if isSuperAdmin() && docId != 'superAdmins';
+	    }
+
+	    // --- SAF Moderators (/safModerators) ---
+	    // SAF moderators can approve events for their university
+	    match /safModerators/{moderatorId} {
+	      // Super admins can read/write SAF moderator list
+	      allow read, write: if isSuperAdmin();
+	      
+	      // SAF moderators can read their own entry
+	      allow read: if request.auth != null && request.auth.uid == moderatorId;
+	    }
+
+	    // --- Club Events (Global Collection) ---
+	    // Denormalized club events used for admin maintenance and stats.
+	    // Only super admins may access this collection from clients; server/Admin SDK may bypass rules.
+	    match /clubEvents/{eventId} {
+	      allow read, write: if isSuperAdmin();
+	    }
+
+	    // --- Admin Activity Log (/adminActivity) ---
+	    // Lightweight audit trail for admin actions surfaced in the dashboard.
+	    // Only super admins may read or write these documents from the client.
+	    match /adminActivity/{activityId} {
+	      allow read, create: if isSuperAdmin();
+	      allow update, delete: if false;
+	    }
 
     // --- Helper Functions ---
     function canViewFriendSchedule(viewerUserId, scheduleOwnerUserId) {
@@ -160,6 +595,14 @@ service cloud.firestore {
       return (
         // Condition 1: The user must be part of this friendship
         request.auth.uid in resource.data.users &&
+
+        // This validator only permits privacy/location-sharing updates
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'scheduleVisibility',
+          'locationVisibility',
+          'privacyMetadata',
+          'locationSharingMetadata'
+        ]) &&
         
         // Condition 2: Core friendship data must remain unchanged (if present in update)
         (!('users' in request.resource.data) || request.resource.data.users == resource.data.users) &&
@@ -168,34 +611,54 @@ service cloud.firestore {
         (!('createdAt' in request.resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
         
         // Condition 3: If privacyMetadata is being updated, user must be correctly attributed
-        (!('privacyMetadata' in request.resource.data) ||
-         request.resource.data.privacyMetadata.privacyUpdatedBy == request.auth.uid) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['privacyMetadata']) ||
+         (('privacyMetadata' in request.resource.data) &&
+          request.resource.data.privacyMetadata.privacyUpdatedBy == request.auth.uid)) &&
         
         // Condition 4: User can only update their own schedule visibility
         // Check if scheduleVisibility field is being modified
         (!('scheduleVisibility' in request.resource.data) ||
          (
-           // User can only modify their own visibility setting
-           request.resource.data.scheduleVisibility.keys().hasAll([request.auth.uid]) ||
-           // Or if updating the full object, it must contain both users and only change their own setting
-           (request.resource.data.scheduleVisibility.keys().hasAll(resource.data.users) &&
-            resource.data.users.hasAll(request.resource.data.scheduleVisibility.keys()))
+           resource.data.users.removeAll([request.auth.uid]).size() == 1 &&
+           (
+             request.resource.data.scheduleVisibility.keys().hasOnly([request.auth.uid]) ||
+             request.resource.data.scheduleVisibility.keys().hasOnly([
+               request.auth.uid,
+               resource.data.users.removeAll([request.auth.uid])[0]
+             ])
+           ) &&
+           // Friend's visibility must remain unchanged
+           request.resource.data.scheduleVisibility[
+             resource.data.users.removeAll([request.auth.uid])[0]
+           ] == resource.data.scheduleVisibility[
+             resource.data.users.removeAll([request.auth.uid])[0]
+           ]
          )) &&
 
         // Condition 5: User can only update their own location visibility (Campus Presence 2025)
         // Check if locationVisibility field is being modified
         (!('locationVisibility' in request.resource.data) ||
          (
-           // User can only modify their own location visibility setting
-           request.resource.data.locationVisibility.keys().hasAll([request.auth.uid]) ||
-           // Or if updating the full object, it must contain both users and only change their own setting
-           (request.resource.data.locationVisibility.keys().hasAll(resource.data.users) &&
-            resource.data.users.hasAll(request.resource.data.locationVisibility.keys()))
+           resource.data.users.removeAll([request.auth.uid]).size() == 1 &&
+           (
+             request.resource.data.locationVisibility.keys().hasOnly([request.auth.uid]) ||
+             request.resource.data.locationVisibility.keys().hasOnly([
+               request.auth.uid,
+               resource.data.users.removeAll([request.auth.uid])[0]
+             ])
+           ) &&
+           // Friend's visibility must remain unchanged
+           request.resource.data.locationVisibility[
+             resource.data.users.removeAll([request.auth.uid])[0]
+           ] == resource.data.locationVisibility[
+             resource.data.users.removeAll([request.auth.uid])[0]
+           ]
          )) &&
 
         // Condition 6: If locationSharingMetadata is being updated, user must be correctly attributed
-        (!('locationSharingMetadata' in request.resource.data) ||
-         request.resource.data.locationSharingMetadata.locationUpdatedBy == request.auth.uid)
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['locationSharingMetadata']) ||
+         (('locationSharingMetadata' in request.resource.data) &&
+          request.resource.data.locationSharingMetadata.locationUpdatedBy == request.auth.uid))
       );
     }
 
@@ -205,6 +668,9 @@ service cloud.firestore {
       return (
         // User must be part of this friendship
         request.auth.uid in resource.data.users &&
+
+        // This validator only permits cached-info updates
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['user1Info', 'user2Info']) &&
         
         // Core friendship data must remain unchanged
         (!('users' in request.resource.data) || request.resource.data.users == resource.data.users) &&
@@ -212,21 +678,15 @@ service cloud.firestore {
         (!('user2Id' in request.resource.data) || request.resource.data.user2Id == resource.data.user2Id) &&
         (!('createdAt' in request.resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
         
-        // Only allow updates to cached user info fields for the authenticated user
+        // Cross-user protection: users can only update their OWN cached info
         (
-          // User can update their own cached info in user1Info if they are user1
-          (request.auth.uid == resource.data.user1Id && 
-           (!('user1Info.displayName' in request.resource.data) || true) &&
-           (!('user1Info.major' in request.resource.data) || true) &&
-           (!('user1Info.university' in request.resource.data) || true) &&
-           (!('user1Info.avatarConfig' in request.resource.data) || true)) ||
-          
-          // User can update their own cached info in user2Info if they are user2
-          (request.auth.uid == resource.data.user2Id && 
-           (!('user2Info.displayName' in request.resource.data) || true) &&
-           (!('user2Info.major' in request.resource.data) || true) &&
-           (!('user2Info.university' in request.resource.data) || true) &&
-           (!('user2Info.avatarConfig' in request.resource.data) || true))
+          // User1 can update user1Info, but user2Info must remain unchanged
+          (request.auth.uid == resource.data.user1Id &&
+           request.resource.data.user2Info == resource.data.user2Info) ||
+
+          // User2 can update user2Info, but user1Info must remain unchanged
+          (request.auth.uid == resource.data.user2Id &&
+           request.resource.data.user1Info == resource.data.user1Info)
         )
       );
     }
@@ -234,21 +694,18 @@ service cloud.firestore {
     function validateFriendRequestCachedInfoUpdate(request, resource) {
       // Allow users to update their cached info in friend request documents
       return (
-        // Only allow updates to cached user info fields for the authenticated user
+        // This validator only permits cached-info updates
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fromUserInfo', 'toUserInfo']) &&
+
+        // Cross-user protection: users can only update their OWN cached info
         (
-          // User can update their own cached info in fromUserInfo if they are the sender
-          (request.auth.uid == resource.data.fromUserId && 
-           (!('fromUserInfo.displayName' in request.resource.data) || true) &&
-           (!('fromUserInfo.major' in request.resource.data) || true) &&
-           (!('fromUserInfo.university' in request.resource.data) || true) &&
-           (!('fromUserInfo.avatarConfig' in request.resource.data) || true)) ||
-          
-          // User can update their own cached info in toUserInfo if they are the recipient
-          (request.auth.uid == resource.data.toUserId && 
-           (!('toUserInfo.displayName' in request.resource.data) || true) &&
-           (!('toUserInfo.major' in request.resource.data) || true) &&
-           (!('toUserInfo.university' in request.resource.data) || true) &&
-           (!('toUserInfo.avatarConfig' in request.resource.data) || true))
+          // Sender can update fromUserInfo, but toUserInfo must remain unchanged
+          (request.auth.uid == resource.data.fromUserId &&
+           request.resource.data.toUserInfo == resource.data.toUserInfo) ||
+
+          // Recipient can update toUserInfo, but fromUserInfo must remain unchanged
+          (request.auth.uid == resource.data.toUserId &&
+           request.resource.data.fromUserInfo == resource.data.fromUserInfo)
         ) &&
         
         // Core friend request data must remain unchanged

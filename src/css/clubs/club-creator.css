@@ -1,0 +1,622 @@
+/* ========================================
+   CLUB CREATOR MODAL
+   Standalone CSS for the club creation modal
+   with image cropping and live preview
+   
+   Used by: ClubCreatorModal.js
+   Dependencies: CSS variables from layout.css
+======================================== */
+
+/* ----------------------------------------
+   MODAL OVERLAY & CONTAINER
+---------------------------------------- */
+
+.club-creator-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 16, 21, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  overflow-y: auto;
+}
+
+.club-creator-modal-overlay.active {
+  opacity: 1;
+}
+
+.club-creator-modal {
+  background: linear-gradient(180deg, #1e1b2e 0%, #16141f 100%);
+  border: 1px solid rgba(139, 125, 232, 0.2);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 95vh;
+  max-height: 95dvh;
+  margin: 1rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ----------------------------------------
+   HEADER
+---------------------------------------- */
+
+.club-creator-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(139, 125, 232, 0.15);
+  flex-shrink: 0;
+}
+
+.club-creator-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.club-creator-header h2 i {
+  color: #a78bfa;
+}
+
+.club-creator-close-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(139, 125, 232, 0.1);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.club-creator-close-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+/* ----------------------------------------
+   BODY - Two-column Layout
+---------------------------------------- */
+
+.club-creator-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+@media (min-width: 700px) {
+  .club-creator-body {
+    flex-direction: row;
+    gap: 2rem;
+  }
+}
+
+/* ----------------------------------------
+   FORM SECTION
+---------------------------------------- */
+
+.club-creator-form-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.club-creator-form-section .form-group {
+  margin-bottom: 1rem;
+}
+
+.club-creator-form-section label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+}
+
+.club-creator-form-section input[type="text"],
+.club-creator-form-section textarea,
+.club-creator-form-section select {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  background: rgba(30, 27, 46, 0.8);
+  border: 1px solid rgba(139, 125, 232, 0.2);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.club-creator-form-section input:focus,
+.club-creator-form-section textarea:focus,
+.club-creator-form-section select:focus {
+  outline: none;
+  border-color: rgba(139, 125, 232, 0.5);
+  box-shadow: 0 0 0 3px rgba(139, 125, 232, 0.1);
+}
+
+.club-creator-form-section textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* ----------------------------------------
+   ACCENT COLOR PICKER
+---------------------------------------- */
+
+.accent-color-picker {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.color-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  background: var(--swatch-color);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.color-swatch.selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px var(--swatch-color);
+}
+
+.color-swatch.selected::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* ----------------------------------------
+   IMAGE UPLOAD SECTION
+---------------------------------------- */
+
+.image-uploads {
+  margin-top: 0.5rem;
+}
+
+.image-upload-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.image-upload-item {
+  flex: 1;
+}
+
+.image-upload-item label {
+  margin-bottom: 0.35rem;
+}
+
+.image-upload-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: rgba(139, 125, 232, 0.1);
+  border: 1px dashed rgba(139, 125, 232, 0.3);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.image-upload-btn:hover {
+  background: rgba(139, 125, 232, 0.15);
+  border-color: rgba(139, 125, 232, 0.5);
+  color: var(--text-primary);
+}
+
+.image-upload-btn i {
+  font-size: 1rem;
+}
+
+.image-upload-btn.has-image {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+.image-upload-btn.has-image:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+/* ----------------------------------------
+   CHECKBOX GROUP
+---------------------------------------- */
+
+.checkbox-group .inline-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.checkbox-group .inline-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #8b5cf6;
+}
+
+/* ----------------------------------------
+   PREVIEW SECTION
+---------------------------------------- */
+
+.club-creator-preview-section {
+  flex: 1;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.preview-label i {
+  color: #a78bfa;
+}
+
+.club-preview-container {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+/* ----------------------------------------
+   PREVIEW CARD
+   Uses actual .club-card class from base.css
+   Only add minimal overrides for modal context
+---------------------------------------- */
+
+.club-preview-container .club-card {
+  max-width: 320px;
+  width: 100%;
+  pointer-events: none; /* Disable interactions in preview */
+}
+
+.club-preview-container .club-card .btn {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ----------------------------------------
+   FOOTER
+---------------------------------------- */
+
+.club-creator-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid rgba(139, 125, 232, 0.15);
+  flex-shrink: 0;
+}
+
+.club-creator-footer .btn {
+  padding: 0.65rem 1.25rem;
+  font-size: 0.9rem;
+  border-radius: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.club-creator-footer .btn.primary {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: #fff;
+  border: none;
+}
+
+.club-creator-footer .btn.primary:hover {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+}
+
+.club-creator-footer .btn.secondary {
+  background: rgba(139, 125, 232, 0.1);
+  color: var(--text-secondary);
+  border: 1px solid rgba(139, 125, 232, 0.2);
+}
+
+.club-creator-footer .btn.secondary:hover {
+  background: rgba(139, 125, 232, 0.2);
+}
+
+/* ========================================
+   IMAGE CROPPER (inside creator modal)
+======================================== */
+
+.club-image-cropper {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 16, 21, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  z-index: 10;
+}
+
+.club-image-cropper.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Cropper Container */
+.cropper-container {
+  background: linear-gradient(180deg, #1e1b2e 0%, #16141f 100%);
+  border: 1px solid rgba(139, 125, 232, 0.2);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 500px;
+  margin: 1rem;
+  overflow: hidden;
+}
+
+/* Cropper Header */
+.club-image-cropper .cropper-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(139, 125, 232, 0.15);
+}
+
+.club-image-cropper .cropper-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.club-image-cropper .cropper-header h3 i {
+  color: #a78bfa;
+}
+
+.club-image-cropper .cropper-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(139, 125, 232, 0.1);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.club-image-cropper .cropper-close-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+/* Cropper Canvas Area */
+.cropper-canvas-area {
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+#club-cropper-canvas {
+  border-radius: 8px;
+  cursor: grab;
+  touch-action: none;
+}
+
+#club-cropper-canvas:active {
+  cursor: grabbing;
+}
+
+/* Cropper Controls */
+.cropper-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+
+.cropper-controls .zoom-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(139, 125, 232, 0.15);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cropper-controls .zoom-btn:hover {
+  background: rgba(139, 125, 232, 0.25);
+}
+
+.cropper-controls input[type="range"] {
+  flex: 1;
+  max-width: 200px;
+  accent-color: #8b5cf6;
+}
+
+/* Cropper Hint */
+.club-image-cropper .cropper-hint {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  padding: 0 1rem 0.75rem;
+}
+
+.club-image-cropper .cropper-hint i {
+  margin-right: 0.35rem;
+  color: #a78bfa;
+}
+
+/* Cropper Actions */
+.cropper-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid rgba(139, 125, 232, 0.15);
+}
+
+.cropper-actions .btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cropper-actions .btn.primary {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  border: none;
+}
+
+.cropper-actions .btn.primary:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+}
+
+.cropper-actions .btn.secondary {
+  background: rgba(139, 125, 232, 0.1);
+  color: var(--text-secondary);
+  border: 1px solid rgba(139, 125, 232, 0.2);
+}
+
+.cropper-actions .btn.secondary:hover {
+  background: rgba(139, 125, 232, 0.2);
+}
+
+/* ========================================
+   RESPONSIVE ADJUSTMENTS
+======================================== */
+
+@media (max-width: 699px) {
+  .club-creator-modal {
+    max-height: 100vh;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .club-creator-preview-section {
+    order: -1;
+    min-width: 0;
+  }
+
+  .club-preview-container {
+    justify-content: center;
+  }
+
+  .club-preview-container .club-card {
+    max-width: 280px;
+  }
+}
+
+@media (max-width: 400px) {
+  .image-upload-row {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .club-creator-header h2 {
+    font-size: 1rem;
+  }
+
+  .club-creator-body {
+    padding: 1rem;
+  }
+
+  .club-creator-footer {
+    padding: 0.85rem 1rem;
+  }
+
+  .club-creator-footer .btn {
+    padding: 0.55rem 1rem;
+  }
+}
+
+/* ----------------------------------------
+   SAF NOTICE
+---------------------------------------- */
+
+.saf-notice {
+  margin-top: 0.5rem;
+}
+
+.saf-notice .info-text {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  padding: 0.65rem 0.85rem;
+  background: rgba(139, 125, 232, 0.08);
+  border: 1px solid rgba(139, 125, 232, 0.15);
+  border-radius: 8px;
+  margin: 0;
+}
+
+.saf-notice .info-text i {
+  color: #a78bfa;
+  font-size: 0.9rem;
+}

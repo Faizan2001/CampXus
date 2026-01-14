@@ -97,7 +97,14 @@ export function getState() {
 export function _setStateForTesting(newState) {
   state = { ...state, ...newState };
 }
+
+// Forward declaration for memoCache clearing (actual cache defined later)
+let clearMemoCache = () => {};
+
 export function _resetStateForTesting() {
+  // Clear memoization cache to prevent stale data between tests
+  clearMemoCache();
+
   state = {
     activeUserId: null,
     users: {},
@@ -403,7 +410,8 @@ function isElementVisibleForHint(element) {
 }
 
 function getResponsiveCoachmarkWidth(preferred = 220, minimum = 180) {
-  const viewportWidth = typeof window !== "undefined" ? window.innerWidth : preferred;
+  const viewportWidth =
+    typeof window !== "undefined" ? window.innerWidth : preferred;
   const available = viewportWidth - 48; // keep 24px margin on each side
   const safePreferred = Math.min(preferred, Math.max(minimum, available));
   return Math.max(minimum, safePreferred);
@@ -438,7 +446,11 @@ async function showHintOnce({ key, targetResolver, buildConfig }) {
   }
 
   try {
-    target.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+    target.scrollIntoView({
+      block: "center",
+      inline: "center",
+      behavior: "smooth",
+    });
   } catch (_) {
     /* ignore scroll failures */
   }
@@ -467,13 +479,21 @@ async function showHintOnce({ key, targetResolver, buildConfig }) {
   return mark;
 }
 
-function attemptHintUntilShown({ key, targetResolver, buildConfig, retryDelay = 1600 }) {
+function attemptHintUntilShown({
+  key,
+  targetResolver,
+  buildConfig,
+  retryDelay = 1600,
+}) {
   const attempt = async () => {
     devLog("[Onboarding] attemptHintUntilShown", { key, retryDelay });
     const mark = await showHintOnce({ key, targetResolver, buildConfig });
     if (!mark) {
       if (hintSessionState.get(key) !== "done") {
-        devLog("[Onboarding] Hint not shown, scheduling retry", { key, retryDelay });
+        devLog("[Onboarding] Hint not shown, scheduling retry", {
+          key,
+          retryDelay,
+        });
         scheduleOnboardingTimeout(attempt, retryDelay);
       }
       return;
@@ -565,7 +585,6 @@ function showScheduleToggleHint() {
       primaryButton: { text: "Next" },
     }),
   });
-
 }
 
 let controlsHintQueue = Promise.resolve();
@@ -612,25 +631,26 @@ function startScheduleControlsHints() {
         key: "viewToggleHintSeen",
         targetResolver: () => document.getElementById("dayViewBtn"),
         buildConfig: () => ({
-        title: "Day or Grid view",
-        description: "Switch between a focused single-day list and the full weekly grid.",
-        responsivePlacement: { mobile: "top", desktop: "bottom" },
-        maxWidth: getResponsiveCoachmarkWidth(220, 180),
-        offset: 12,
-        primaryButton: { text: "Next" },
-      }),
+          title: "Day or Grid view",
+          description:
+            "Switch between a focused single-day list and the full weekly grid.",
+          responsivePlacement: { mobile: "top", desktop: "bottom" },
+          maxWidth: getResponsiveCoachmarkWidth(220, 180),
+          offset: 12,
+          primaryButton: { text: "Next" },
+        }),
       },
       {
         key: "addSlotHintSeen",
         targetResolver: () => document.getElementById("addNewTimeSlotBtn"),
         buildConfig: () => ({
-        title: "Add custom slots",
-        description: "Add new time ranges to your schedule.",
-        responsivePlacement: { mobile: "top", desktop: "bottom" },
-        maxWidth: getResponsiveCoachmarkWidth(220, 180),
-        offset: 12,
-        primaryButton: { text: "Next" },
-      }),
+          title: "Add custom slots",
+          description: "Add new time ranges to your schedule.",
+          responsivePlacement: { mobile: "top", desktop: "bottom" },
+          maxWidth: getResponsiveCoachmarkWidth(220, 180),
+          offset: 12,
+          primaryButton: { text: "Next" },
+        }),
       },
       {
         key: "pinHintSeen",
@@ -651,7 +671,10 @@ function startScheduleControlsHints() {
       if (hintSessionState.get(hint.key) === "done") continue;
       ensureScheduleControlsOpen();
       devLog("[Onboarding] Showing control hint", { key: hint.key });
-      const shown = await showHintWithRetries(hint, { attempts: 8, delay: 500 });
+      const shown = await showHintWithRetries(hint, {
+        attempts: 8,
+        delay: 500,
+      });
       if (!shown) {
         devLog("[Onboarding] Control hint aborted", { key: hint.key });
         break;
@@ -662,7 +685,9 @@ function startScheduleControlsHints() {
     controlsHintsActive = false;
     controlsHintsStarted = false;
     if (pendingTapHint) {
-      devLog("[Onboarding] Control hints finished, scheduling tap hint if pending");
+      devLog(
+        "[Onboarding] Control hints finished, scheduling tap hint if pending"
+      );
       maybeScheduleTapHint(300);
     }
   });
@@ -672,7 +697,9 @@ function handleScheduleControlsOpened() {
   if (hintSessionState.get("scheduleControlsHintSeen") !== "done") {
     return;
   }
-  devLog("[Onboarding] scheduleControls:opened received - starting control hints");
+  devLog(
+    "[Onboarding] scheduleControls:opened received - starting control hints"
+  );
   startScheduleControlsHints();
 }
 
@@ -711,7 +738,8 @@ function showScheduleTapHint() {
     },
     buildConfig: (target) => ({
       title: "Tap slots to edit",
-      description: "Tap any time slot to add a new class, or edit an existing slot you have.",
+      description:
+        "Tap any time slot to add a new class, or edit an existing slot you have.",
       responsivePlacement: isMobileLayout()
         ? { mobile: "top" }
         : target.id === "scheduleDayView"
@@ -810,7 +838,8 @@ function handleCompareOnboardingRequest(event) {
     targetResolver: () => resolveCompareHintTarget(detail),
     buildConfig: () => ({
       title: "Compare schedules",
-      description: "Select yourself and friends to instantly find overlapping free time.",
+      description:
+        "Select yourself and friends to instantly find overlapping free time.",
       highlightShape: "circle",
       // On mobile, place the card above the round button for a clear anchor
       responsivePlacement: { mobile: "top", desktop: "top" },
@@ -905,6 +934,9 @@ const memoCache = {
     return `${dayIndex}-${timeIndex}-${compareMode}-${activeUserId}-${userIds}`;
   },
 };
+
+// Assign the actual clear function now that memoCache is defined
+clearMemoCache = () => memoCache.clear();
 
 /**
  * Normalize a user's schedule-related matrices so each has 7 day arrays and each
@@ -2343,15 +2375,11 @@ async function loadState(retryAttempt = 0) {
     currentUser.setScheduleLoading(true);
     currentUser.clearScheduleError();
 
-    // Use ScheduleStorageService to handle dual storage strategy
-    const scheduleData = await scheduleStorageService.loadUserSchedule(
-      user.uid
-    );
-
-    if (scheduleData) {
-      // Convert to HomePage format using ScheduleStorageService
+    // Helper to apply schedule data consistently (initial + background refresh)
+    const applyScheduleData = (data, reason = "initial") => {
+      if (!data) return;
       const homePageFormat = scheduleStorageService.convertToHomePageFormat(
-        scheduleData,
+        data,
         user.uid
       );
 
@@ -2369,28 +2397,41 @@ async function loadState(retryAttempt = 0) {
       memoCache.clear();
       matrixCache.clear();
       console.log(
-        "🧹 Cleared memoization and matrix caches after loading user schedule"
+        `🧹 Cleared memoization and matrix caches after loading user schedule (${reason})`
       );
 
       // Update userStore with schedule data
-      currentUser.setScheduleData(scheduleData);
+      currentUser.setScheduleData(data);
 
       // Initialize schedule signature to avoid first no-op realtime re-render
       try {
         state.lastScheduleSignature = JSON.stringify({
-          schedule: scheduleData?.schedule || null,
-          pinnedSlots: scheduleData?.pinnedSlots || null,
-          timeBasedPins: scheduleData?.timeBasedPins || null,
-          slotInfo: scheduleData?.slotInfo || null,
+          schedule: data?.schedule || null,
+          pinnedSlots: data?.pinnedSlots || null,
+          timeBasedPins: data?.timeBasedPins || null,
+          slotInfo: data?.slotInfo || null,
         });
         // Track last applied version for robust realtime gating
         state.lastAppliedScheduleVersion =
-          typeof scheduleData?.metadata?.version === "number"
-            ? scheduleData.metadata.version
+          typeof data?.metadata?.version === "number"
+            ? data.metadata.version
             : null;
       } catch (_) {
         // Non-fatal; signature remains null
       }
+    };
+
+    // Use ScheduleStorageService to handle dual storage strategy (cache-first + revalidate)
+    const {
+      data: scheduleData,
+      source: scheduleSource,
+      revalidatePromise,
+    } = await scheduleStorageService.loadUserSchedule(user.uid, {
+      mode: "cache-first",
+    });
+
+    if (scheduleData) {
+      applyScheduleData(scheduleData, scheduleSource || "initial");
 
       // Set up real-time sync through ScheduleStorageService
       setupScheduleRealTimeSync(user.uid);
@@ -2410,6 +2451,45 @@ async function loadState(retryAttempt = 0) {
         console.log("🧹 Removing legacy 'user' key duplicate");
         delete state.users["user"];
       }
+    }
+
+    // When background revalidation finishes, refresh UI if data changed
+    if (revalidatePromise) {
+      revalidatePromise
+        .then((freshData) => {
+          if (!freshData) return;
+          // Ensure same user still active
+          if (currentUser?.uid && currentUser.uid !== user.uid) return;
+
+          // Skip if identical to last applied signature
+          try {
+            const freshSig = JSON.stringify({
+              schedule: freshData?.schedule || null,
+              pinnedSlots: freshData?.pinnedSlots || null,
+              timeBasedPins: freshData?.timeBasedPins || null,
+              slotInfo: freshData?.slotInfo || null,
+            });
+            if (freshSig === state.lastScheduleSignature) {
+              return;
+            }
+          } catch (_) {
+            // fall through
+          }
+
+          applyScheduleData(freshData, "revalidate");
+
+          // Lightly refresh UI if still on home
+          const currentRoute = window.location.hash.replace("#", "") || "home";
+          if (currentRoute === "home") {
+            updateUI();
+          }
+        })
+        .catch((err) => {
+          console.warn(
+            "⚠️ Background schedule refresh failed (non-blocking):",
+            err
+          );
+        });
     }
   } catch (error) {
     console.error("❌ [Phase-1] Failed to load user schedule:", error);
@@ -2702,9 +2782,19 @@ async function saveStateToStorage(transactionId = null, transactionIds = []) {
  * Handles click events on time range headers for editing.
  * @param {Event} event - The click event.
  */
-export function handleTimeRangeHeaderClick(event) {
-  // Use event.target since this is called from event delegation
-  const slotIndexString = event.target.dataset.slotIndex;
+export function handleTimeRangeHeaderClick(event, slotIndexArg = null) {
+  // Prefer explicitly provided slotIndex (from delegation) and fall back to the nearest header element
+  const headerEl =
+    (event.target && event.target.closest?.(".editable-timeslot-header")) ||
+    (event.currentTarget &&
+      event.currentTarget.closest?.(".editable-timeslot-header"));
+  const slotIndexString =
+    slotIndexArg !== null && slotIndexArg !== undefined
+      ? String(slotIndexArg)
+      : headerEl?.dataset?.slotIndex ||
+        event.target?.dataset?.slotIndex ||
+        event.currentTarget?.dataset?.slotIndex;
+
   if (slotIndexString === undefined) {
     console.error("Slot index is undefined for clicked header.", {
       target: event.target,
@@ -4517,7 +4607,7 @@ function handleScheduleTableClick(e) {
     });
     const slotIndex = parseInt(headerEl.dataset.slotIndex, 10);
     if (!isNaN(slotIndex)) {
-      handleTimeRangeHeaderClick(e);
+      handleTimeRangeHeaderClick(e, slotIndex);
     }
     return;
   }
@@ -6646,7 +6736,9 @@ async function initializeHorizontalFriendsBar() {
     // NEW: Ensure Firebase auth is ready to avoid empty Quick Access on first load
     try {
       const uid = await currentUser.waitForUid(5000);
-      const hasFirebaseUser = !!(authManager?.auth && authManager.auth.currentUser);
+      const hasFirebaseUser = !!(
+        authManager?.auth && authManager.auth.currentUser
+      );
       if (!uid || !hasFirebaseUser) {
         console.warn(
           "⏱️ UID or Firebase auth not ready; deferring HorizontalFriendsBar init"
@@ -6658,7 +6750,9 @@ async function initializeHorizontalFriendsBar() {
             if (done) return;
             if (user) {
               done = true;
-              try { cb(); } catch (_) {}
+              try {
+                cb();
+              } catch (_) {}
             }
           };
         };
@@ -6780,9 +6874,11 @@ async function handleFriendScheduleChange(event) {
       );
     }
 
-  // Update schedule heading and header compare visibility for empty state
-  updateScheduleHeadingText(null, false);
-  try { updateHeaderCompareUI(); } catch (_) {}
+    // Update schedule heading and header compare visibility for empty state
+    updateScheduleHeadingText(null, false);
+    try {
+      updateHeaderCompareUI();
+    } catch (_) {}
 
     console.log("📋 Showing empty schedule state");
   } else if (isUserSchedule) {
@@ -6800,9 +6896,11 @@ async function handleFriendScheduleChange(event) {
       );
     }
 
-  // Update schedule heading back to default and hide compare action
-  updateScheduleHeadingText(null, false);
-  try { updateHeaderCompareUI(); } catch (_) {}
+    // Update schedule heading back to default and hide compare action
+    updateScheduleHeadingText(null, false);
+    try {
+      updateHeaderCompareUI();
+    } catch (_) {}
 
     console.log("👤 Switched to user's own schedule");
   } else {
@@ -6982,7 +7080,9 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
     // Update schedule heading to show friend's handle
     updateScheduleHeadingText(friendName, true);
     // Show Compare action in header when viewing a friend
-    try { updateHeaderCompareUI(); } catch (_) {}
+    try {
+      updateHeaderCompareUI();
+    } catch (_) {}
 
     console.log(`🎨 Displaying ${friendName}'s schedule in UI`);
 
@@ -7020,29 +7120,31 @@ function updateScheduleHeadingText(friendName, isFriendSchedule) {
     const count = state.selectedUserIds?.size || 0;
     const label = count > 0 ? `Comparing ${count}` : "Compare mode";
     headingSpan.textContent = label;
-    try { headingSpan.setAttribute("aria-label", label); } catch (_) {}
+    try {
+      headingSpan.setAttribute("aria-label", label);
+    } catch (_) {}
     return;
   }
 
   if (isFriendSchedule && friendName) {
-  // Build: <owner>'s <tail>Schedule</tail>
-  headingSpan.innerHTML = "";
-  const owner = document.createElement("span");
-  owner.className = "schedule-title-owner";
-  const displayName = formatHandleForDisplay(friendName);
-  owner.textContent = `${displayName}'s`;
-  const space = document.createTextNode(" ");
-  const tail = document.createElement("span");
-  tail.className = "schedule-title-tail"; // this part should ellipsize
-  tail.textContent = "schedule";
-  owner.title = `${displayName}'s schedule`;
-  headingSpan.appendChild(owner);
-  headingSpan.appendChild(space);
-  headingSpan.appendChild(tail);
-  // Set accessible label so SRs read full phrase regardless of truncation
-  try {
-    headingSpan.setAttribute("aria-label", `${displayName}'s schedule`);
-  } catch (_) {}
+    // Build: <owner>'s <tail>Schedule</tail>
+    headingSpan.innerHTML = "";
+    const owner = document.createElement("span");
+    owner.className = "schedule-title-owner";
+    const displayName = formatHandleForDisplay(friendName);
+    owner.textContent = `${displayName}'s`;
+    const space = document.createTextNode(" ");
+    const tail = document.createElement("span");
+    tail.className = "schedule-title-tail"; // this part should ellipsize
+    tail.textContent = "schedule";
+    owner.title = `${displayName}'s schedule`;
+    headingSpan.appendChild(owner);
+    headingSpan.appendChild(space);
+    headingSpan.appendChild(tail);
+    // Set accessible label so SRs read full phrase regardless of truncation
+    try {
+      headingSpan.setAttribute("aria-label", `${displayName}'s schedule`);
+    } catch (_) {}
   } else {
     headingSpan.textContent = "Schedule";
     try {
@@ -7095,7 +7197,9 @@ function handleHeaderCompareAction() {
   if (!instance) return;
 
   if (state.compareMode) {
-    try { instance.deactivateCompareMode(); } catch (_) {}
+    try {
+      instance.deactivateCompareMode();
+    } catch (_) {}
     updateHeaderCompareUI();
     return;
   }
@@ -7103,8 +7207,14 @@ function handleHeaderCompareAction() {
   const friendId = state.currentViewingFriendId;
   if (!friendId) return;
 
-  try { instance.activateCompareMode(); } catch (_) { instance.handleToggleCompareMode?.(); }
-  try { instance.toggleCompareSelection("user", "You"); } catch (_) {}
+  try {
+    instance.activateCompareMode();
+  } catch (_) {
+    instance.handleToggleCompareMode?.();
+  }
+  try {
+    instance.toggleCompareSelection("user", "You");
+  } catch (_) {}
   try {
     const friendName = state.users?.[friendId]?.name || friendId;
     instance.toggleCompareSelection(friendId, friendName);
@@ -7284,8 +7394,12 @@ function handleCompareModeChange(event) {
   // Update body class for global styling
   document.body.classList.toggle("compare-mode-active", isCompareMode);
   // Update header controls/text
-  try { updateHeaderCompareUI(); } catch (_) {}
-  try { updateScheduleHeadingText(null, false); } catch (_) {}
+  try {
+    updateHeaderCompareUI();
+  } catch (_) {}
+  try {
+    updateScheduleHeadingText(null, false);
+  } catch (_) {}
 
   // Sync with desktop compare button if it exists
   const desktopCompareButton = document.getElementById("compare");
@@ -7394,8 +7508,12 @@ function handleCompareSelectionChange(event) {
   // Update UI to show comparison grid
   console.log(`🎨 Triggering UI update for comparison mode`);
   updateUI();
-  try { updateScheduleHeadingText(null, false); } catch (_) {}
-  try { updateHeaderCompareUI(); } catch (_) {}
+  try {
+    updateScheduleHeadingText(null, false);
+  } catch (_) {}
+  try {
+    updateHeaderCompareUI();
+  } catch (_) {}
 
   // Force specific rendering based on current view mode
   if (compareMode && userCount >= 2) {
@@ -7831,7 +7949,9 @@ document.addEventListener("spa:page:load", async (event) => {
       "scheduleControls:closed",
       () => {
         if (controlsHintsActive) {
-          devLog("[Onboarding] scheduleControls:closed while hints active, re-opening");
+          devLog(
+            "[Onboarding] scheduleControls:closed while hints active, re-opening"
+          );
           scheduleOnboardingTimeout(() => ensureScheduleControlsOpen(), 120);
         }
         if (state.pinModeActive) {
@@ -7913,7 +8033,9 @@ document.addEventListener("spa:page:load", async (event) => {
     // Render UI with loaded data - now safely with DOM readiness checks
     console.log("🎨 Updating UI with loaded data...");
     await updateUI();
-    try { updateHeaderCompareUI(); } catch (_) {}
+    try {
+      updateHeaderCompareUI();
+    } catch (_) {}
 
     // If user just starred their first friend and navigated to Schedule, show where stars go
     try {

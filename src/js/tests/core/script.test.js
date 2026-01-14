@@ -3,7 +3,6 @@ import { jest } from "@jest/globals";
 
 // Functions from script.js
 import {
-
   toggleSlotInSchedule,
   determineSlotStatus,
   generateTooltipMessage,
@@ -16,7 +15,10 @@ import {
 import { DEFAULT_TIMESLOTS } from "../../utils/constants.js";
 
 // Import DOM_ELEMENTS and its initializer
-import { DOM_ELEMENTS, initializeDomElements } from "../../utils/dom/domElements.js";
+import {
+  DOM_ELEMENTS,
+  initializeDomElements,
+} from "../../utils/dom/domElements.js";
 
 // Import the new modal functions to test them directly
 import { initModal, showModal } from "../../components/modals/Modal.js";
@@ -24,38 +26,8 @@ import { initModal, showModal } from "../../components/modals/Modal.js";
 // This constant is for clarity in tests, should match constants.js/DEFAULT_TIMESLOTS
 const DEFAULT_TIMESLOTS_FOR_TEST = DEFAULT_TIMESLOTS;
 
-describe("User Management Logic", () => {
-  beforeEach(() => {
-    _resetStateForTesting();
-    localStorage.clear();
-    jest.clearAllMocks();
-  });
-
-
-    });
-
-    test("should return null if user ID already exists", () => {
-      const currentUsers = {
-        123: { id: "123", name: "Alice", timeSlots: [], schedule: [] },
-      };
-      const newUser = createUserObject("Bob", "123", currentUsers);
-      expect(newUser).toBeNull();
-    });
-  });
-
-
-    test("should return original state if user to delete does not exist", () => {
-      const initialState = {
-        users: { 1: { id: "1", name: "Alice", timeSlots: [], schedule: [[]] } },
-        activeUserId: "1",
-        selectedUserIds: new Set(["1"]),
-        compareMode: false,
-      };
-      const newState = deleteUserFromState("999", initialState);
-      expect(newState).toEqual(initialState);
-    });
-  });
-});
+// Note: createUserObject and deleteUserFromState have been removed from HomePage.js
+// These tests are kept as placeholders for future user management logic if needed
 
 describe("Schedule Interaction Logic", () => {
   beforeEach(() => {
@@ -178,19 +150,19 @@ describe("Schedule Interaction Logic", () => {
       const testState = { users: usersData, selectedUserIds: new Set() };
       expect(generateTooltipMessage(0, 0, testState)).toBe("");
     });
-    test("should show all selected users are free", () => {
+    test("should show available users when all are free", () => {
       const testState = { users: usersData, selectedUserIds: new Set(["2"]) };
-      expect(generateTooltipMessage(0, 0, testState)).toBe(
-        "All selected users are free."
-      );
+      // New format lists users by availability status
+      expect(generateTooltipMessage(0, 0, testState)).toBe("Available: Bob");
     });
-    test("should show all selected users are unavailable", () => {
+    test("should show busy users when all are unavailable", () => {
       const testState = {
         users: usersData,
         selectedUserIds: new Set(["1", "3"]),
       };
+      // New format shows all busy users
       expect(generateTooltipMessage(0, 0, testState)).toBe(
-        "All selected users are unavailable."
+        "Busy: Alice, Charlie"
       );
     });
     test("should show mixed availability correctly", () => {
@@ -198,14 +170,13 @@ describe("Schedule Interaction Logic", () => {
         users: usersData,
         selectedUserIds: new Set(["1", "2"]),
       };
-      const expectedMessage = "Availability:\nFree: Bob\nBusy: Alice";
+      // New format: Available and Busy on separate lines
+      const expectedMessage = "Available: Bob\nBusy: Alice";
       expect(generateTooltipMessage(0, 0, testState)).toBe(expectedMessage);
     });
-    test("should show only busy users if some are selected and all of them are busy", () => {
+    test("should show busy users when a single user is busy", () => {
       const testState = { users: usersData, selectedUserIds: new Set(["1"]) };
-      expect(generateTooltipMessage(0, 0, testState)).toBe(
-        "All selected users are unavailable."
-      );
+      expect(generateTooltipMessage(0, 0, testState)).toBe("Busy: Alice");
     });
   });
 });
@@ -372,9 +343,10 @@ describe("Modal System (js/modal.js)", () => {
         "Test notification message"
       ); // Check it's not HTML
       expect(DOM_ELEMENTS.appModal.style.display).toBe("flex");
-      expect(DOM_ELEMENTS.modalActionButtons.style.display).toBe("none"); // Yes/No buttons hidden
-      expect(DOM_ELEMENTS.modalCloseBtn.style.display).toBe("inline-block"); // OK button shown
-      expect(DOM_ELEMENTS.modalConfirmBtn.textContent).toBe("OK"); // Default for notification
+      // New behavior: action buttons shown with single Ok button pattern
+      expect(DOM_ELEMENTS.modalActionButtons.style.display).toBe("flex");
+      expect(DOM_ELEMENTS.modalCloseBtn.style.display).toBe("none"); // X button hidden in new design
+      expect(DOM_ELEMENTS.modalConfirmBtn.textContent).toBe("Ok"); // Default for notification
 
       jest.runAllTimers(); // Advance timers for fade-in
       expect(DOM_ELEMENTS.appModal.classList.contains("active")).toBe(true);
@@ -548,13 +520,13 @@ describe("Modal System (js/modal.js)", () => {
       jest.runAllTimers(); // Ensure modal is active
 
       // Simulate click directly on the modal overlay with proper event
-      const clickEvent = new MouseEvent('click', {
+      const clickEvent = new MouseEvent("click", {
         bubbles: true,
         cancelable: true,
       });
-      Object.defineProperty(clickEvent, 'target', {
+      Object.defineProperty(clickEvent, "target", {
         value: DOM_ELEMENTS.appModal,
-        enumerable: true
+        enumerable: true,
       });
       DOM_ELEMENTS.appModal.dispatchEvent(clickEvent);
 
@@ -584,14 +556,14 @@ describe("UI Rendering (Placeholder)", () => {
 
   test("should verify DOM elements can be created", () => {
     // Test that basic DOM functionality works
-    const testDiv = document.createElement('div');
-    testDiv.className = 'test-element';
+    const testDiv = document.createElement("div");
+    testDiv.className = "test-element";
     document.body.appendChild(testDiv);
-    
+
     expect(testDiv).toBeDefined();
-    expect(testDiv.className).toBe('test-element');
-    expect(document.querySelector('.test-element')).toBe(testDiv);
-    
+    expect(testDiv.className).toBe("test-element");
+    expect(document.querySelector(".test-element")).toBe(testDiv);
+
     // Cleanup
     document.body.removeChild(testDiv);
   });
@@ -720,9 +692,9 @@ describe("Heterogeneous Schedule Comparison", () => {
         selectedUserIds: new Set(["1", "2"]),
       };
       const result = generateTooltipMessage(0, 0, testState);
-      expect(result).toContain("Availability:");
-      expect(result).toContain("Alice");
+      // New format: "Available: ...\nBusy: ..."
       expect(result).toContain("Bob");
+      expect(result).toContain("Alice");
     });
 
     test("should handle mixed users with and without timeSlots", () => {
@@ -743,9 +715,9 @@ describe("Heterogeneous Schedule Comparison", () => {
         selectedUserIds: new Set(["1", "2"]),
       };
       const result = generateTooltipMessage(0, 0, testState);
-      expect(result).toContain("Availability:");
-      expect(result).toContain("Alice");
+      // New format: "Available: ...\nBusy: ..."
       expect(result).toContain("Bob");
+      expect(result).toContain("Alice");
     });
 
     test("should return empty string for no selected users", () => {
@@ -781,8 +753,9 @@ describe("Heterogeneous Schedule Comparison", () => {
         },
         selectedUserIds: new Set(["1", "2"]),
       };
+      // New format lists available users
       expect(generateTooltipMessage(0, 0, testState)).toBe(
-        "All selected users are free."
+        "Available: Alice, Bob"
       );
     });
 
@@ -804,9 +777,8 @@ describe("Heterogeneous Schedule Comparison", () => {
         },
         selectedUserIds: new Set(["1", "2"]),
       };
-      expect(generateTooltipMessage(0, 0, testState)).toBe(
-        "All selected users are unavailable."
-      );
+      // New format lists busy users
+      expect(generateTooltipMessage(0, 0, testState)).toBe("Busy: Alice, Bob");
     });
   });
 
@@ -897,7 +869,6 @@ describe("Schedule Disabled State", () => {
         contains: jest.fn(),
       },
     };
-
 
     DOM_ELEMENTS.usersSection = {
       classList: {
