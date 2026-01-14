@@ -3076,78 +3076,374 @@ async function fetchMemberInfo(uid) {
   }
 }
 
-export const scheduleDailyClassSpaces = onSchedule(
-  { schedule: "every day 06:00", timeZone: "Asia/Dhaka" },
-  async () => {
-    // Build buckets by canonical key using users.courses[]
-    const usersSnap = await db.collection("users").get();
-    const buckets = new Map(); // key -> Set<uid>
-    const index = new Map(); // key -> sample course for metadata
-    for (const docSnap of usersSnap.docs) {
-      const d = docSnap.data() || {};
-      const uni = d?.universityInfo?.university || "";
-      const arr = Array.isArray(d?.courses) ? d.courses : [];
-      if (!uni || arr.length === 0) continue;
-      for (const c of arr) {
-        const id = buildSpaceIdFromCourse(uni, c);
-        if (!id) continue;
-        if (!buckets.has(id)) buckets.set(id, new Set());
-        buckets.get(id).add(docSnap.id);
-        if (!index.has(id)) index.set(id, { university: uni, course: c });
-      }
+async function runClassSpacesScheduler({
+  threshold = 3,
+  previewLimit = 20,
+  batchSize = 400,
+} = {}) {
+  const startedAt = Date.now();
+
+  // Build buckets by canonical key using users.courses[]
+  const usersSnap = await db.collection("users").get();
+  const buckets = new Map(); // key -> Set<uid>
+  const index = new Map(); // key -> sample course for metadata
+
+  let usersConsidered = 0;
+  let coursesConsidered = 0;
+  for (const docSnap of usersSnap.docs) {
+    usersConsidered++;
+    const d = docSnap.data() || {};
+    const uni = d?.universityInfo?.university || "";
+    const arr = Array.isArray(d?.courses) ? d.courses : [];
+    if (!uni || arr.length === 0) continue;
+    for (const c of arr) {
+      coursesConsidered++;
+      const id = buildSpaceIdFromCourse(uni, c);
+      if (!id) continue;
+      if (!buckets.has(id)) buckets.set(id, new Set());
+      buckets.get(id).add(docSnap.id);
+      if (!index.has(id)) index.set(id, { university: uni, course: c });
     }
+  }
 
-    // Upsert spaces for buckets with ≥3 members (production threshold per PRD)
-    for (const [spaceId, set] of buckets) {
-      const members = Array.from(set);
-      const { university, course } = index.get(spaceId) || {};
-      const ref = db.collection("classSpaces").doc(spaceId);
-      if (members.length >= 3) {
-        // Prepare memberInfo cache (top N to keep doc reasonable; can expand later)
-        const memberInfo = {};
-        const preview = members.slice(0, 20); // limit info cache; roster UI can lazy fetch
-        await Promise.all(
-          preview.map(async (uid) => {
-            const info = await fetchMemberInfo(uid);
-            if (info) memberInfo[uid] = info;
-          })
-        );
+  // Load existing spaces so we can:
+  // - deactivate spaces that no longer have members
+  // - fully clear lingering memberIds when below threshold
+  const spacesSnap = await db.collection("classSpaces").get();
+  const existing = new Map(); // spaceId -> data
+  for (const s of spacesSnap.docs) {
+    const data = s.data() || {};
+    existing.set(s.id, data);
+  }
 
-        const payload = {
-          spaceId,
-          university,
-          courseName: course?.courseName || null,
-          courseCode: course?.courseCode || null,
-          section: course?.section || null,
-          dayPattern: course?.dayPattern || null,
-          timeSlot: course?.timeSlot || null,
-          timeStart: course?.timeStart || null,
-          timeEnd: course?.timeEnd || null,
-          classroom: course?.classroom || null,
-          memberIds: members,
-          memberCount: members.length,
-          memberInfo,
-          active: true,
-          lastMemberUpdate: new Date(),
-          updatedAt: new Date(),
-          createdAt: new Date(),
-          visibility: "university",
-        };
-        await ref.set(payload, { merge: true });
-      } else {
-        // If space exists, mark inactive but keep history
-        const snap = await ref.get();
-        if (snap.exists) {
-          await ref.set(
-            { active: false, updatedAt: new Date() },
+  let batch = db.batch();
+  let opsInBatch = 0;
+  const flush = async () => {
+    if (opsInBatch === 0) return;
+    await batch.commit();
+    batch = db.batch();
+    opsInBatch = 0;
+  };
+  const queueSet = async (ref, payload, options = { merge: true }) => {
+    batch.set(ref, payload, options);
+    opsInBatch++;
+    if (opsInBatch >= batchSize) {
+      await flush();
+    }
+  };
+
+  let spacesUpserted = 0;
+  let spacesDeactivated = 0;
+  let spacesCleared = 0;
+  let activeSpaces = 0;
+
+  // Upsert / deactivate based on computed buckets
+  for (const [spaceId, set] of buckets) {
+    const members = Array.from(set);
+    const { university, course } = index.get(spaceId) || {};
+    const ref = db.collection("classSpaces").doc(spaceId);
+    const prior = existing.get(spaceId) || null;
+    if (prior?.devTest === true) continue;
+    const wasActive = prior?.active === true;
+    const hadMembers = Array.isArray(prior?.memberIds) && prior.memberIds.length;
+
+    if (members.length >= threshold) {
+      const memberInfo = {};
+      const preview = members.slice(0, previewLimit);
+      await Promise.all(
+        preview.map(async (uid) => {
+          const info = await fetchMemberInfo(uid);
+          if (info) memberInfo[uid] = info;
+        })
+      );
+
+      const payload = {
+        spaceId,
+        university,
+        courseName: course?.courseName || null,
+        courseCode: course?.courseCode || null,
+        section: course?.section || null,
+        dayPattern: course?.dayPattern || null,
+        timeSlot: course?.timeSlot || null,
+        timeStart: course?.timeStart || null,
+        timeEnd: course?.timeEnd || null,
+        classroom: course?.classroom || null,
+        memberIds: members,
+        memberCount: members.length,
+        memberInfo,
+        active: true,
+        lastMemberUpdate: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        visibility: "university",
+      };
+
+      // Only set createdAt when first creating the doc (avoid clobbering)
+      if (!prior) {
+        payload.createdAt = FieldValue.serverTimestamp();
+      }
+
+      await queueSet(ref, payload, { merge: true });
+      spacesUpserted++;
+      activeSpaces++;
+    } else {
+      // Below threshold: fully clear memberIds so lingering spaces disappear from user queries.
+      if (prior) {
+        const shouldClear = wasActive || hadMembers;
+        if (shouldClear) {
+          await queueSet(
+            ref,
+            {
+              active: false,
+              memberIds: [],
+              memberCount: 0,
+              memberInfo: {},
+              lastMemberUpdate: FieldValue.serverTimestamp(),
+              updatedAt: FieldValue.serverTimestamp(),
+            },
             { merge: true }
           );
+          spacesDeactivated++;
+        } else if (prior.active !== false) {
+          // Ensure inactive flag is consistent even if there are no members tracked.
+          await queueSet(
+            ref,
+            { active: false, updatedAt: FieldValue.serverTimestamp() },
+            { merge: true }
+          );
+          spacesDeactivated++;
         }
       }
     }
-    logger.info("scheduleDailyClassSpaces completed", {
-      buckets: buckets.size,
+  }
+
+  // Deactivate any existing spaces that are not in the current buckets at all.
+  for (const [spaceId, prior] of existing) {
+    if (buckets.has(spaceId)) continue;
+    if (prior?.devTest === true) continue;
+
+    const wasActive = prior?.active === true;
+    const hadMembers = Array.isArray(prior?.memberIds) && prior.memberIds.length;
+    const shouldClear = wasActive || hadMembers || (prior?.memberCount || 0) > 0;
+    if (!shouldClear) continue;
+
+    const ref = db.collection("classSpaces").doc(spaceId);
+    await queueSet(
+      ref,
+      {
+        active: false,
+        memberIds: [],
+        memberCount: 0,
+        memberInfo: {},
+        lastMemberUpdate: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    spacesCleared++;
+  }
+
+  await flush();
+
+  return {
+    threshold,
+    usersConsidered,
+    coursesConsidered,
+    totalBuckets: buckets.size,
+    activeSpaces,
+    spacesUpserted,
+    spacesDeactivated,
+    spacesCleared,
+    durationMs: Date.now() - startedAt,
+  };
+}
+
+async function runTrimSpaceMessages({
+  keepLatest = 2000,
+  deleteBatchSize = 500,
+} = {}) {
+  const startedAt = Date.now();
+  const spaces = await db
+    .collection("classSpaces")
+    .where("active", "==", true)
+    .get();
+
+  let spacesScanned = 0;
+  let messagesDeleted = 0;
+
+  for (const s of spaces.docs) {
+    spacesScanned++;
+    const ref = s.ref.collection("messages");
+    const snap = await ref
+      .orderBy("createdAt", "desc")
+      .offset(keepLatest)
+      .limit(deleteBatchSize)
+      .get();
+    if (snap.empty) continue;
+    const batch = db.batch();
+    snap.forEach((d) => {
+      batch.delete(d.ref);
+      messagesDeleted++;
     });
+    await batch.commit();
+  }
+
+  return {
+    spacesScanned,
+    messagesDeleted,
+    durationMs: Date.now() - startedAt,
+  };
+}
+
+function buildSpaceIdsForUser(university, courses) {
+  const uni = String(university || "").trim();
+  const arr = Array.isArray(courses) ? courses : [];
+  const out = new Set();
+  if (!uni || arr.length === 0) return out;
+  for (const c of arr) {
+    const id = buildSpaceIdFromCourse(uni, c);
+    if (id) out.add(id);
+  }
+  return out;
+}
+
+function setsEqual(a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.size !== b.size) return false;
+  for (const x of a) {
+    if (!b.has(x)) return false;
+  }
+  return true;
+}
+
+// Immediate cleanup for schedule edits/imports:
+// - Removes users from classSpaces they no longer match
+// - Adds users to already-active spaces they now match
+// The nightly scheduler remains the source-of-truth for full recompute.
+export const onUserCoursesChangedSyncClassSpaces = onDocumentUpdated(
+  "users/{userId}",
+  async (event) => {
+    const userId = event.params.userId;
+    const before = event.data?.before?.data?.() || {};
+    const after = event.data?.after?.data?.() || {};
+
+    const beforeUni = before?.universityInfo?.university || "";
+    const afterUni = after?.universityInfo?.university || "";
+    const beforeCourses = Array.isArray(before?.courses) ? before.courses : [];
+    const afterCourses = Array.isArray(after?.courses) ? after.courses : [];
+
+    const beforeKeys = buildSpaceIdsForUser(beforeUni, beforeCourses);
+    const afterKeys = buildSpaceIdsForUser(afterUni, afterCourses);
+
+    // Fast exit: no effective change in derived keys
+    if (setsEqual(beforeKeys, afterKeys)) return;
+
+    try {
+      // 1) Remove user from spaces they no longer match (based on their current memberships)
+      const currentSpacesSnap = await db
+        .collection("classSpaces")
+        .where("memberIds", "array-contains", userId)
+        .get();
+
+      const currentlyMemberOf = new Set(currentSpacesSnap.docs.map((d) => d.id));
+
+      let batch = db.batch();
+      let opsInBatch = 0;
+      const batchSize = 400;
+      const flush = async () => {
+        if (opsInBatch === 0) return;
+        await batch.commit();
+        batch = db.batch();
+        opsInBatch = 0;
+      };
+      const queueSet = async (ref, payload) => {
+        batch.set(ref, payload, { merge: true });
+        opsInBatch++;
+        if (opsInBatch >= batchSize) {
+          await flush();
+        }
+      };
+
+      for (const s of currentSpacesSnap.docs) {
+        const spaceId = s.id;
+        if (afterKeys.has(spaceId)) continue; // still eligible
+
+        const data = s.data() || {};
+        if (data?.devTest === true) continue;
+        const memberIds = Array.isArray(data.memberIds) ? data.memberIds : [];
+        const next = memberIds.filter((id) => id !== userId);
+
+        // Enforce 3+ rule: if below threshold, clear membership and deactivate
+        if (next.length >= 3) {
+          await queueSet(s.ref, {
+            memberIds: next,
+            memberCount: next.length,
+            lastMemberUpdate: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        } else {
+          await queueSet(s.ref, {
+            active: false,
+            memberIds: [],
+            memberCount: 0,
+            memberInfo: {},
+            lastMemberUpdate: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      // 2) Add user to spaces they now match IF the space already exists and is active.
+      // This avoids surfacing <3-member spaces in the client (GroupsPage queries by memberIds).
+      const toCheck = Array.from(afterKeys).filter((k) => !currentlyMemberOf.has(k));
+      const refs = toCheck.map((k) => db.collection("classSpaces").doc(k));
+      const snaps = refs.length ? await db.getAll(...refs) : [];
+
+      for (const snap of snaps) {
+        if (!snap.exists) continue;
+        const data = snap.data() || {};
+        if (data?.devTest === true) continue;
+        if (data.active !== true) continue;
+        const memberIds = Array.isArray(data.memberIds) ? data.memberIds : [];
+        if (memberIds.includes(userId)) continue;
+
+        const next = [...new Set([...memberIds, userId])];
+        if (next.length < 3) {
+          // Defensive: keep rule consistent even if the doc drifted
+          await queueSet(snap.ref, {
+            active: false,
+            memberIds: [],
+            memberCount: 0,
+            memberInfo: {},
+            lastMemberUpdate: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          continue;
+        }
+
+        await queueSet(snap.ref, {
+          memberIds: next,
+          memberCount: next.length,
+          lastMemberUpdate: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+
+      await flush();
+    } catch (err) {
+      logger.error("onUserCoursesChangedSyncClassSpaces failed", {
+        userId,
+        error: String(err),
+      });
+    }
+  }
+);
+
+export const scheduleDailyClassSpaces = onSchedule(
+  { schedule: "every day 06:00", timeZone: "Asia/Dhaka" },
+  async () => {
+    const summary = await runClassSpacesScheduler({ threshold: 3 });
+    logger.info("scheduleDailyClassSpaces completed", summary);
   }
 );
 
@@ -3239,23 +3535,8 @@ export const sendGroupMessage = https.onCall(async (data, context) => {
 export const trimSpaceMessages = onSchedule(
   { schedule: "every day 03:00", timeZone: "Asia/Dhaka" },
   async () => {
-    const spaces = await db
-      .collection("classSpaces")
-      .where("active", "==", true)
-      .get();
-    for (const s of spaces.docs) {
-      const ref = s.ref.collection("messages");
-      const snap = await ref
-        .orderBy("createdAt", "desc")
-        .offset(2000)
-        .limit(500)
-        .get();
-      if (snap.empty) continue;
-      const batch = db.batch();
-      snap.forEach((d) => batch.delete(d.ref));
-      await batch.commit();
-    }
-    logger.info("trimSpaceMessages completed");
+    const summary = await runTrimSpaceMessages();
+    logger.info("trimSpaceMessages completed", summary);
   }
 );
 
@@ -3294,93 +3575,18 @@ export const triggerClassSpaceScheduler = https.onRequest(async (req, res) => {
 
     logger.info("Manual scheduler trigger called (emulator)");
 
-    // Build buckets by canonical key using users.courses[]
-    const usersSnap = await db.collection("users").get();
-    const buckets = new Map(); // key -> Set<uid>
-    const index = new Map(); // key -> sample course for metadata
+    const thresholdRaw = req.query?.threshold;
+    const threshold = Number.isFinite(Number(thresholdRaw))
+      ? Math.max(1, Number(thresholdRaw))
+      : 3;
 
-    for (const docSnap of usersSnap.docs) {
-      const d = docSnap.data() || {};
-      const uni = d?.universityInfo?.university || "";
-      const arr = Array.isArray(d?.courses) ? d.courses : [];
-      if (!uni || arr.length === 0) continue;
+    const summary = await runClassSpacesScheduler({ threshold });
 
-      for (const c of arr) {
-        const id = buildSpaceIdFromCourse(uni, c);
-        if (!id) continue;
-        if (!buckets.has(id)) buckets.set(id, new Set());
-        buckets.get(id).add(docSnap.id);
-        if (!index.has(id)) index.set(id, { university: uni, course: c });
-      }
-    }
-
-    let spacesCreated = 0;
-    let spacesDeactivated = 0;
-
-    // Upsert spaces for buckets with ≥2 members (lowered from 4 for staging)
-    for (const [spaceId, set] of buckets) {
-      const members = Array.from(set);
-      const { university, course } = index.get(spaceId) || {};
-      const ref = db.collection("classSpaces").doc(spaceId);
-
-      if (members.length >= 2) {
-        // Prepare memberInfo cache
-        const memberInfo = {};
-        const preview = members.slice(0, 20);
-        await Promise.all(
-          preview.map(async (uid) => {
-            const info = await fetchMemberInfo(uid);
-            if (info) memberInfo[uid] = info;
-          })
-        );
-
-        const payload = {
-          spaceId,
-          university,
-          courseName: course?.courseName || null,
-          courseCode: course?.courseCode || null,
-          section: course?.section || null,
-          dayPattern: course?.dayPattern || null,
-          timeSlot: course?.timeSlot || null,
-          timeStart: course?.timeStart || null,
-          timeEnd: course?.timeEnd || null,
-          classroom: course?.classroom || null,
-          memberIds: members,
-          memberCount: members.length,
-          memberInfo,
-          active: true,
-          lastMemberUpdate: new Date(),
-          updatedAt: new Date(),
-          createdAt: new Date(),
-          visibility: "university",
-        };
-        await ref.set(payload, { merge: true });
-        spacesCreated++;
-      } else {
-        // If space exists, mark inactive but keep history
-        const snap = await ref.get();
-        if (snap.exists) {
-          await ref.set(
-            { active: false, updatedAt: new Date() },
-            { merge: true }
-          );
-          spacesDeactivated++;
-        }
-      }
-    }
-
-    logger.info("Manual scheduler completed", {
-      totalBuckets: buckets.size,
-      spacesCreated,
-      spacesDeactivated,
-    });
-
+    logger.info("Manual scheduler completed", summary);
     res.status(200).json({
       success: true,
       message: "Class spaces scheduler executed successfully",
-      totalBuckets: buckets.size,
-      spacesCreated,
-      spacesDeactivated,
+      ...summary,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
@@ -3389,6 +3595,55 @@ export const triggerClassSpaceScheduler = https.onRequest(async (req, res) => {
       success: false,
       error: error.message,
     });
+  }
+});
+
+// =============================================================================
+// 🔐 Super Admin: Manual automation triggers (callable)
+// =============================================================================
+
+export const runAdminAutomationJob = https.onCall(async (data, context) => {
+  const { uid: callerUid } = await assertSuperAdmin(context);
+
+  // Rate limit: avoid accidental rapid re-runs
+  await enforceAdminRateLimit(callerUid, "runAdminAutomationJob", 20);
+
+  const job = String(data?.job || "").trim();
+  const allowedJobs = new Set(["classSpacesScheduler", "trimSpaceMessages"]);
+  if (!allowedJobs.has(job)) {
+    throw new https.HttpsError("invalid-argument", "Unknown job");
+  }
+
+  try {
+    let result = null;
+    if (job === "classSpacesScheduler") {
+      // Production PRD: 3+ members required to create/activate a space.
+      result = await runClassSpacesScheduler({ threshold: 3 });
+    } else if (job === "trimSpaceMessages") {
+      result = await runTrimSpaceMessages();
+    }
+
+    // Log audit trail in adminActivity (same schema used by AdminService)
+    await db.collection("adminActivity").add({
+      type: "automation_job_run",
+      actorUid: callerUid,
+      job,
+      status: "success",
+      result: result || null,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    return { success: true, job, result };
+  } catch (error) {
+    await db.collection("adminActivity").add({
+      type: "automation_job_run",
+      actorUid: callerUid,
+      job,
+      status: "failed",
+      error: String(error?.message || error),
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    throw error;
   }
 });
 

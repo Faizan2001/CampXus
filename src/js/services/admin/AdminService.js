@@ -29,6 +29,7 @@ import {
 } from "firebase/firestore";
 import { logManager } from "../../utils/debug/LogManager.js";
 import { currentUser } from "../../store/userStore.js";
+import { callFunction } from "../../utils/firebase/functionsHelper.js";
 
 /**
  * Internal helper: log an admin activity event to Firestore so the
@@ -791,6 +792,18 @@ export async function cleanupOldNotifications(daysOld = 7, log = console.log) {
   return deleted;
 }
 
+/**
+ * Run a privileged server-side automation job (Cloud Function).
+ * Only super admins can call this; the server enforces authorization.
+ * @param {string} job - Job name (server whitelist)
+ * @returns {Promise<Object|null>}
+ */
+export async function runAutomationJob(job) {
+  if (!job) throw new Error("job is required");
+  const res = await callFunction("runAdminAutomationJob", { job });
+  return res?.data || null;
+}
+
 // Export all functions as a service object
 export const AdminService = {
   isSuperAdmin,
@@ -815,6 +828,7 @@ export const AdminService = {
   cleanupOldEvents,
   verifyDataIntegrity,
   cleanupOldNotifications,
+  runAutomationJob,
 };
 
 export default AdminService;

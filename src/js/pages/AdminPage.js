@@ -41,6 +41,7 @@ import {
   cleanupOldEvents as adminCleanupOldEvents,
   verifyDataIntegrity as adminVerifyDataIntegrityService,
   cleanupOldNotifications as adminCleanupOldNotifications,
+  runAutomationJob as adminRunAutomationJob,
 } from "../services/admin/AdminService.js";
 import { renderUserSearchAssign } from "../components/shared/UserSearchAssign.js";
 import {
@@ -428,6 +429,10 @@ export class AdminPage {
               <i class="fas fa-users"></i>
               <span>Clubs</span>
             </button>
+            <button class="admin-tab" data-tab="automation">
+              <i class="fas fa-robot"></i>
+              <span>Automation</span>
+            </button>
           </nav>
 
           <div class="admin-content">
@@ -494,6 +499,9 @@ export class AdminPage {
           break;
         case "clubs":
           await this.renderClubsTab(contentEl);
+          break;
+        case "automation":
+          await this.renderAutomationTab(contentEl);
           break;
       }
     } catch (error) {
@@ -684,6 +692,7 @@ export class AdminPage {
       club_official_assigned: "star",
       saf_added: "user-plus",
       event_approved: "check-circle",
+      automation_job_run: "robot",
       maintenance_rebuild_stats: "tools",
       maintenance_cleanup_events: "trash",
       maintenance_verify_data: "search",
@@ -702,6 +711,7 @@ export class AdminPage {
       saf_added: "#3b82f6",
       saf_removed: "#ef4444",
       event_approved: "#10b981",
+      automation_job_run: "#06b6d4",
       maintenance_rebuild_stats: "#f59e0b",
       maintenance_cleanup_events: "#f97316",
       maintenance_verify_data: "#0ea5e9",
@@ -737,6 +747,11 @@ export class AdminPage {
         return `Data integrity check found ${activity.issues || 0} issues`;
       case "maintenance_cleanup_notifications":
         return `Deleted ${activity.deleted || 0} old notifications`;
+      case "automation_job_run": {
+        const job = activity.job || "job";
+        const status = activity.status || "success";
+        return `Automation: ${job} (${status})`;
+      }
       default:
         return activity.message || "Admin action";
     }
@@ -1705,6 +1720,111 @@ export class AdminPage {
         row.querySelector(".club-name-cell span")?.textContent.toLowerCase() ||
         "";
       row.style.display = name.includes(term) ? "" : "none";
+    });
+  }
+
+  // ==========================================
+  // AUTOMATION TAB (manual triggers for scheduled jobs)
+  // ==========================================
+
+  async renderAutomationTab(contentEl) {
+    contentEl.innerHTML = `
+      <div class="admin-automation">
+        <div class="section-header">
+          <h2><i class="fas fa-robot"></i> Automation</h2>
+          <p class="section-subtitle">
+            Run scheduled jobs on-demand. Use this after large schedule imports to sync group memberships.
+          </p>
+        </div>
+
+        <div class="automation-grid">
+          <div class="automation-card glass-card" data-job="classSpacesScheduler">
+            <div class="automation-card-header">
+              <h3>Class Spaces: Sync Memberships</h3>
+              <span class="automation-pill">Daily 06:00</span>
+            </div>
+            <p class="automation-desc">
+              Rebuilds all class space memberships from users' saved schedules. Removes stale memberships and
+              clears spaces that no longer meet the 3+ member rule.
+            </p>
+            <div class="automation-actions">
+              <button class="btn-run-automation" data-job="classSpacesScheduler">
+                <i class="fas fa-play"></i> Run Now
+              </button>
+            </div>
+            <div class="automation-output" aria-live="polite"></div>
+          </div>
+
+          <div class="automation-card glass-card" data-job="trimSpaceMessages">
+            <div class="automation-card-header">
+              <h3>Class Spaces: Trim Messages</h3>
+              <span class="automation-pill">Daily 03:00</span>
+            </div>
+            <p class="automation-desc">
+              Deletes old messages beyond the latest 2,000 per active class space to keep storage usage bounded.
+            </p>
+            <div class="automation-actions">
+              <button class="btn-run-automation" data-job="trimSpaceMessages">
+                <i class="fas fa-play"></i> Run Now
+              </button>
+            </div>
+            <div class="automation-output" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const runButtons = contentEl.querySelectorAll(".btn-run-automation");
+    runButtons.forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const job = btn.dataset.job;
+        const card = btn.closest(".automation-card");
+        const outputEl = card?.querySelector(".automation-output");
+        if (!job || !card || !outputEl) return;
+
+        const confirmText =
+          job === "classSpacesScheduler"
+            ? "Run Class Spaces membership sync now? This updates memberships for all users."
+            : "Run this automation job now?";
+        if (!confirm(confirmText)) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running...';
+        outputEl.innerHTML = `
+          <div class="automation-status automation-status--running">
+            <i class="fas fa-spinner fa-spin"></i> Executing...
+          </div>
+        `;
+
+        try {
+          const data = await adminRunAutomationJob(job);
+          const pretty = JSON.stringify(data, null, 2);
+          outputEl.innerHTML = `
+            <div class="automation-status automation-status--success">
+              <i class="fas fa-check-circle"></i> Success
+              <span class="automation-time">${new Date().toLocaleString()}</span>
+            </div>
+            <pre class="automation-result">${escapeHtmlAdmin(pretty)}</pre>
+          `;
+        } catch (error) {
+          const msg =
+            error?.message ||
+            error?.details ||
+            error?.code ||
+            "Unknown error";
+          outputEl.innerHTML = `
+            <div class="automation-status automation-status--error">
+              <i class="fas fa-exclamation-triangle"></i> Failed: ${escapeHtmlAdmin(
+                msg
+              )}
+              <span class="automation-time">${new Date().toLocaleString()}</span>
+            </div>
+          `;
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-play"></i> Run Now';
+        }
+      });
     });
   }
 
