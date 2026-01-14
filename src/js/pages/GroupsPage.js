@@ -52,12 +52,21 @@ export class GroupsPage {
 
   async ensureFirebaseAuth(userId) {
     try {
-      const currentFirebaseUid = authManager?.auth?.currentUser?.uid || null;
-      if (currentFirebaseUid && currentFirebaseUid === userId) return true;
       if (authManager?.authReady && typeof authManager.authReady.then === "function") {
         await authManager.authReady.catch(() => {});
       }
-      return (authManager?.auth?.currentUser?.uid || null) === userId;
+
+      const firebaseUser = authManager?.auth?.currentUser || null;
+      if (!firebaseUser || firebaseUser.uid !== userId) return false;
+
+      // Ensure an ID token is actually available before attaching Firestore listeners.
+      // This avoids "cache emits then server rejects list" noise on cold starts / emulator hiccups.
+      if (typeof firebaseUser.getIdToken === "function") {
+        const token = await firebaseUser.getIdToken().catch(() => null);
+        if (!token) return false;
+      }
+
+      return true;
     } catch (_) {
       return false;
     }
@@ -218,6 +227,12 @@ export class GroupsPage {
         },
         (error) => {
           console.error("[GroupsPage] Realtime listener error:", error);
+          // Stop retry spam on permission errors (often happens if auth token isn't ready yet)
+          try {
+            if (error?.code === "permission-denied") {
+              this.detachGroupsListener();
+            }
+          } catch (_) {}
           listEl.innerHTML = `
             <div class="error-message">
               <p>Failed to load groups</p>

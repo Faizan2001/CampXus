@@ -1082,6 +1082,11 @@ function initializeMobileBottomNav() {
                   profile?.avatarConfig ||
                   profile?.profile?.avatarConfig ||
                   null,
+                profilePhotoUrl:
+                  profile?.profilePhotoUrl ||
+                  profile?.profile?.profilePhotoUrl ||
+                  null,
+                useAvatar: profile?.useAvatar ?? profile?.profile?.useAvatar ?? false,
               };
 
         if (sheetNameEl) {
@@ -1099,6 +1104,7 @@ function initializeMobileBottomNav() {
               const img = document.createElement("img");
               img.src = url;
               img.alt = "User Avatar";
+              img.loading = "lazy";
               sheetAvatar.appendChild(img);
             } else {
               sheetAvatar.innerHTML = "";
@@ -1550,8 +1556,13 @@ async function setupMessagesIndicator(userId) {
       }
     } catch (_) {}
     if (currentUser?.uid !== requestedUid) return;
-    const firebaseUid = authManager?.auth?.currentUser?.uid || null;
+    const firebaseUser = authManager?.auth?.currentUser || null;
+    const firebaseUid = firebaseUser?.uid || null;
     if (!firebaseUid || firebaseUid !== requestedUid) return;
+    if (typeof firebaseUser.getIdToken === "function") {
+      const token = await firebaseUser.getIdToken().catch(() => null);
+      if (!token) return;
+    }
 
     _messagesUserId = requestedUid;
 
