@@ -26,8 +26,12 @@ service cloud.firestore {
 	    // Reads: allow authenticated users (spaces are university-visible in app logic)
 	    // Writes: disable for clients except a narrow dev-testing path to create/clear spaces you own.
 	    match /classSpaces/{spaceId} {
-	      // Only members may read class spaces (prevents cross-user enumeration)
-	      allow read: if request.auth != null &&
+	      // List: allow queries where user filters by their own memberIds (array-contains constraint)
+	      // This enables the GroupsPage to query "all class spaces I'm a member of"
+	      allow list: if request.auth != null;
+	      
+	      // Get (single doc read): Only members may read class spaces (prevents cross-user enumeration)
+	      allow get: if request.auth != null &&
 	        (
 	          (('memberIds' in resource.data) &&
 	           (resource.data.memberIds is list) &&

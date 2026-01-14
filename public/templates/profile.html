@@ -166,15 +166,10 @@
                   hidden
                 />
               </div>
-              <small
-                id="profile-photo-helper-text"
-                class="form-hint photo-helper-text"
-              >
+              <p id="profile-photo-helper-text" class="form-hint photo-helper-text">
                 <i class="fas fa-info-circle"></i>
-                <span id="profile-photo-helper-action">Upload a photo</span>
-                to help friends recognize you. Auto-crops to square, stored as
-                512×512 WebP.
-              </small>
+                <span><span id="profile-photo-helper-action">Upload a photo</span> to help friends recognize you. Auto-crops to square, stored as 512×512 WebP.</span>
+              </p>
             </section>
 
             <!-- Avatar Selection Section (hidden by default) -->
@@ -544,6 +539,18 @@ Example: CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z
       </div>
     </div>
 
+    <!-- Public View FAB (floating action button) -->
+    <button
+      type="button"
+      class="profile-preview-fab"
+      id="public-view-fab"
+      title="Preview Public Profile"
+      style="display: none;"
+    >
+      <i class="fas fa-eye"></i>
+      <span class="fab-label">Public View</span>
+    </button>
+
     <div class="setup-navigation">
       <button
         type="button"
@@ -569,7 +576,7 @@ Example: CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z
           class="button btn-primary setup-nav-button"
           id="setup-next-btn"
         >
-          Next <i class="fas fa-arrow-right"></i>
+          Next Step <i class="fas fa-arrow-right"></i>
         </button>
       </div>
     </div>
