@@ -1541,7 +1541,19 @@ async function setupMessagesIndicator(userId) {
     teardownMessagesIndicator();
     if (!userId) return;
 
-    _messagesUserId = userId;
+    // Avoid unauthenticated Firestore reads during optimistic hydration:
+    // currentUser may be seeded from cache before Firebase Auth resolves.
+    const requestedUid = userId;
+    try {
+      if (authManager?.authReady && typeof authManager.authReady.then === "function") {
+        await authManager.authReady.catch(() => {});
+      }
+    } catch (_) {}
+    if (currentUser?.uid !== requestedUid) return;
+    const firebaseUid = authManager?.auth?.currentUser?.uid || null;
+    if (!firebaseUid || firebaseUid !== requestedUid) return;
+
+    _messagesUserId = requestedUid;
 
     // Dynamically import to keep Menu.js bundle light
     const [{ db }, { collection, query, where, onSnapshot }] =
@@ -1590,6 +1602,13 @@ async function setupMessagesIndicator(userId) {
       },
       (error) => {
         console.warn("⚠️ Messages unread listener error:", error);
+        // Stop retry spam if the client isn't allowed to read classSpaces
+        try {
+          if (error?.code === "permission-denied") {
+            setMessagesDot(false);
+            teardownMessagesIndicator();
+          }
+        } catch (_) {}
       }
     );
 

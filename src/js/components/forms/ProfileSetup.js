@@ -2431,17 +2431,26 @@ class ProfileSetup {
       }
     }
 
-    // Ensure a clearly visible Public View button when on Photo & Avatar step
+    // Handle Public View FAB visibility - show on Photo & Avatar step (step 1)
+    this.updatePublicViewFAB();
+  }
+
+  /**
+   * Update Public View FAB visibility and setup click handler
+   */
+  updatePublicViewFAB() {
     try {
-      const existing = document.getElementById("public-view-nav-btn");
+      const fab = document.getElementById("public-view-fab");
+      if (!fab) return;
+
+      // Show FAB on Photo & Avatar step (step 1) - where users customize their appearance
       if (this.currentStep === 1) {
-        if (skipNextContainer && !existing) {
-          const pvBtn = document.createElement("button");
-          pvBtn.id = "public-view-nav-btn";
-          pvBtn.type = "button";
-          pvBtn.className = "button secondary";
-          pvBtn.innerHTML = '<i class="fas fa-eye"></i> Public View';
-          pvBtn.addEventListener("click", () => {
+        fab.style.display = "flex";
+
+        // Only attach handler once
+        if (!fab.dataset.handlerAttached) {
+          fab.dataset.handlerAttached = "true";
+          fab.addEventListener("click", () => {
             try {
               const uid =
                 (this.currentUser && this.currentUser.uid) ||
@@ -2458,17 +2467,9 @@ class ProfileSetup {
               console.error("Failed to open public view", e);
             }
           });
-          // Insert before Skip to keep Next on the right
-          const firstChild = skipNextContainer.firstElementChild;
-          if (firstChild) {
-            skipNextContainer.insertBefore(pvBtn, firstChild);
-          } else {
-            skipNextContainer.appendChild(pvBtn);
-          }
         }
-        if (existing) existing.style.display = "inline-block";
-      } else if (existing) {
-        existing.style.display = "none";
+      } else {
+        fab.style.display = "none";
       }
     } catch (_) {
       // non-fatal UI enhancement

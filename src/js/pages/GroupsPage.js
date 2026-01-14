@@ -4,6 +4,7 @@ import { unreadTracker } from "../services/groups/UnreadTracker.js";
 import { currentUser } from "../store/userStore.js";
 import { groupsCache } from "../services/groups/GroupsCache.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
+import { authManager } from "../services/auth/AuthService.js";
 
 function isNonProductionEnvironment() {
   try {
@@ -47,6 +48,19 @@ export class GroupsPage {
       indicator: null,
       handlers: null,
     };
+  }
+
+  async ensureFirebaseAuth(userId) {
+    try {
+      const currentFirebaseUid = authManager?.auth?.currentUser?.uid || null;
+      if (currentFirebaseUid && currentFirebaseUid === userId) return true;
+      if (authManager?.authReady && typeof authManager.authReady.then === "function") {
+        await authManager.authReady.catch(() => {});
+      }
+      return (authManager?.auth?.currentUser?.uid || null) === userId;
+    } catch (_) {
+      return false;
+    }
   }
 
   async mount(rootEl) {
@@ -164,6 +178,13 @@ export class GroupsPage {
     this.detachGroupsListener();
 
     try {
+      // Avoid permission-denied spam during optimistic hydration: wait for Firebase Auth.
+      const authed = await this.ensureFirebaseAuth(userId);
+      if (!authed) {
+        // Router may redirect after auth resolves; keep UI calm in the meantime.
+        return;
+      }
+
       const { collection, query, where, onSnapshot } = await import(
         "firebase/firestore"
       );
@@ -259,6 +280,9 @@ export class GroupsPage {
     listEl.innerHTML = '<div class="loading">Loading groups...</div>';
 
     try {
+      const authed = await this.ensureFirebaseAuth(userId);
+      if (!authed) return;
+
       // Minimal fetch: query classSpaces where memberIds contains current user
       const spaces = await dataManager.getUserClassSpaces();
 
