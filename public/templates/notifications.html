@@ -1,17 +1,12 @@
-<!-- 
-  🎯 Learning: This is the NOTIFICATIONS template - your campus social hub!
-  This handles location sharing requests, friend notifications, and other campus presence updates.
-  
-  Notice how we follow the same structure as other templates:
-  - .content-grid container for consistent layout
-  - glass-card sections for modern styling
-  - page-title-section with icon and subtitle
-  - Scrollable containers for dynamic content
-  - Empty states with helpful messaging
+<!--
+  Notifications template
+  - Layout is provided by template; JS updates only the list to avoid flicker.
 -->
 
 <div class="content-grid">
   <div class="notifications-page">
+    <div id="pushPermissionBanner" class="push-permission-banner-host" aria-live="polite"></div>
+
     <section class="glass-card notifications-card">
       <div class="notifications-card-header">
         <h1 class="page-title">
@@ -25,8 +20,27 @@
           </button>
         </div>
       </div>
+
+      <div class="notifications-filters">
+        <button class="filter-btn active" data-filter="all">
+          <i class="fas fa-list"></i>
+          All
+        </button>
+        <button class="filter-btn" data-filter="friend">
+          <i class="fas fa-user-plus"></i>
+          Friend Requests
+        </button>
+        <button class="filter-btn" data-filter="location">
+          <i class="fas fa-map-marker-alt"></i>
+          Location Requests
+        </button>
+        <button class="filter-btn" data-filter="club">
+          <i class="fas fa-flag"></i>
+          Clubs
+        </button>
+      </div>
+
       <div id="notificationsList" class="notifications-scrollable-container">
-        <!-- This will be populated by JavaScript -->
         <div class="empty-state" id="notificationsEmpty">
           <h4>All caught up!</h4>
           <p>
@@ -44,30 +58,3 @@
     </section>
   </div>
 </div>
-
-<!-- 
-  🎯 Learning Note: This template follows the established MeetchuThere patterns:
-  
-  1. ✅ Uses .content-grid container for consistent layout
-  2. ✅ Multiple glass-card sections for organized content
-  3. ✅ page-title-section with icon, title, and subtitle
-  4. ✅ Scrollable containers with proper IDs for JavaScript
-  5. ✅ Loading and empty states with descriptive messaging
-  6. ✅ Font Awesome icons throughout for visual consistency
-  7. ✅ Semantic HTML5 structure for accessibility
-  8. ✅ Follows the same commenting style as other templates
-  9. ✅ Includes interactive elements (buttons, filters, settings)
-  10. ✅ Uses established CSS classes from the design system
-  
-  The NotificationsPage.js will target these elements:
-  - .notifications-page (main container)
-  - .notifications-header (header section)
-  - #notificationsList (dynamic notification content)
-  - #notificationsLoading (loading state)
-  - #notificationsEmpty (empty state)
-  - #markAllReadBtn (mark all read functionality)
-  - .filter-btn (category filtering)
-  
-  This creates a comprehensive notifications interface that matches
-  the established MeetchuThere design language and functionality patterns!
--->

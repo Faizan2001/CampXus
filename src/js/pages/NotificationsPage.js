@@ -43,10 +43,13 @@ export class NotificationsPage {
     this.unsubscribers = [];
     this.isInitialized = false;
     this.isActive = false;
-    this.baseRendered = false; // Prevent full re-render flicker
+    this.baseRendered = false; // Tracks DOM bindings for current page instance
     this.filter = "all"; // 'all' | 'friend' | 'location' | 'club'
     this._listElement = null; // track current bound list element for delegation
     this._listDelegatedHandler = null; // reference to delegated handler
+    this._listUpdateRaf = null; // batch multiple realtime updates per frame
+    this._listUpdateScheduled = false;
+    this._lastListHTML = null; // reset between navigations
 
     console.log("🔔 NotificationsPage initialized");
   }
@@ -120,7 +123,7 @@ export class NotificationsPage {
               notifications.length
             );
             this.notifications = notifications;
-            this.updateListOnly(); // List-only refresh
+            this.scheduleListUpdate(); // List-only refresh (batched)
           }
         }
       );
@@ -130,7 +133,7 @@ export class NotificationsPage {
         REALTIME_EVENTS.USER_PROFILE,
         async (profile) => {
           console.log("👤 User profile updated, refreshing notifications...");
-          this.updateListOnly(); // Avoid full re-render to prevent flicker
+          this.scheduleListUpdate(); // Avoid full re-render to prevent flicker
         }
       );
 
@@ -139,7 +142,7 @@ export class NotificationsPage {
         REALTIME_EVENTS.FRIENDSHIPS,
         async (friendships) => {
           console.log("🤝 Friendships updated, refreshing notifications...");
-          this.updateListOnly(); // Update list without full re-render
+          this.scheduleListUpdate(); // Update list without full re-render
         }
       );
 
@@ -152,7 +155,7 @@ export class NotificationsPage {
             `📬 Incoming friend requests (realtime): ${requests.length}`
           );
           this.friendRequests = requests || [];
-          this.updateListOnly();
+          this.scheduleListUpdate();
         }
       );
 
@@ -174,78 +177,46 @@ export class NotificationsPage {
    */
   render(isInitial = false) {
     try {
+      // Layout is provided by `public/templates/notifications.html`.
+      // Avoid rewriting `.main-content` here to prevent navigation flicker.
       const container = document.querySelector(".notifications-page");
-      if (this.baseRendered && container && !isInitial) {
-        this.updateListOnly();
+      if (!container) {
+        console.error("❌ Notifications container not found in DOM");
         return;
       }
-      console.log("🎨 Rendering NotificationsPage...");
 
-      const template = `
-        <div class="content-grid">
-          <div class="notifications-page">
-            <div id="pushPermissionBanner" class="push-permission-banner-host" aria-live="polite"></div>
-            <section class="glass-card notifications-card">
-              <div class="notifications-card-header">
-                <h1 class="page-title">
-                  <i class="fas fa-bell"></i>
-                  Notifications
-                </h1>
-                <div class="header-actions">
-                  <button type="button" class="mark-all-read button secondary" ${
-                    this.notifications.length === 0 ? "disabled" : ""
-                  }>
-                    <i class="fas fa-check-double"></i>
-                    Mark All Seen
-                  </button>
-                </div>
-              </div>
-              <div class="notifications-filters">
-                <button class="filter-btn ${
-                  this.filter === "all" ? "active" : ""
-                }" data-filter="all">
-                  <i class="fas fa-list"></i>
-                  All
-                </button>
-                <button class="filter-btn ${
-                  this.filter === "friend" ? "active" : ""
-                }" data-filter="friend">
-                  <i class="fas fa-user-plus"></i>
-                  Friend Requests
-                </button>
-                <button class="filter-btn ${
-                  this.filter === "location" ? "active" : ""
-                }" data-filter="location">
-                  <i class="fas fa-map-marker-alt"></i>
-                  Location Requests
-                </button>
-                <button class="filter-btn ${
-                  this.filter === "club" ? "active" : ""
-                }" data-filter="club">
-                  <i class="fas fa-flag"></i>
-                  Clubs
-                </button>
-              </div>
-              <div id="notificationsList" class="notifications-scrollable-container">
-                ${this.renderNotifications()}
-              </div>
-            </section>
-          </div>
-        </div>
-      `;
+      // Re-bind handlers on each navigation; elements are replaced by SPA router.
+      this.setupEventHandlers();
+      try {
+        renderPushPermissionBanner();
+      } catch (_) {}
 
-      const mainContent = document.querySelector(".main-content");
-      if (mainContent) {
-        mainContent.innerHTML = template;
-        this.baseRendered = true;
-        this.setupEventHandlers();
-        try { renderPushPermissionBanner(); } catch (_) {}
-        console.log("✅ NotificationsPage rendered successfully");
-      } else {
-        console.error("❌ Main content container not found");
-      }
+      this.baseRendered = true;
+      this.updateListOnly();
+      console.log("✅ NotificationsPage rendered successfully");
     } catch (error) {
       console.error("❌ Error rendering NotificationsPage:", error);
+    }
+  }
+
+  /**
+   * Batch multiple realtime updates into a single DOM update per frame.
+   */
+  scheduleListUpdate() {
+    if (!this.isActive) return;
+    if (this._listUpdateScheduled) return;
+    this._listUpdateScheduled = true;
+
+    const run = () => {
+      this._listUpdateScheduled = false;
+      this._listUpdateRaf = null;
+      this.updateListOnly();
+    };
+
+    if (typeof requestAnimationFrame === "function") {
+      this._listUpdateRaf = requestAnimationFrame(run);
+    } else {
+      this._listUpdateRaf = setTimeout(run, 0);
     }
   }
 
@@ -1103,6 +1074,23 @@ export class NotificationsPage {
       console.log("🧹 Cleaning up NotificationsPage...");
 
       this.isActive = false;
+      this.baseRendered = false;
+
+      // Cancel any queued list update
+      if (this._listUpdateRaf) {
+        try {
+          if (typeof cancelAnimationFrame === "function") {
+            cancelAnimationFrame(this._listUpdateRaf);
+          } else {
+            clearTimeout(this._listUpdateRaf);
+          }
+        } catch (_) {}
+      }
+      this._listUpdateRaf = null;
+      this._listUpdateScheduled = false;
+      this._lastListHTML = null;
+      this._listElement = null;
+      this._listDelegatedHandler = null;
 
       // Unsubscribe from all real-time listeners
       this.unsubscribers.forEach((unsubscriber) => {

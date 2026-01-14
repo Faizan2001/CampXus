@@ -207,7 +207,8 @@ export class HorizontalFriendsBar {
         if (Array.isArray(cached) && cached.length > 0) {
           this.quickAccessFriends = cached;
           this.sortQuickAccessFriendsForDisplay();
-          this.render();
+          // Avoid wiping the already-rendered user avatar; render friends only.
+          this._reRenderFriendsPreservingState();
           cachedQuickAccessUsed = true;
         }
       } catch (e) {
@@ -231,7 +232,12 @@ export class HorizontalFriendsBar {
       await this.loadQuickAccessFriends(true);
 
       // Render the friends bar
-      this.render();
+      // If we already rendered from cache, patch in-place to avoid DOM wipe flicker.
+      if (cachedQuickAccessUsed) {
+        this._applyFriendsDomUpdates({ allowFullRerender: true });
+      } else {
+        this.render();
+      }
 
       // Set up real-time listeners
       this.setupRealTimeListeners();
@@ -611,7 +617,7 @@ export class HorizontalFriendsBar {
            aria-label="View your schedule">
         <div class="avatar-container">
           <div class="avatar-image">
-            ${renderUserAvatar(this.currentUser, false)}
+            ${renderUserAvatar(this.currentUser, true)}
             ${presenceMarkup}
             <div class="selection-ring"></div>
           </div>
@@ -681,7 +687,7 @@ export class HorizontalFriendsBar {
              aria-label="${ariaLabel}">
           <div class="avatar-container">
             <div class="avatar-image">
-              ${renderUserAvatar(friend, false)}
+              ${renderUserAvatar(friend, true)}
               ${presenceMarkup}
               <div class="selection-ring"></div>
             </div>
@@ -2282,7 +2288,7 @@ export class HorizontalFriendsBar {
     this.enrichFriendsWithScheduleStatus(now)
       .then(() => {
         this.sortQuickAccessFriendsForDisplay();
-        this._reRenderFriendsPreservingState();
+        this._applyFriendsDomUpdates();
         this.hidePresencePillsLoading();
       })
       .catch((error) => {
@@ -2315,7 +2321,7 @@ export class HorizontalFriendsBar {
       this.enrichFriendsWithScheduleStatus(now)
         .then(() => {
           this.sortQuickAccessFriendsForDisplay();
-          this._reRenderFriendsPreservingState();
+          this._applyFriendsDomUpdates();
         })
         .catch((error) => {
           console.warn(
@@ -2679,7 +2685,7 @@ export class HorizontalFriendsBar {
       this.enrichFriendsWithScheduleStatus(now)
         .then(() => {
           this.sortQuickAccessFriendsForDisplay();
-          this._reRenderFriendsPreservingState();
+          this._applyFriendsDomUpdates();
         })
         .catch((error) => {
           console.warn(
@@ -3212,7 +3218,7 @@ export class HorizontalFriendsBar {
 
         // Only trigger full re-render for profile changes (name/avatar/photo), not for presence updates
         if (nameChanged || avatarChanged || photoChanged || useAvatarChanged) {
-          this.debouncedRender();
+          this.updateFriendAvatarUI(friendId, updatedFriend);
           // Profile UI updated (no database sync)
           // Schedule a batched database sync for profile changes only (longer delay)
           this.scheduleBatchedDatabaseSync();
@@ -4408,7 +4414,8 @@ export class HorizontalFriendsBar {
 
       // Re-sort list based on new presence and re-render friends order
       this.sortQuickAccessFriendsForDisplay();
-      this._reRenderFriendsPreservingState();
+      this._reorderDomToMatchQuickAccessOrder();
+      this.updateScrollIndicators();
     } catch (error) {
       console.error("❌ Error handling campus presence update:", error);
     }
@@ -4529,6 +4536,129 @@ export class HorizontalFriendsBar {
   }
 
   /**
+   * Apply in-place DOM updates for presence + order without recreating avatar elements.
+   * Falls back to a friends-only re-render when list membership changes.
+   */
+  _applyFriendsDomUpdates({ allowFullRerender = false } = {}) {
+    if (!this.avatarsContainer) return;
+
+    const desiredIds = (this.quickAccessFriends || [])
+      .map((f) => f.friendId || f.userId)
+      .filter(Boolean);
+
+    const currentIds = Array.from(
+      this.avatarsContainer.querySelectorAll(".friend-avatar-item")
+    )
+      .map((el) => el.getAttribute("data-friend-id"))
+      .filter(Boolean);
+
+    const currentSet = new Set(currentIds);
+    const membershipSame =
+      desiredIds.length === currentIds.length &&
+      desiredIds.every((id) => currentSet.has(id));
+
+    if (allowFullRerender && !membershipSame) {
+      this._reRenderFriendsPreservingState();
+      return;
+    }
+
+    // If our cached element map is missing nodes, rebuild via friends-only re-render.
+    const missingNodes = desiredIds.some((id) => !this.avatarElements.get(id));
+    if (allowFullRerender && missingNodes) {
+      this._reRenderFriendsPreservingState();
+      return;
+    }
+
+    this._updateAvatarPresencePills();
+    this._reorderDomToMatchQuickAccessOrder();
+    this.updateScrollIndicators();
+  }
+
+  /**
+   * Update a single friend's avatar/name UI in place (no full re-render).
+   * Used for realtime profile updates (handle/avatar/photo/useAvatar changes).
+   */
+  updateFriendAvatarUI(friendId, friendData) {
+    try {
+      if (!friendId) return;
+      const avatarElement = this.avatarElements.get(friendId);
+      if (!avatarElement) return;
+
+      const friendLabel = friendData?.handle || "unknown";
+      const isDisabled = !!(friendData?.isRestricted || false);
+
+      avatarElement.dataset.friendName = friendLabel;
+      avatarElement.dataset.privacyRestricted = String(isDisabled);
+      avatarElement.classList.toggle("disabled", isDisabled);
+
+      const statusInfo =
+        friendData?.schedulePresenceStatus ||
+        this.presenceStatusByFriendId.get(friendId) ||
+        this._deriveSchedulePresenceForFriend(friendData, new Date());
+      if (friendData) friendData.schedulePresenceStatus = statusInfo;
+
+      const ariaLabel = isDisabled
+        ? `${friendLabel}'s schedule is private - access restricted`
+        : statusInfo
+        ? `${friendLabel}, ${statusInfo.pillText.toLowerCase()}`
+        : `View ${friendLabel}'s schedule`;
+      avatarElement.setAttribute("aria-label", ariaLabel);
+
+      const tooltip =
+        friendData?.privacyStatus?.tooltip ||
+        (isDisabled ? "Schedule access restricted" : "Click to view schedule");
+      avatarElement.setAttribute("title", tooltip);
+
+      const labelEl = avatarElement.querySelector(".avatar-label");
+      if (labelEl && labelEl.textContent !== friendLabel) {
+        labelEl.textContent = friendLabel;
+      }
+
+      const avatarImage = avatarElement.querySelector(".avatar-image");
+      if (!avatarImage) return;
+
+      // Replace avatar node only (keep presence pill + selection ring)
+      const avatarMarkup = renderUserAvatar(friendData, true);
+      const tmp = document.createElement("div");
+      tmp.innerHTML = String(avatarMarkup || "").trim();
+      const newNode = tmp.firstElementChild;
+      if (newNode) {
+        const existingAvatarNode =
+          avatarImage.querySelector(".user-avatar-img") ||
+          avatarImage.querySelector(".user-avatar") ||
+          avatarImage.querySelector(".avatar-placeholder");
+        if (existingAvatarNode) {
+          existingAvatarNode.replaceWith(newNode);
+        } else {
+          const before =
+            avatarImage.querySelector(".presence-pill") ||
+            avatarImage.querySelector(".selection-ring") ||
+            null;
+          if (before) avatarImage.insertBefore(newNode, before);
+          else avatarImage.appendChild(newNode);
+        }
+      }
+
+      // Ensure pill reflects latest status/expanded state
+      const expanded = this.selectedFriendId === friendId;
+      const pillMarkup = createPresencePill(statusInfo, { expanded });
+      const existingPill = avatarImage.querySelector(".presence-pill");
+      if (existingPill) {
+        existingPill.outerHTML = pillMarkup;
+      } else {
+        const ring = avatarImage.querySelector(".selection-ring");
+        if (ring) ring.insertAdjacentHTML("beforebegin", pillMarkup);
+        else avatarImage.insertAdjacentHTML("beforeend", pillMarkup);
+      }
+    } catch (error) {
+      console.warn(
+        "[HorizontalFriendsBar] Failed to update friend avatar UI in place",
+        error
+      );
+    }
+  }
+
+  /**
    * 🔧 FIXED: Handle current user's own campus presence changes
    * This method updates the bilateral location sharing calculations when the current user's location changes
    * @param {string} campusStatus - New campus status ('on_campus', 'off_campus', 'unknown')
@@ -4574,7 +4704,8 @@ export class HorizontalFriendsBar {
 
         // After dots updated, re-sort and re-render friends to reflect new priorities
         this.sortQuickAccessFriendsForDisplay();
-        this._reRenderFriendsPreservingState();
+        this._reorderDomToMatchQuickAccessOrder();
+        this.updateScrollIndicators();
 
         console.log(
           `✅ Refreshed location data for current user and updated ${refreshedFriends.length} presence dots`
