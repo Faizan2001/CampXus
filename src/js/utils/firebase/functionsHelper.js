@@ -5,10 +5,36 @@
  * Eliminates boilerplate for connecting to emulators in development.
  */
 
-import app from "../../lib/firebase/firebase-config.js";
+import app, { auth } from "../../lib/firebase/firebase-config.js";
 
 // Track if emulator has been connected (only needs to happen once per session)
 let emulatorConnected = false;
+
+async function waitForAuthUser(timeoutMs = 2000) {
+  if (auth?.currentUser) return auth.currentUser;
+  if (isLocalhost()) return null;
+
+  const { onAuthStateChanged } = await import("firebase/auth");
+
+  return new Promise((resolve) => {
+    let done = false;
+    const timeout = setTimeout(() => {
+      if (done) return;
+      done = true;
+      resolve(null);
+    }, timeoutMs);
+
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timeout);
+      try {
+        unsub();
+      } catch (_) {}
+      resolve(user || null);
+    });
+  });
+}
 
 /**
  * Check if running on localhost (development environment)
@@ -63,6 +89,23 @@ export async function getCallableFunction(functionName) {
  * const result = await callFunction("promoteClubOfficial", { clubId: "abc", userId: "xyz" });
  */
 export async function callFunction(functionName, data = {}) {
+  // Ensure auth is ready in production so callable requests include an ID token.
+  // Without this, some flows can render from cached profile but still lack auth context.
+  if (!isLocalhost()) {
+    const user = await waitForAuthUser(2500);
+    if (!user) {
+      const err = new Error("Must be logged in");
+      err.code = "auth/unauthenticated";
+      throw err;
+    }
+    try {
+      // Warm/refresh token so httpsCallable attaches it reliably
+      await user.getIdToken();
+    } catch (_) {
+      // If token fails, the callable will still surface the underlying error
+    }
+  }
+
   const callable = await getCallableFunction(functionName);
   return callable(data);
 }

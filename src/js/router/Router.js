@@ -901,7 +901,8 @@ class SPARouter {
       // can unlock protected routes even if Firebase hasn't populated
       // auth.currentUser yet. This lets returning users see their schedule
       // immediately from local cache while auth/network hydrate in the background.
-      if (!isAuthenticated) {
+      // IMPORTANT: Never apply this grace period to super-admin routes.
+      if (!isAuthenticated && !routeConfig.requiresSuperAdmin) {
         const hasSessionHint =
           !!authManager?.auth?.currentUser ||
           !!profileCache.peek() ||
