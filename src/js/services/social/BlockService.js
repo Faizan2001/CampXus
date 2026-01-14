@@ -111,7 +111,7 @@ class BlockService {
 
   async persistBlock(userId, targetId, isBlocked) {
     try {
-      const [{ db }, { doc, setDoc, deleteDoc, serverTimestamp }] =
+      const [{ db }, { doc, setDoc, deleteDoc, serverTimestamp, getDoc }] =
         await Promise.all([
           import("../../lib/firebase/firebase-config.js"),
           import("firebase/firestore"),
@@ -119,6 +119,9 @@ class BlockService {
 
       const ref = doc(db, "users", userId, "blocks", targetId);
       if (isBlocked) {
+        // Avoid an "update" write: rules only allow create/delete
+        const existing = await getDoc(ref);
+        if (existing.exists()) return;
         await setDoc(
           ref,
           {

@@ -14,12 +14,17 @@ describe("Router auth guard (integration)", () => {
 
     const router = new SPARouter();
     router.loadPage = jest.fn(async () => {});
+    // Disable the router's initial optimistic auth grace window for this test,
+    // so Firebase auth remains the source of truth.
+    router._initialAuthGraceUntil = 0;
 
     // Simulate a buggy/optimistic state where the store thinks we are logged in,
     // but Firebase auth is not actually authenticated.
     currentUser.setUser({ uid: "cached-uid", email: "cached@example.com" });
 
     await router.navigateTo("home", false);
+    // Redirects happen via a nested navigateTo() call that isn't awaited in the guard.
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(router.loadPage).toHaveBeenCalledTimes(1);
     expect(router.loadPage.mock.calls[0][0]).toBe("landing");
