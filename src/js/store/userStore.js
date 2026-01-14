@@ -181,6 +181,8 @@ class CurrentUserManager {
         firstName: "",
         lastName: "",
         avatarConfig: null,
+        profilePhotoUrl: null,
+        useAvatar: false,
         isComplete: false,
       };
     }
@@ -195,6 +197,14 @@ class CurrentUserManager {
       firstName,
       lastName,
       avatarConfig: this._profile?.avatarConfig || null,
+      // profilePhotoUrl is stored inside the nested profile object
+      profilePhotoUrl: profile.profilePhotoUrl || this._profile?.profilePhotoUrl || null,
+      useAvatar:
+        typeof profile.useAvatar === "boolean"
+          ? profile.useAvatar
+          : typeof this._profile?.useAvatar === "boolean"
+          ? this._profile.useAvatar
+          : false,
       isComplete: this.isProfileComplete(),
     };
   }
