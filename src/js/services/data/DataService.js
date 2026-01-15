@@ -1316,7 +1316,7 @@ class DataManager {
 
   /**
    * Update users/{uid}.courses with normalized compact entries used for grouping.
-   * Creates/overwrites the array only when courses are provided (non-empty).
+   * Creates/overwrites the array; pass an empty array to clear stale courses.
    * @param {string} userId
    * @param {Array<Object>} courses - Array of normalized course entries
    * @returns {Promise<{success: boolean, error?: string}>}
@@ -1325,10 +1325,6 @@ class DataManager {
     try {
       if (!userId || !Array.isArray(courses)) {
         return { success: false, error: "invalid_args" };
-      }
-      if (courses.length === 0) {
-        // Do not create empty arrays (respect 'create only when present')
-        return { success: true };
       }
 
       await updateDoc(doc(db, "users", userId), {

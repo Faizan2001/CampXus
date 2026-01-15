@@ -3031,11 +3031,7 @@ class ProfileSetup {
    */
   async saveScheduleToFirestore() {
     try {
-      if (
-        !this.scheduleData ||
-        !this.scheduleData.courses ||
-        this.scheduleData.courses.length === 0
-      ) {
+      if (!this.scheduleData) {
         console.log("⚠️ No schedule data to save");
         return;
       }
@@ -3049,7 +3045,9 @@ class ProfileSetup {
 
       console.log("📅 Saving imported schedule to Firestore:", {
         userId,
-        coursesImported: this.scheduleData.courses.length,
+        coursesImported: Array.isArray(this.scheduleData.courses)
+          ? this.scheduleData.courses.length
+          : 0,
         importSource: "profile_setup",
       });
 
@@ -3059,10 +3057,16 @@ class ProfileSetup {
       // Add import metadata for tracking
       const scheduleDataWithMetadata = {
         ...this.scheduleData,
+        // Always include courses (even empty) so users.courses can be cleared server-side.
+        courses: Array.isArray(this.scheduleData.courses)
+          ? this.scheduleData.courses
+          : [],
         metadata: {
           importSource: "profile_setup",
           importMethod: this.scheduleData.importedAt ? "text" : "manual",
-          coursesCount: this.scheduleData.courses?.length || 0,
+          coursesCount: Array.isArray(this.scheduleData.courses)
+            ? this.scheduleData.courses.length
+            : 0,
           importedAt: this.scheduleData.importedAt || new Date().toISOString(),
         },
       };
@@ -3090,7 +3094,12 @@ class ProfileSetup {
             .toString()
             .toLowerCase();
           const method = this.scheduleData.importMethod || "profile_setup";
-          AnalyticsService.trackScheduleUpload(uniKey, method);
+          const coursesCount = Array.isArray(this.scheduleData.courses)
+            ? this.scheduleData.courses.length
+            : 0;
+          if (coursesCount > 0) {
+            AnalyticsService.trackScheduleUpload(uniKey, method);
+          }
         } catch (e) {
           console.warn("📊 Schedule upload analytics failed (non-blocking)", e);
         }

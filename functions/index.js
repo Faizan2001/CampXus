@@ -3076,6 +3076,30 @@ async function fetchMemberInfo(uid) {
   }
 }
 
+async function deleteClassSpaceRecursive(spaceId, { deleteBatchSize = 500 } = {}) {
+  const ref = db.collection("classSpaces").doc(spaceId);
+
+  // Prefer Firestore Admin recursiveDelete when available (deletes subcollections too).
+  if (typeof db?.recursiveDelete === "function") {
+    await db.recursiveDelete(ref);
+    return { method: "recursiveDelete" };
+  }
+
+  // Fallback: best-effort manual delete of known subcollections (messages), then the doc.
+  let messagesDeleted = 0;
+  while (true) {
+    const snap = await ref.collection("messages").limit(deleteBatchSize).get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    messagesDeleted += snap.size;
+  }
+
+  await ref.delete();
+  return { method: "manual", messagesDeleted };
+}
+
 async function runClassSpacesScheduler({
   threshold = 3,
   previewLimit = 20,
@@ -3135,7 +3159,11 @@ async function runClassSpacesScheduler({
   let spacesUpserted = 0;
   let spacesDeactivated = 0;
   let spacesCleared = 0;
+  let spacesDeleteQueued = 0;
+  let spacesDeleted = 0;
+  let spacesDeleteFailed = 0;
   let activeSpaces = 0;
+  const toDelete = new Set(); // spaceId
 
   // Upsert / deactivate based on computed buckets
   for (const [spaceId, set] of buckets) {
@@ -3189,6 +3217,11 @@ async function runClassSpacesScheduler({
       // Below threshold: fully clear memberIds so lingering spaces disappear from user queries.
       if (prior) {
         const shouldClear = wasActive || hadMembers;
+        // Enforce disbanding: delete the entire classSpace doc (and messages) after writes flush.
+        if (!toDelete.has(spaceId)) {
+          toDelete.add(spaceId);
+          spacesDeleteQueued++;
+        }
         if (shouldClear) {
           await queueSet(
             ref,
@@ -3224,25 +3257,54 @@ async function runClassSpacesScheduler({
     const wasActive = prior?.active === true;
     const hadMembers = Array.isArray(prior?.memberIds) && prior.memberIds.length;
     const shouldClear = wasActive || hadMembers || (prior?.memberCount || 0) > 0;
-    if (!shouldClear) continue;
-
     const ref = db.collection("classSpaces").doc(spaceId);
-    await queueSet(
-      ref,
-      {
-        active: false,
-        memberIds: [],
-        memberCount: 0,
-        memberInfo: {},
-        lastMemberUpdate: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-    spacesCleared++;
+    if (shouldClear) {
+      await queueSet(
+        ref,
+        {
+          active: false,
+          memberIds: [],
+          memberCount: 0,
+          memberInfo: {},
+          lastMemberUpdate: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      spacesCleared++;
+    }
+
+    // Always delete spaces that no longer exist in the computed buckets.
+    if (!toDelete.has(spaceId)) {
+      toDelete.add(spaceId);
+      spacesDeleteQueued++;
+    }
   }
 
   await flush();
+
+  // Best-effort deletes for disbanded spaces (kept after flush so user-facing membership clears quickly even if delete fails).
+  if (toDelete.size > 0) {
+    const ids = Array.from(toDelete);
+    const maxConcurrentDeletes = 3;
+    for (let i = 0; i < ids.length; i += maxConcurrentDeletes) {
+      const chunk = ids.slice(i, i + maxConcurrentDeletes);
+      await Promise.all(
+        chunk.map(async (spaceId) => {
+          try {
+            await deleteClassSpaceRecursive(spaceId);
+            spacesDeleted++;
+          } catch (err) {
+            spacesDeleteFailed++;
+            logger.error("runClassSpacesScheduler: failed to delete classSpace", {
+              spaceId,
+              error: String(err),
+            });
+          }
+        })
+      );
+    }
+  }
 
   return {
     threshold,
@@ -3253,6 +3315,9 @@ async function runClassSpacesScheduler({
     spacesUpserted,
     spacesDeactivated,
     spacesCleared,
+    spacesDeleteQueued,
+    spacesDeleted,
+    spacesDeleteFailed,
     durationMs: Date.now() - startedAt,
   };
 }

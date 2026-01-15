@@ -207,24 +207,36 @@ export class ScheduleStorageService {
 
           // ✅ Also persist normalized courses[] for grouping (only when provided)
           try {
-            const rawCourses = Array.isArray(scheduleForSave?.courses)
-              ? scheduleForSave.courses
-              : [];
-            if (rawCourses.length > 0) {
+            const hasCoursesField = Object.prototype.hasOwnProperty.call(
+              scheduleForSave || {},
+              "courses"
+            );
+            if (!hasCoursesField) {
+              console.log("ℹ️ No courses field on schedule save (skipping users.courses)");
+            } else {
+              const rawCourses = Array.isArray(scheduleForSave?.courses)
+                ? scheduleForSave.courses
+                : [];
               const normalized = rawCourses
                 .map((c) => normalizeCourseForSave(c))
                 .filter(Boolean)
-                .filter((c) =>
-                  c && c.section > 0 && c.dayPattern && c.timeSlot && c.classroom && c.classroom !== "" && !/^(ONLINE|TBA|NA|NONE)$/i.test(c.classroom)
+                .filter(
+                  (c) =>
+                    c &&
+                    c.section > 0 &&
+                    c.dayPattern &&
+                    c.timeSlot &&
+                    c.classroom &&
+                    c.classroom !== "" &&
+                    !/^(ONLINE|TBA|NA|NONE)$/i.test(c.classroom)
                 );
-              if (normalized.length > 0) {
-                await this.dataManager.updateUserCourses(userId, normalized);
-                console.log("📘 users.courses updated (normalized)", normalized.length);
-              } else {
-                console.log("ℹ️ users.courses normalization produced 0 valid entries");
-              }
-            } else {
-              console.log("ℹ️ No raw courses on schedule save (skipping users.courses)");
+
+              // Always write (even empty) to avoid stale class-space memberships based on old courses.
+              await this.dataManager.updateUserCourses(userId, normalized);
+              console.log(
+                "📘 users.courses updated (normalized)",
+                normalized.length
+              );
             }
           } catch (e) {
             console.warn("⚠️ Failed to update users.courses (non-blocking)", e);
