@@ -1,20 +1,44 @@
 /* User Profile View Styles */
 
+/* Preview Banner Badge */
+.preview-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(162, 148, 249, 0.15);
+  border: 1px solid rgba(162, 148, 249, 0.3);
+  border-radius: 2rem;
+  color: var(--accent-primary, #a294f9);
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  backdrop-filter: blur(10px);
+  width: fit-content;
+}
+
+.preview-banner i {
+  font-size: 0.875rem;
+  opacity: 0.9;
+}
+
 /* Container adjustments for scrolling and centering */
 .user-profile-view {
   width: 100%;
-  display: flex;
-  justify-content: center;
+  display: block;
+  overflow-y: auto;
+  height: 100%;
+  min-height: 0;
+  padding: 1rem;
+  box-sizing: border-box;
 }
 
 #profile-card {
   width: 100%;
-  /* Desktop: Constrain width for a nice card look */
-  /* Desktop: Full width as requested */
-  max-width: 100%;
+  max-width: 900px;
   margin: 0 auto;
-  /* Ensure it doesn't overflow horizontally */
   box-sizing: border-box;
+  padding: 2rem;
 }
 
 /* Match app theme - glass card styling */
@@ -121,6 +145,34 @@
   margin: 0;
 }
 
+/* Desktop: Ensure proper scrolling and larger card */
+@media (min-width: 601px) {
+  .user-profile-view {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE 10+ */
+  }
+
+  .user-profile-view::-webkit-scrollbar {
+    display: none; /* Chrome/Safari/Webkit */
+  }
+
+  .user-profile-view.content-grid {
+    display: block !important;
+    flex: none !important;
+    min-height: auto !important;
+  }
+
+  #profile-card {
+    height: auto;
+    max-height: none;
+    min-height: 80vh;
+    max-width: 900px;
+    padding: 2.5rem;
+  }
+}
+
 /* Mobile Responsiveness */
 @media (max-width: 600px) {
   /* Full width/height on mobile - remove card look */
@@ -140,10 +192,10 @@
     max-width: 100%;
     min-height: 100%;
     position: relative; /* For absolute positioning of back button */
-  /* Keep card look on mobile but reduce spacing */
-  margin: 0; /* Remove extra margin, rely on main-content padding */
-  padding: 4.5rem 0.5rem 0 0.5rem; /* Increased top padding to push header down */
-  overflow-y: visible; /* Ensure card content doesn't clip */
+    /* Keep card look on mobile but reduce spacing */
+    margin: 0; /* Remove extra margin, rely on main-content padding */
+    padding: 4.5rem 0.5rem 0 0.5rem; /* Increased top padding to push header down */
+    overflow-y: visible; /* Ensure card content doesn't clip */
     border: 1px solid rgba(255, 255, 255, 0.08); /* Restore border for card look */
     background: rgba(255, 255, 255, 0.03); /* Subtle background */
     border-radius: 16px; /* Restore radius */
@@ -538,25 +590,46 @@ body.dark-mode {
   color: var(--text-secondary);
 }
 
-/* Back Button (Mobile Immersive) */
+/* Back Button */
 .profile-back-btn {
-  background: transparent;
-  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: #fff;
-  font-size: 1.1rem;
-  padding: 0.5rem;
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
   cursor: pointer;
-  display: none; /* Hidden by default (desktop) */
+  display: flex; /* Visible on all screens */
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  margin-right: 0.5rem;
-  margin-left: -0.5rem;
-  transition: background 0.2s;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  margin: 0 0 1rem 0;
+  transition: all 0.2s;
+  width: fit-content;
 }
 
 .profile-back-btn:hover {
   background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Preview Mode: Make back button visible and prominent on all screens */
+.profile-back-btn.preview-mode {
+  display: flex !important;
+  background: rgba(162, 148, 249, 0.2);
+  border: 1px solid rgba(162, 148, 249, 0.4);
+  color: var(--accent-primary, #a294f9);
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  margin: 0 0 1rem 0;
+  width: fit-content;
+}
+
+.profile-back-btn.preview-mode:hover {
+  background: rgba(162, 148, 249, 0.3);
+  border-color: rgba(162, 148, 249, 0.6);
+  transform: translateX(-2px);
 }
 
 /* Immersive Profile Mode - Mobile Only (< 480px)

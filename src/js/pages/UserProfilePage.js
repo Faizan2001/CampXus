@@ -26,7 +26,7 @@ class UserProfilePage {
       const hashStr = hash || window.location.hash || "";
       logManager.dev.debug(
         "[UserProfilePage] parseUserIdFromHash - raw hash:",
-        hashStr
+        hashStr,
       );
       const idx = hashStr.indexOf("?");
       const qs = idx >= 0 ? hashStr.substring(idx + 1) : "";
@@ -35,7 +35,7 @@ class UserProfilePage {
       const result = raw ? decodeURIComponent(raw) : null;
       logManager.dev.debug(
         "[UserProfilePage] parseUserIdFromHash - final result:",
-        result
+        result,
       );
       return result;
     } catch (e) {
@@ -156,6 +156,9 @@ class UserProfilePage {
     // Add back button
     const backBtn = document.createElement("button");
     backBtn.className = "profile-back-btn";
+    if (this.isPreviewMode(this.fullHash)) {
+      backBtn.classList.add("preview-mode");
+    }
     backBtn.innerHTML = '<i class="fas fa-arrow-left"></i>';
     const fromParam = (() => {
       try {
@@ -175,7 +178,7 @@ class UserProfilePage {
           try {
             sessionStorage.setItem("group:returnTab", "members");
             console.log(
-              "[UserProfilePage] Set group:returnTab=members for back nav"
+              "[UserProfilePage] Set group:returnTab=members for back nav",
             );
           } catch (_) {}
         }
@@ -194,46 +197,46 @@ class UserProfilePage {
         });
         if (fromParam?.from === "group") {
           logManager.dev.debug(
-            "[UserProfilePage] Navigating back to group page"
+            "[UserProfilePage] Navigating back to group page",
           );
           return navigateTo("group");
         }
         if (fromParam?.from === "friends") {
           logManager.dev.debug(
-            "[UserProfilePage] Navigating back to friends page"
+            "[UserProfilePage] Navigating back to friends page",
           );
           return navigateTo("friends");
         }
         logManager.dev.debug(
-          "[UserProfilePage] Navigating back to home page (default)"
+          "[UserProfilePage] Navigating back to home page (default)",
         );
         navigateTo("home");
       } catch (_) {
         logManager.dev.debug(
           "[UserProfilePage] Back button fallback hash navigation",
-          { fromParam }
+          { fromParam },
         );
         if (fromParam?.from === "group") {
           if (fromParam?.tab === "members") {
             try {
               sessionStorage.setItem("group:returnTab", "members");
               logManager.dev.debug(
-                "[UserProfilePage] Stored returnTab=members in sessionStorage (fallback before hash)"
+                "[UserProfilePage] Stored returnTab=members in sessionStorage (fallback before hash)",
               );
             } catch (_) {}
           }
           logManager.dev.debug(
-            "[UserProfilePage] Fallback: setting hash to #group"
+            "[UserProfilePage] Fallback: setting hash to #group",
           );
           window.location.hash = "#group";
         } else if (fromParam?.from === "friends") {
           logManager.dev.debug(
-            "[UserProfilePage] Fallback: setting hash to #friends"
+            "[UserProfilePage] Fallback: setting hash to #friends",
           );
           window.location.hash = "#friends";
         } else {
           logManager.dev.debug(
-            "[UserProfilePage] Fallback: setting hash to #home"
+            "[UserProfilePage] Fallback: setting hash to #home",
           );
           window.location.hash = "#home";
         }
@@ -285,7 +288,7 @@ class UserProfilePage {
       // Double check auth state
       if (currentUser?.isLoggedIn && !currentUser.isLoggedIn()) {
         logManager.dev.debug(
-          "[UserProfilePage] User not logged in, waiting for profile..."
+          "[UserProfilePage] User not logged in, waiting for profile...",
         );
         await currentUser.waitForProfileWithTimeout(2000).catch(() => {});
       }
@@ -319,7 +322,7 @@ class UserProfilePage {
           banner.className = "preview-banner";
           banner.innerHTML = `
             <i class="fas fa-eye"></i>
-            <span>Preview mode: This is how others will see your public profile.</span>
+            <span>Others see this</span>
           `;
           card.insertBefore(banner, card.firstChild);
         }
@@ -336,14 +339,14 @@ class UserProfilePage {
     let targetProfile = null;
     logManager.dev.debug(
       "[UserProfilePage] Fetching target profile for:",
-      this.targetUid
+      this.targetUid,
     );
 
     try {
       targetProfile = await dataManager.getUserProfile(this.targetUid);
       logManager.dev.debug(
         "[UserProfilePage] getUserProfile result:",
-        !!targetProfile
+        !!targetProfile,
       );
     } catch (e) {
       logManager.ui.error("[UserProfilePage] getUserProfile error:", e);
@@ -352,7 +355,7 @@ class UserProfilePage {
     // Fallback for preview/self: wait briefly for hydrated profile, then use it
     if (!targetProfile && (isSelf || preview)) {
       logManager.dev.debug(
-        "[UserProfilePage] Trying waitForProfileWithTimeout fallback..."
+        "[UserProfilePage] Trying waitForProfileWithTimeout fallback...",
       );
       try {
         if (currentUser?.waitForProfileWithTimeout) {
@@ -360,13 +363,13 @@ class UserProfilePage {
           targetProfile = currentUser?.profile || null;
           logManager.dev.debug(
             "[UserProfilePage] waitForProfileWithTimeout result:",
-            !!targetProfile
+            !!targetProfile,
           );
         }
       } catch (e) {
         logManager.ui.warn(
           "[UserProfilePage] waitForProfileWithTimeout error:",
-          e
+          e,
         );
       }
     }
@@ -374,7 +377,7 @@ class UserProfilePage {
     // As a last resort in preview/self, synthesize a minimal stub so the page renders
     if (!targetProfile && (isSelf || preview)) {
       logManager.dev.debug(
-        "[UserProfilePage] Creating minimal stub for self/preview"
+        "[UserProfilePage] Creating minimal stub for self/preview",
       );
       const currentEmail = authManager?.auth?.currentUser?.email || "";
       targetProfile = {
@@ -395,7 +398,7 @@ class UserProfilePage {
       };
       logManager.dev.debug(
         "[UserProfilePage] Stub created with handle:",
-        targetProfile.profile.handle
+        targetProfile.profile.handle,
       );
     }
 
@@ -405,7 +408,7 @@ class UserProfilePage {
       try {
         const fr = await dataManager.getFriendshipBetweenUsers(
           myUid,
-          this.targetUid
+          this.targetUid,
         );
         logManager.dev.debug("[UserProfilePage] Friendship result:", !!fr);
 
@@ -419,7 +422,7 @@ class UserProfilePage {
             fr.user1Id === this.targetUid ? fr.user1Info : fr.user2Info;
           logManager.dev.debug(
             "[UserProfilePage] Friend info from friendship doc:",
-            !!info
+            !!info,
           );
 
           if (info) {
@@ -436,7 +439,7 @@ class UserProfilePage {
               universityInfo: myProfile?.universityInfo || null,
             };
             logManager.dev.debug(
-              "[UserProfilePage] Limited profile created from friendship"
+              "[UserProfilePage] Limited profile created from friendship",
             );
           }
         }
@@ -447,7 +450,7 @@ class UserProfilePage {
 
     if (!targetProfile) {
       logManager.ui.error(
-        "[UserProfilePage] All fallbacks exhausted - no profile data"
+        "[UserProfilePage] All fallbacks exhausted - no profile data",
       );
       if (this.dom.name) this.dom.name.textContent = "Profile not found";
       return;
@@ -462,14 +465,14 @@ class UserProfilePage {
       try {
         const fr = await dataManager.getFriendshipBetweenUsers(
           myUid,
-          this.targetUid
+          this.targetUid,
         );
         if (fr) {
           relationship = { type: "friends" };
         } else {
           const existing = await dataManager.checkExistingFriendRequest(
             myUid,
-            this.targetUid
+            this.targetUid,
           );
           if (existing) {
             if (existing.status === "accepted")
@@ -490,7 +493,7 @@ class UserProfilePage {
 
     if (!isSelf && !sameUniversity) {
       logManager.dev.debug(
-        "[UserProfilePage] Different university - showing privacy note"
+        "[UserProfilePage] Different university - showing privacy note",
       );
       this.show(this.dom.privacyNote);
       return;
@@ -532,13 +535,13 @@ class UserProfilePage {
     profileDoc,
     isSelf,
     preview = false,
-    relationship = { type: "none" }
+    relationship = { type: "none" },
   ) {
     logManager.dev.info(
       "[UserProfilePage] Rendering header - isSelf:",
       isSelf,
       "preview:",
-      preview
+      preview,
     );
     const p = profileDoc?.profile || {};
     const name = `${p.firstName || ""} ${p.lastName || ""}`.trim();
@@ -554,7 +557,7 @@ class UserProfilePage {
       "[UserProfilePage] Header text set - name:",
       this.dom.name.textContent,
       "handle:",
-      this.dom.handle.textContent
+      this.dom.handle.textContent,
     );
 
     // Photo or avatar (photo-first unless user explicitly chose avatar)
@@ -572,7 +575,7 @@ class UserProfilePage {
         imgEl.src = url;
         logManager.dev.info(
           "[UserProfilePage] Using avatar URL:",
-          url.substring(0, 50) + "..."
+          url.substring(0, 50) + "...",
         );
       }
     }
@@ -617,7 +620,7 @@ class UserProfilePage {
               '<i class="fas fa-spinner fa-spin"></i> Sending...';
             const result = await friendsManager.sendFriendRequest(
               this.targetUid,
-              profileDoc
+              profileDoc,
             );
             if (result?.success) {
               addBtn.className = "btn secondary";
@@ -628,7 +631,7 @@ class UserProfilePage {
               addBtn.innerHTML = '<i class="fas fa-user-plus"></i> Add Friend';
               notificationManager.show(
                 result?.message || "Failed to send friend request",
-                "error"
+                "error",
               );
             }
           } catch (e) {
@@ -752,8 +755,8 @@ class UserProfilePage {
       .map(
         (i) =>
           `<span class="chip"><i class="fas fa-hashtag"></i>${this.escapeHtml(
-            i
-          )}</span>`
+            i,
+          )}</span>`,
       )
       .join("");
     this.show(this.dom.interestsSection);
@@ -769,8 +772,8 @@ class UserProfilePage {
       .map(
         (q) =>
           `<div class="qa-item"><div class="q">${this.escapeHtml(
-            q.question || "Question"
-          )}</div><div class="a">${this.escapeHtml(q.answer || "")}</div></div>`
+            q.question || "Question",
+          )}</div><div class="a">${this.escapeHtml(q.answer || "")}</div></div>`,
       )
       .join("");
     this.show(this.dom.qaSection);
@@ -780,7 +783,7 @@ class UserProfilePage {
     try {
       if (!myUid || !targetUid || myUid === targetUid) {
         logManager.dev.info(
-          "[UserProfilePage] Skipping mutual friends - invalid uids"
+          "[UserProfilePage] Skipping mutual friends - invalid uids",
         );
         return;
       }
@@ -797,30 +800,30 @@ class UserProfilePage {
         "[UserProfilePage] Denormalized friendIds - mine:",
         !!mine,
         "theirs:",
-        !!theirs
+        !!theirs,
       );
 
       if (!Array.isArray(mine) || !Array.isArray(theirs)) {
         // Fallback: Get MY friendships only (can't query other people's friendships - security violation)
         logManager.dev.info(
-          "[UserProfilePage] Falling back to MY friendship query only..."
+          "[UserProfilePage] Falling back to MY friendship query only...",
         );
         const myFriendships = await dataManager.getUserFriendships(myUid);
         logManager.dev.info(
           "[UserProfilePage] My friendships count:",
-          myFriendships?.length
+          myFriendships?.length,
         );
 
         // Extract my friend IDs
         mine = myFriendships.map((f) =>
-          f.user1Id === myUid ? f.user2Id : f.user1Id
+          f.user1Id === myUid ? f.user2Id : f.user1Id,
         );
 
         // For their friends, we can only use what's in their profile's denormalized friendIds
         // If not available, we can't determine mutual friends (privacy by design)
         if (!Array.isArray(theirs)) {
           logManager.dev.info(
-            "[UserProfilePage] Cannot determine their friends - denormalized data not available"
+            "[UserProfilePage] Cannot determine their friends - denormalized data not available",
           );
           theirs = [];
         }
@@ -830,7 +833,7 @@ class UserProfilePage {
       const mutualIds = (theirs || []).filter((id) => mySet.has(id));
       logManager.dev.info(
         "[UserProfilePage] Mutual friend IDs found:",
-        mutualIds.length
+        mutualIds.length,
       );
 
       // Store mutualIds for the modal
@@ -847,8 +850,8 @@ class UserProfilePage {
         <button class="view-mutual-friends-btn">
           <i class="fas fa-user-friends"></i>
           <span>${mutualIds.length} mutual friend${
-        mutualIds.length !== 1 ? "s" : ""
-      }</span>
+            mutualIds.length !== 1 ? "s" : ""
+          }</span>
           <i class="fas fa-chevron-right"></i>
         </button>
       `;
@@ -863,7 +866,7 @@ class UserProfilePage {
     } catch (e) {
       logManager.ui.error(
         "[UserProfilePage] Error rendering mutual friends:",
-        e
+        e,
       );
       /* non-fatal */
     }
@@ -878,7 +881,7 @@ class UserProfilePage {
         "[UserProfilePage] My courses:",
         a.length,
         "Their courses:",
-        b.length
+        b.length,
       );
 
       if (!a.length || !b.length) {
@@ -910,7 +913,7 @@ class UserProfilePage {
       }
       logManager.dev.info(
         "[UserProfilePage] Common classes found:",
-        common.length
+        common.length,
       );
 
       if (!common.length) return;
@@ -926,9 +929,9 @@ class UserProfilePage {
           }`.trim();
           const room = s.classroom || "";
           return `<div class="class-row"><strong>${this.escapeHtml(
-            title
+            title,
           )}</strong> • ${this.escapeHtml(sec)} • ${this.escapeHtml(
-            slot
+            slot,
           )} • ${this.escapeHtml(room)}</div>`;
         })
         .join("");
@@ -936,7 +939,7 @@ class UserProfilePage {
     } catch (e) {
       logManager.ui.error(
         "[UserProfilePage] Error rendering classes in common:",
-        e
+        e,
       );
       /* non-fatal */
     }
@@ -959,7 +962,7 @@ class UserProfilePage {
   openMutualFriendsModal() {
     if (!this.mutualFriendIds || this.mutualFriendIds.length === 0) {
       logManager.dev.info(
-        "[UserProfilePage] No mutual friends to show in modal"
+        "[UserProfilePage] No mutual friends to show in modal",
       );
       return;
     }
@@ -967,7 +970,7 @@ class UserProfilePage {
     logManager.dev.info(
       "[UserProfilePage] Opening mutual friends modal with",
       this.mutualFriendIds.length,
-      "friends"
+      "friends",
     );
     mutualFriendsModal.open(this.mutualFriendIds, this.viewedUserHandle);
   }
@@ -1030,7 +1033,7 @@ document.addEventListener("spa:page:load", async (event) => {
     "[UserProfilePage] Event received - route:",
     route,
     "hash:",
-    fullHash
+    fullHash,
   );
 
   instance = new UserProfilePage();

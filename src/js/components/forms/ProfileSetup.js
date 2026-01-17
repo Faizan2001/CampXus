@@ -169,6 +169,7 @@ class ProfileSetup {
 
     // Profile photo state (photo-first by default)
     this.profilePhotoUrl = null;
+    this.profilePhotoThumbUrl = null;
     this.useAvatar = false;
 
     // Interests
@@ -534,11 +535,9 @@ class ProfileSetup {
       if (major) major.value = getProfileValue("major");
       if (bio) bio.value = getProfileValue("bio");
 
-      // Update bio character counter
+      // Update bio character counter and progress bar
       const bioValue = getProfileValue("bio");
-      if (bioCount) {
-        bioCount.textContent = bioValue.length;
-      }
+      this._updateBioProgress(bioValue);
 
       // Load existing icebreaker answers (Q&A) - rendered later via initQnaUI
       try {
@@ -573,6 +572,13 @@ class ProfileSetup {
           currentUser?.profile?.profile?.profilePhotoUrl ||
           "";
         this.profilePhotoUrl = photoUrl || null;
+        const thumbUrl =
+          getProfileValue("profilePhotoThumbUrl", "") ||
+          this.existingProfileData?.profile?.profilePhotoThumbUrl ||
+          currentUser?.profile?.profilePhotoThumbUrl ||
+          currentUser?.profile?.profile?.profilePhotoThumbUrl ||
+          "";
+        this.profilePhotoThumbUrl = thumbUrl || null;
 
         if (hasStoredUseAvatar) {
           // Respect explicit user preference whenever it exists,
@@ -1560,144 +1566,299 @@ class ProfileSetup {
     }
     // Step 2 (Story / Icebreakers)
     if (this.currentStep === 2) {
-      // live validation feedback: show if over max or show guidance; final save enforces ≥1 with min length
-      const count = this.getQnaResponseCount();
-      const feedback = document.getElementById("qna-feedback");
-      if (feedback) {
-        feedback.textContent = `Answer at least ${MIN_QA_ANSWERS} (min ${MIN_QA_ANSWER_LENGTH} chars), up to ${MAX_QA_ANSWERS}.`;
-        feedback.className = "field-hint";
-      }
+      // Update icebreaker counter and feedback using the new card-based UI
+      this.updateIcebreakerCounter();
     }
 
     return true;
   }
 
   /**
-   * ===================== Q&A (Curated) =====================
+   * ===================== Q&A (Curated) - REDESIGNED Card-Based UI =====================
    */
-  initQnaUI() {
-    try {
-      const picker = document.getElementById("qna-picker");
-      const selectedList = document.getElementById("qna-selected-list");
-      if (!picker || !selectedList) return;
+	  initQnaUI() {
+	    try {
+	      const cardsContainer = document.getElementById("icebreaker-cards");
+	      if (!cardsContainer) return;
 
-      // Start with existing answers' questionIds or default to first bank item
-      const existingIds = Array.from(this.qnaAnswers.entries())
-        .filter(([, a]) => typeof a === "string")
-        .map(([id]) => id);
-      if (existingIds.length) {
-        existingIds.forEach((id) => this.qnaSelectedIds.add(id));
-      } else {
-        const defaultId = this.qnaBank[0]?.id;
-        if (defaultId) this.qnaSelectedIds.add(defaultId);
-      }
+	      // Track which card is currently expanded
+	      this.expandedQnaId = null;
 
-      const onPickerChange = (e) => {
-        const id = e.target.value;
-        if (!id) return;
-        if (this.qnaSelectedIds.has(id)) return; // no duplicates
-        if (this.qnaSelectedIds.size >= MAX_QA_ANSWERS) {
-          const feedback = document.getElementById("qna-feedback");
-          if (feedback) {
-            feedback.textContent = `You can add up to ${MAX_QA_ANSWERS} questions.`;
-            feedback.className = "field-hint";
-          }
-          picker.value = "";
-          return;
-        }
-        this.qnaSelectedIds.add(id);
-        this.renderQnaSelected();
-        this.refreshQnaPicker();
-        picker.value = "";
-        this.validateCurrentStep();
-      };
+	      // Only count/render prompts that exist in the current bank.
+	      // This prevents stale/removed IDs from passing validation but not being saved.
+	      const bankIds = new Set((this.qnaBank || []).map((q) => q.id));
+	      const staleIds = Array.from(this.qnaAnswers.keys()).filter(
+	        (id) => !bankIds.has(id)
+	      );
+	      if (staleIds.length) {
+	        staleIds.forEach((id) => {
+	          this.qnaAnswers.delete(id);
+	          this.qnaSelectedIds.delete(id);
+	        });
+	        console.warn(
+	          "[ProfileSetup] Dropped stale icebreaker IDs (no longer in bank):",
+	          staleIds
+	        );
+	      }
 
-      if (!picker.hasAttribute("data-listener-attached")) {
-        picker.addEventListener("change", onPickerChange);
-        picker.setAttribute("data-listener-attached", "true");
-      }
+	      // Start with existing answers' questionIds (in-bank only)
+	      const existingIds = Array.from(this.qnaAnswers.entries())
+	        // Align selection logic with the card UI: "selected" means a valid answer length.
+	        .filter(
+	          ([id, a]) =>
+	            bankIds.has(id) &&
+	            typeof a === "string" &&
+	            a.trim().length >= MIN_QA_ANSWER_LENGTH
+	        )
+	        .map(([id]) => id);
+	      if (existingIds.length) {
+	        existingIds.forEach((id) => this.qnaSelectedIds.add(id));
+	      }
 
-      this.renderQnaSelected();
-      this.refreshQnaPicker();
-      this.validateCurrentStep();
-    } catch (err) {
-      console.warn("initQnaUI failed:", err);
-    }
+	      // Render all icebreaker cards
+	      this.renderIcebreakerCards();
+	      this.updateIcebreakerCounter();
+	      this.validateCurrentStep();
+
+	      // If we dropped stale answers and the user now has 0 valid answers, prompt them to pick a new one.
+	      if (staleIds.length) {
+	        const feedback = document.getElementById("qna-feedback");
+	        const count = this.getQnaResponseCount(MIN_QA_ANSWER_LENGTH);
+	        if (feedback && count < MIN_QA_ANSWERS) {
+	          feedback.innerHTML = `<i class="fas fa-info-circle"></i> <span>Some older prompts were retired — pick a new one</span>`;
+	          feedback.className = "story-feedback";
+	        }
+	      }
+	    } catch (err) {
+	      console.warn("initQnaUI failed:", err);
+	    }
+	  }
+
+  /**
+   * Emoji icons for each icebreaker prompt
+   */
+  _getIcebreakerEmoji(id) {
+    const emojiMap = {
+      "three-words": "💭",
+      "group-role": "🎯",
+      "tiny-ritual": "☀️",
+      "proudest": "🏆",
+      "niche-interest": "🔮",
+      "ask-me": "👋",
+      "this-semester": "📚",
+    };
+    return emojiMap[id] || "✨";
   }
 
-  refreshQnaPicker() {
-    const picker = document.getElementById("qna-picker");
-    if (!picker) return;
-    // rebuild options: keep placeholder, then add items not in selected
-    const placeholder = picker.querySelector('option[value=""]');
-    picker.innerHTML = "";
-    const ph = document.createElement("option");
-    ph.value = "";
-    ph.textContent = "Add a question…";
-    ph.disabled = true;
-    ph.selected = true;
-    picker.appendChild(ph);
+  /**
+   * Render all icebreaker cards as tap-to-expand prompts
+   */
+  renderIcebreakerCards() {
+    const cardsContainer = document.getElementById("icebreaker-cards");
+    if (!cardsContainer) return;
+    cardsContainer.innerHTML = "";
+
     this.qnaBank.forEach((q) => {
-      if (this.qnaSelectedIds.has(q.id)) return;
-      const opt = document.createElement("option");
-      opt.value = q.id;
-      opt.textContent = q.text;
-      picker.appendChild(opt);
-    });
-    // disable picker if reached max
-    picker.disabled = this.qnaSelectedIds.size >= MAX_QA_ANSWERS;
-  }
+      const card = document.createElement("div");
+      card.className = "icebreaker-card";
+      card.setAttribute("data-prompt", q.id);
 
-  renderQnaSelected() {
-    const selectedList = document.getElementById("qna-selected-list");
-    if (!selectedList) return;
-    selectedList.innerHTML = "";
-    const bankById = new Map(this.qnaBank.map((q) => [q.id, q]));
-    const allowRemove = this.qnaSelectedIds.size > 1;
-    Array.from(this.qnaSelectedIds).forEach((id) => {
-      const q = bankById.get(id);
-      const item = document.createElement("div");
-      item.className = "qna-item";
-      item.setAttribute("data-qna-id", id);
-      item.innerHTML = `
-        <button type="button" class="qna-remove" aria-label="Remove question" title="Remove question">−</button>
-        <label class="form-label">${q?.text || ""}</label>
-        <textarea class="form-input qna-answer" rows="2" maxlength="${MAX_QA_ANSWER_LENGTH}" placeholder="Type your answer"></textarea>
-        <div class="char-counter-container"><span class="qna-count">0</span>/${MAX_QA_ANSWER_LENGTH}</div>
+      const hasAnswer = this.qnaAnswers.has(q.id) && this.qnaAnswers.get(q.id).trim().length >= MIN_QA_ANSWER_LENGTH;
+      const isExpanded = this.expandedQnaId === q.id;
+      const answerText = this.qnaAnswers.get(q.id) || "";
+
+      if (hasAnswer) card.classList.add("selected");
+      if (isExpanded) card.classList.add("expanded");
+
+      card.innerHTML = `
+        <div class="icebreaker-prompt">
+          <div class="icebreaker-prompt-icon">${this._getIcebreakerEmoji(q.id)}</div>
+          <span class="icebreaker-prompt-text">${q.text}</span>
+          <span class="icebreaker-status">${hasAnswer ? "✓" : "+"}</span>
+        </div>
+        <div class="icebreaker-answered-preview"></div>
+        <div class="icebreaker-answer-area">
+          <textarea
+            class="icebreaker-answer-input"
+            maxlength="${MAX_QA_ANSWER_LENGTH}"
+            placeholder="Share your answer..."
+          ></textarea>
+          <div class="icebreaker-answer-footer">
+            <span class="icebreaker-char-count"></span>
+            ${hasAnswer ? '<button type="button" class="icebreaker-remove-btn">Clear</button>' : ""}
+          </div>
+        </div>
       `;
-      const ta = item.querySelector("textarea.qna-answer");
-      const counter = item.querySelector(".qna-count");
-      const removeBtn = item.querySelector(".qna-remove");
-      // restore existing answer
-      const prev = this.qnaAnswers.get(id) || "";
-      if (prev) {
-        ta.value = prev;
-        if (counter) counter.textContent = String(prev.length);
+
+      // Card click to expand/collapse
+      const prompt = card.querySelector(".icebreaker-prompt");
+      prompt.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this._toggleIcebreakerCard(q.id);
+      });
+
+      // Textarea input handling
+      const textarea = card.querySelector(".icebreaker-answer-input");
+      const charCount = card.querySelector(".icebreaker-char-count");
+      const statusEl = card.querySelector(".icebreaker-status");
+      const previewEl = card.querySelector(".icebreaker-answered-preview");
+      const footerEl = card.querySelector(".icebreaker-answer-footer");
+
+      // SECURITY: Never inject user-provided content with innerHTML.
+      // Populate preview + textarea using textContent/value to avoid XSS/markup breakage.
+      if (previewEl) previewEl.textContent = this._truncateText(answerText, 60);
+      if (textarea) textarea.value = answerText;
+      if (charCount) {
+        charCount.textContent = `${answerText.length}/${MAX_QA_ANSWER_LENGTH}`;
       }
-      // textarea input
-      ta.addEventListener("input", (e) => {
+
+      if (!textarea) {
+        cardsContainer.appendChild(card);
+        return;
+      }
+
+      textarea.addEventListener("input", (e) => {
         const val = (e.target.value || "").slice(0, MAX_QA_ANSWER_LENGTH);
-        this.qnaAnswers.set(id, val.trim());
-        if (counter) counter.textContent = String(val.length);
+        const trimmed = val.trim();
+        this.qnaAnswers.set(q.id, trimmed);
+        if (charCount)
+          charCount.textContent = `${val.length}/${MAX_QA_ANSWER_LENGTH}`;
+
+        // Update selected state based on valid answer
+        const isValid = trimmed.length >= MIN_QA_ANSWER_LENGTH;
+        if (isValid && !this.qnaSelectedIds.has(q.id)) {
+          this.qnaSelectedIds.add(q.id);
+        } else if (!isValid && this.qnaSelectedIds.has(q.id)) {
+          this.qnaSelectedIds.delete(q.id);
+        }
+
+        // Keep UI in sync (no full re-render needed)
+        card.classList.toggle("selected", isValid);
+        if (statusEl) statusEl.textContent = isValid ? "✓" : "+";
+        if (previewEl) previewEl.textContent = this._truncateText(trimmed, 60);
+
+        // Toggle clear button presence based on validity
+        if (footerEl) {
+          const existingBtn = footerEl.querySelector(".icebreaker-remove-btn");
+          if (isValid && !existingBtn) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "icebreaker-remove-btn";
+            btn.textContent = "Clear";
+            btn.addEventListener("click", (evt) => {
+              evt.stopPropagation();
+              this.qnaAnswers.delete(q.id);
+              this.qnaSelectedIds.delete(q.id);
+              this.expandedQnaId = null;
+              this.renderIcebreakerCards();
+              this.updateIcebreakerCounter();
+              this.validateCurrentStep();
+            });
+            footerEl.appendChild(btn);
+          } else if (!isValid && existingBtn) {
+            existingBtn.remove();
+          }
+        }
+
+        this.updateIcebreakerCounter();
         this.validateCurrentStep();
       });
-      // remove button
-      if (!allowRemove) {
-        removeBtn.disabled = true;
-        removeBtn.classList.add("disabled");
-      } else {
-        removeBtn.addEventListener("click", () => {
-          if (this.qnaSelectedIds.size <= 1) return; // guard
-          this.qnaSelectedIds.delete(id);
-          // keep answer in map but optional: clear to free if removed
-          // this.qnaAnswers.delete(id);
-          this.renderQnaSelected();
-          this.refreshQnaPicker();
+
+      // Prevent collapse when clicking inside textarea
+      textarea.addEventListener("click", (e) => e.stopPropagation());
+
+      // Clear button
+      const clearBtn = card.querySelector(".icebreaker-remove-btn");
+      if (clearBtn) {
+        clearBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.qnaAnswers.delete(q.id);
+          this.qnaSelectedIds.delete(q.id);
+          this.expandedQnaId = null;
+          this.renderIcebreakerCards();
+          this.updateIcebreakerCounter();
           this.validateCurrentStep();
         });
       }
-      selectedList.appendChild(item);
+
+      cardsContainer.appendChild(card);
     });
+  }
+
+  /**
+   * Toggle icebreaker card expand/collapse
+   */
+	  _toggleIcebreakerCard(id) {
+	    if (this.expandedQnaId === id) {
+	      // Collapse if already expanded
+	      this.expandedQnaId = null;
+	    } else {
+      // Check if we can add more (max 5 selected)
+      const hasAnswer = this.qnaAnswers.has(id) && this.qnaAnswers.get(id).trim().length >= MIN_QA_ANSWER_LENGTH;
+	      if (!hasAnswer && this.qnaSelectedIds.size >= MAX_QA_ANSWERS) {
+	        const feedback = document.getElementById("qna-feedback");
+	        if (feedback) {
+	          feedback.innerHTML = `<i class="fas fa-exclamation-circle"></i> <span>Max ${MAX_QA_ANSWERS} prompts</span>`;
+	          feedback.className = "story-feedback error";
+	          setTimeout(() => {
+	            // Restore the correct message for the current count (avoid misleading "Pick at least 1").
+	            this.updateIcebreakerCounter();
+	          }, 2000);
+	        }
+	        return;
+	      }
+	      this.expandedQnaId = id;
+	    }
+    this.renderIcebreakerCards();
+
+    // Focus textarea if expanded
+    if (this.expandedQnaId) {
+      setTimeout(() => {
+        const textarea = document.querySelector(`.icebreaker-card[data-prompt="${id}"] .icebreaker-answer-input`);
+        if (textarea) textarea.focus();
+      }, 100);
+    }
+  }
+
+  /**
+   * Update the icebreaker counter badge
+   */
+  updateIcebreakerCounter() {
+    const counter = document.getElementById("icebreaker-counter");
+    const feedback = document.getElementById("qna-feedback");
+    const count = this.getQnaResponseCount(MIN_QA_ANSWER_LENGTH);
+
+    if (counter) {
+      counter.textContent = `${count}/${MAX_QA_ANSWERS}`;
+    }
+
+    if (feedback) {
+      if (count >= MIN_QA_ANSWERS) {
+        feedback.innerHTML = `<i class="fas fa-check-circle"></i> <span>${count} answered</span>`;
+        feedback.className = "story-feedback success";
+      } else {
+        feedback.innerHTML = `<i class="fas fa-info-circle"></i> <span>Pick at least 1</span>`;
+        feedback.className = "story-feedback";
+      }
+    }
+  }
+
+  /**
+   * Truncate text for preview
+   */
+  _truncateText(text, maxLen) {
+    if (!text || text.length <= maxLen) return text || "";
+    return text.slice(0, maxLen) + "…";
+  }
+
+  // Legacy method stubs for compatibility
+  refreshQnaPicker() {
+    // No longer needed - card UI doesn't use picker
+  }
+
+  renderQnaSelected() {
+    // Redirect to new card renderer
+    this.renderIcebreakerCards();
   }
 
   getQnaResponseCount(minLen = 1) {
@@ -1816,13 +1977,14 @@ class ProfileSetup {
       if (this.profilePhotoUrl) {
         await deleteExistingProfilePhotos(userId);
       }
-      const { url } = await uploadProfilePhotoBlobs(
+      const { url, thumbUrl } = await uploadProfilePhotoBlobs(
         userId,
         mainBlob,
         thumbBlob
       );
 
       this.profilePhotoUrl = url;
+      this.profilePhotoThumbUrl = thumbUrl || null;
       // Ensure we're in photo mode after upload
       this.useAvatar = false;
 
@@ -1851,13 +2013,12 @@ class ProfileSetup {
       // Always render either the uploaded photo or a neutral placeholder
       if (this.profilePhotoUrl) {
         const img = document.createElement("img");
-        img.src = this.profilePhotoUrl;
+        img.src = this.profilePhotoThumbUrl || this.profilePhotoUrl;
         img.alt = "Profile photo";
-        img.width = 96;
-        img.height = 96;
         img.loading = "lazy";
+        // Let CSS handle sizing - only set essential styles
         img.style.cssText =
-          "width:96px;height:96px;border-radius:50%;object-fit:cover;background:#f3f4f6;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:block;";
+          "width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;";
         photoBox.appendChild(img);
       } else {
         const i = document.createElement("i");
@@ -1932,121 +2093,222 @@ class ProfileSetup {
     }
   }
 
-  // ===================== Interests =====================
+  // ===================== Bio Progress Bar =====================
+  /**
+   * Update bio character counter and progress bar
+   */
+  _updateBioProgress(value) {
+    const bioCount = document.getElementById("bio-count");
+    const progressFill = document.getElementById("bio-progress-fill");
+    const maxLen = 200;
+    const len = (value || "").length;
+
+    // Update counter
+    if (bioCount) {
+      bioCount.textContent = len;
+    }
+
+    // Update progress bar
+    if (progressFill) {
+      const percent = Math.min((len / maxLen) * 100, 100);
+      progressFill.style.width = `${percent}%`;
+
+      // Add warning color when near/at limit
+      if (percent >= 90) {
+        progressFill.classList.add("full");
+      } else {
+        progressFill.classList.remove("full");
+      }
+    }
+  }
+
+  // ===================== Interests - REDESIGNED Unified Grid =====================
   initInterestsUI() {
     try {
       const input = document.getElementById("interest-input");
       const addBtn = document.getElementById("add-interest-btn");
+      const toggleBtn = document.getElementById("add-custom-interest-toggle");
+      const inputWrapper = document.getElementById("custom-interest-wrapper");
+
+      // Custom interest toggle
+      if (toggleBtn && inputWrapper && !toggleBtn.hasAttribute("data-listener-attached")) {
+        toggleBtn.addEventListener("click", () => {
+          toggleBtn.classList.add("hidden");
+          inputWrapper.classList.add("visible");
+          if (input) input.focus();
+        });
+        toggleBtn.setAttribute("data-listener-attached", "true");
+      }
+
+      // Input handlers
       if (input && !input.hasAttribute("data-listener-attached")) {
         input.addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
             e.preventDefault();
             this.tryAddInterest(input.value);
           }
+          if (e.key === "Escape") {
+            this._hideCustomInterestInput();
+          }
+        });
+        input.addEventListener("blur", () => {
+          // Delay to allow click on submit button
+          setTimeout(() => {
+            if (!input.value.trim()) {
+              this._hideCustomInterestInput();
+            }
+          }, 150);
         });
         input.setAttribute("data-listener-attached", "true");
       }
+
       if (addBtn && !addBtn.hasAttribute("data-listener-attached")) {
         addBtn.addEventListener("click", () => {
           this.tryAddInterest(input.value);
         });
         addBtn.setAttribute("data-listener-attached", "true");
       }
-      this.renderInterestsSuggestions();
-      this.renderInterestsSelected();
+
+      // Render unified grid
+      this.renderUnifiedInterests();
     } catch (err) {
       console.warn("initInterestsUI failed:", err);
     }
   }
 
+  _hideCustomInterestInput() {
+    const toggleBtn = document.getElementById("add-custom-interest-toggle");
+    const inputWrapper = document.getElementById("custom-interest-wrapper");
+    const input = document.getElementById("interest-input");
+
+    if (toggleBtn) toggleBtn.classList.remove("hidden");
+    if (inputWrapper) inputWrapper.classList.remove("visible");
+    if (input) input.value = "";
+  }
+
   tryAddInterest(raw) {
     const feedback = document.getElementById("interest-feedback");
     const v = normalizeInterest(raw);
+
     if (!isValidCustomInterest(v)) {
       if (feedback) {
-        feedback.textContent = "Use 3–20 lowercase letters/numbers/spaces.";
-        feedback.className = "error-message";
+        feedback.textContent = "Use 3–20 letters/numbers";
+        feedback.className = "story-feedback error";
+        feedback.classList.remove("hidden");
       }
       return;
     }
     if (this.interests.has(v)) {
       if (feedback) {
-        feedback.textContent = "Already added.";
-        feedback.className = "field-hint";
+        feedback.textContent = "Already added";
+        feedback.className = "story-feedback";
+        feedback.classList.remove("hidden");
       }
       return;
     }
     if (this.interests.size >= MAX_INTERESTS) {
       if (feedback) {
-        feedback.textContent = `Max ${MAX_INTERESTS} interests.`;
-        feedback.className = "error-message";
+        feedback.textContent = `Max ${MAX_INTERESTS} interests`;
+        feedback.className = "story-feedback error";
+        feedback.classList.remove("hidden");
       }
       return;
     }
+
     this.interests.add(v);
-    const input = document.getElementById("interest-input");
-    if (input) input.value = "";
+    this._hideCustomInterestInput();
     if (feedback) {
-      feedback.textContent = "Added.";
-      feedback.className = "field-hint";
+      feedback.classList.add("hidden");
     }
-    this.renderInterestsSelected();
+    this.renderUnifiedInterests();
   }
 
-  renderInterestsSuggestions() {
-    const host = document.getElementById("interests-suggestions");
+  /**
+   * Render unified interests grid - all suggestions with selected highlighted
+   */
+  renderUnifiedInterests() {
+    const host = document.getElementById("interests-unified");
+    const counter = document.getElementById("interests-counter");
+
     if (!host) return;
     host.innerHTML = "";
-    STARTER_INTERESTS.forEach((i) => {
-      if (this.interests.has(i.key)) return;
-      const chip = this._makeInterestChip(i.key);
-      chip.addEventListener("click", () => {
-        if (this.interests.size >= MAX_INTERESTS) return;
-        this.interests.add(i.key);
-        this.renderInterestsSelected();
-        this.renderInterestsSuggestions();
-      });
+
+    // Update counter
+    if (counter) {
+      counter.textContent = `${this.interests.size}/${MAX_INTERESTS}`;
+    }
+
+    // Combine starter interests + any custom ones
+    const allKeys = new Set([
+      ...STARTER_INTERESTS.map((i) => i.key),
+      ...this.interests,
+    ]);
+
+    allKeys.forEach((key) => {
+      const chip = this._makeUnifiedChip(key);
       host.appendChild(chip);
     });
+  }
+
+  /**
+   * Create a unified chip that toggles on click
+   */
+  _makeUnifiedChip(key) {
+    const chip = document.createElement("div");
+    chip.className = "interest-chip-unified";
+    chip.setAttribute("data-color", String((this._hash(key) % 8) + 1));
+
+    const isSelected = this.interests.has(key);
+    if (isSelected) chip.classList.add("selected");
+
+    const iconEl = document.createElement("i");
+    iconEl.className = interestIcon(key);
+
+    const label = document.createElement("span");
+    label.textContent = key.charAt(0).toUpperCase() + key.slice(1);
+
+    const checkEl = document.createElement("span");
+    checkEl.className = "chip-check";
+    checkEl.innerHTML = "✓";
+
+    chip.appendChild(iconEl);
+    chip.appendChild(label);
+    chip.appendChild(checkEl);
+
+    chip.addEventListener("click", () => {
+      if (isSelected) {
+        this.interests.delete(key);
+      } else {
+        if (this.interests.size >= MAX_INTERESTS) {
+          const feedback = document.getElementById("interest-feedback");
+          if (feedback) {
+            feedback.textContent = `Max ${MAX_INTERESTS} interests`;
+            feedback.className = "story-feedback error";
+            feedback.classList.remove("hidden");
+            setTimeout(() => feedback.classList.add("hidden"), 2000);
+          }
+          return;
+        }
+        this.interests.add(key);
+      }
+      this.renderUnifiedInterests();
+    });
+
+    return chip;
+  }
+
+  // Legacy methods for compatibility
+  renderInterestsSuggestions() {
+    this.renderUnifiedInterests();
   }
 
   renderInterestsSelected() {
-    const host = document.getElementById("interests-selected");
-    if (!host) return;
-    host.innerHTML = "";
-    Array.from(this.interests).forEach((key) => {
-      const chip = this._makeInterestChip(key, true);
-      const removeBtn = chip.querySelector(".chip-remove");
-      if (removeBtn) {
-        removeBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          this.interests.delete(key);
-          this.renderInterestsSelected();
-          this.renderInterestsSuggestions();
-        });
-      }
-      host.appendChild(chip);
-    });
+    this.renderUnifiedInterests();
   }
 
   _makeInterestChip(key, removable = false) {
-    const chip = document.createElement("div");
-    chip.className = "interest-chip";
-    chip.setAttribute("data-color", String((this._hash(key) % 5) + 1));
-    const iconEl = document.createElement("i");
-    iconEl.className = interestIcon(key);
-    const label = document.createElement("span");
-    label.textContent = key.charAt(0).toUpperCase() + key.slice(1);
-    chip.appendChild(iconEl);
-    chip.appendChild(label);
-    if (removable) {
-      const removeBtn = document.createElement("button");
-      removeBtn.type = "button";
-      removeBtn.className = "chip-remove";
-      removeBtn.textContent = "×";
-      chip.appendChild(removeBtn);
-    }
-    return chip;
+    // Redirect to unified chip for consistency
+    return this._makeUnifiedChip(key);
   }
 
   _hash(s) {
@@ -2058,81 +2320,150 @@ class ProfileSetup {
     return Math.abs(h);
   }
 
-  // ===================== Social Links =====================
+  // ===================== Social Links - Tappable Icons UI =====================
   initSocialLinksUI() {
     try {
-      console.log("[ProfileSetup] initSocialLinksUI called");
       const typeSelect = document.getElementById("social-link-type");
       const input = document.getElementById("social-link-input");
       const addBtn = document.getElementById("add-social-link-btn");
-
-      console.log("[ProfileSetup] Social links elements:", {
-        typeSelect: !!typeSelect,
-        input: !!input,
-        addBtn: !!addBtn,
-      });
+      const inputArea = document.getElementById("social-input-area");
+      const inputIcon = document.getElementById("social-input-icon");
+      const inputLabel = document.getElementById("social-input-label");
+      const closeBtn = document.getElementById("social-input-close");
+      const platformBtns = document.querySelectorAll(".social-platform-btn");
 
       if (!typeSelect || !input || !addBtn) {
         console.warn("[ProfileSetup] Social links elements not found");
         return;
       }
 
-      // Update placeholder based on selected type
-      const updatePlaceholder = () => {
-        const selectedType = typeSelect.value;
-        const typeConfig = SOCIAL_LINK_TYPES.find(
-          (t) => t.type === selectedType
-        );
-        if (typeConfig) {
-          input.placeholder = typeConfig.placeholder;
-        }
+      // Platform icon and placeholder config
+      const platformConfig = {
+        instagram: { icon: "fab fa-instagram", label: "Instagram", placeholder: "@username" },
+        facebook: { icon: "fab fa-facebook-f", label: "Facebook", placeholder: "Profile URL or username" },
+        linkedin: { icon: "fab fa-linkedin-in", label: "LinkedIn", placeholder: "Profile URL or username" },
+        github: { icon: "fab fa-github", label: "GitHub", placeholder: "@username" },
+        x: { icon: "fab fa-x-twitter", label: "X", placeholder: "@handle" },
+        custom: { icon: "fas fa-link", label: "Other", placeholder: "https://..." },
       };
 
-      // Attach event listeners only once
-      if (!typeSelect.hasAttribute("data-listener-attached")) {
-        typeSelect.addEventListener("change", updatePlaceholder);
-        typeSelect.setAttribute("data-listener-attached", "true");
+      // Show input area for selected platform
+      const showInputForPlatform = (platform) => {
+        const config = platformConfig[platform];
+        if (!config || !inputArea || !inputIcon || !inputLabel) return;
+
+        // Update hidden select for compatibility
+        typeSelect.value = platform;
+
+        // Update input area
+        inputIcon.className = config.icon;
+        inputLabel.textContent = config.label;
+        input.placeholder = config.placeholder;
+        input.value = "";
+        inputArea.setAttribute("data-platform", platform);
+        inputArea.classList.add("visible");
+
+        // Update button states
+        platformBtns.forEach((btn) => {
+          btn.classList.remove("active");
+          if (btn.dataset.platform === platform) {
+            btn.classList.add("active");
+          }
+        });
+
+        // Focus input
+        setTimeout(() => input.focus(), 100);
+      };
+
+      // Hide input area
+      const hideInputArea = () => {
+        if (inputArea) {
+          inputArea.classList.remove("visible");
+          inputArea.removeAttribute("data-platform");
+        }
+        platformBtns.forEach((btn) => btn.classList.remove("active"));
+        input.value = "";
+      };
+
+      // Platform button click handlers
+      platformBtns.forEach((btn) => {
+        if (!btn.hasAttribute("data-listener-attached")) {
+          btn.addEventListener("click", () => {
+            const platform = btn.dataset.platform;
+            if (btn.classList.contains("added")) return; // Already added
+
+            // Toggle - if already active, hide; else show
+            if (btn.classList.contains("active")) {
+              hideInputArea();
+            } else {
+              showInputForPlatform(platform);
+            }
+          });
+          btn.setAttribute("data-listener-attached", "true");
+        }
+      });
+
+      // Close button
+      if (closeBtn && !closeBtn.hasAttribute("data-listener-attached")) {
+        closeBtn.addEventListener("click", hideInputArea);
+        closeBtn.setAttribute("data-listener-attached", "true");
       }
 
+      // Input enter key
       if (!input.hasAttribute("data-listener-attached")) {
         input.addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
             e.preventDefault();
             this.tryAddSocialLink();
           }
+          if (e.key === "Escape") {
+            hideInputArea();
+          }
         });
         input.setAttribute("data-listener-attached", "true");
       }
 
+      // Add button
       if (!addBtn.hasAttribute("data-listener-attached")) {
-        console.log("[ProfileSetup] Attaching click listener to add button");
         addBtn.addEventListener("click", () => {
-          console.log("[ProfileSetup] Add button clicked!");
           this.tryAddSocialLink();
         });
         addBtn.setAttribute("data-listener-attached", "true");
-      } else {
-        console.log("[ProfileSetup] Add button already has listener");
       }
 
-      updatePlaceholder();
+      // Store hideInputArea for use after adding
+      this._hideSocialInputArea = hideInputArea;
+
+      // Update platform button states based on existing links
+      this._updateSocialPlatformStates();
       this.renderSocialLinks();
     } catch (err) {
       console.warn("initSocialLinksUI failed:", err);
     }
   }
 
+  /**
+   * Update platform button states (mark as added if link exists)
+   */
+  _updateSocialPlatformStates() {
+    const platformBtns = document.querySelectorAll(".social-platform-btn");
+    const addedTypes = new Set(this.socialLinks.map((link) => link.type));
+
+    platformBtns.forEach((btn) => {
+      const platform = btn.dataset.platform;
+      if (addedTypes.has(platform)) {
+        btn.classList.add("added");
+      } else {
+        btn.classList.remove("added");
+      }
+    });
+  }
+
   tryAddSocialLink() {
-    console.log("[ProfileSetup] tryAddSocialLink called");
     const typeSelect = document.getElementById("social-link-type");
     const input = document.getElementById("social-link-input");
     const feedback = document.getElementById("social-link-feedback");
 
-    console.log("[ProfileSetup] Elements found:", {
-      typeSelect: !!typeSelect,
-      input: !!input,
-      feedback: !!feedback,
-    });
     if (!typeSelect || !input) {
       console.warn("[ProfileSetup] Missing required elements");
       return;
@@ -2141,39 +2472,36 @@ class ProfileSetup {
     const type = typeSelect.value;
     const inputValue = input.value.trim();
 
-    if (!inputValue) {
+    // Show error feedback
+    const showError = (msg) => {
       if (feedback) {
-        feedback.textContent = "Please enter a username or URL.";
-        feedback.className = "error-message";
+        feedback.textContent = msg;
+        feedback.className = "story-feedback error";
+        feedback.classList.remove("hidden");
       }
+    };
+
+    if (!inputValue) {
+      showError("Please enter a username or URL");
       return;
     }
 
     // Validate the link
     const validation = validateSocialLink(type, inputValue);
     if (!validation.valid) {
-      if (feedback) {
-        feedback.textContent = validation.reason;
-        feedback.className = "error-message";
-      }
+      showError(validation.reason);
       return;
     }
 
     // Check for duplicates
     if (isDuplicateLink(this.socialLinks, validation.url)) {
-      if (feedback) {
-        feedback.textContent = "This link has already been added.";
-        feedback.className = "error-message";
-      }
+      showError("This link has already been added");
       return;
     }
 
     // Check max limit
     if (this.socialLinks.length >= MAX_SOCIAL_LINKS) {
-      if (feedback) {
-        feedback.textContent = `Maximum ${MAX_SOCIAL_LINKS} links allowed.`;
-        feedback.className = "error-message";
-      }
+      showError(`Maximum ${MAX_SOCIAL_LINKS} links allowed`);
       return;
     }
 
@@ -2183,13 +2511,18 @@ class ProfileSetup {
       url: validation.url,
     });
 
-    // Clear input and show success
-    input.value = "";
-    if (feedback) {
-      feedback.textContent = "Link added successfully!";
-      feedback.className = "field-hint";
+    // Hide input area and clear
+    if (this._hideSocialInputArea) {
+      this._hideSocialInputArea();
     }
 
+    // Hide any error feedback
+    if (feedback) {
+      feedback.classList.add("hidden");
+    }
+
+    // Update platform button states and render links
+    this._updateSocialPlatformStates();
     this.renderSocialLinks();
   }
 
@@ -2238,6 +2571,7 @@ class ProfileSetup {
       removeBtn.innerHTML = "×";
       removeBtn.addEventListener("click", () => {
         this.socialLinks.splice(index, 1);
+        this._updateSocialPlatformStates();
         this.renderSocialLinks();
       });
 
@@ -2820,6 +3154,10 @@ class ProfileSetup {
       if (this.profilePhotoUrl) {
         profileDataForFirestore.profile.profilePhotoUrl = this.profilePhotoUrl;
       }
+      if (this.profilePhotoThumbUrl) {
+        profileDataForFirestore.profile.profilePhotoThumbUrl =
+          this.profilePhotoThumbUrl;
+      }
       profileDataForFirestore.profile.useAvatar = !!this.useAvatar;
 
       // Interests (≤10)
@@ -3191,12 +3529,11 @@ class ProfileSetup {
 
     if (bioInput && !bioInput.hasAttribute("data-listener-attached")) {
       bioInput.addEventListener("input", (e) => {
-        const bioCount = document.getElementById("bio-count");
-        if (bioCount) {
-          bioCount.textContent = e.target.value.length;
-        }
+        this._updateBioProgress(e.target.value);
       });
       bioInput.setAttribute("data-listener-attached", "true");
+      // Initialize progress bar on load
+      this._updateBioProgress(bioInput.value || "");
     }
 
     // Q/A
@@ -3600,7 +3937,12 @@ class ProfileSetup {
       );
     } finally {
       parseBtn.disabled = false;
-      parseBtn.innerHTML = '<i class="fas fa-search"></i> Parse Schedule';
+      // If we have schedule data, show "Detect again" otherwise show initial text
+      if (this.scheduleData && this.scheduleData.courses?.length > 0) {
+        parseBtn.innerHTML = '<i class="fas fa-redo"></i> Detect again';
+      } else {
+        parseBtn.innerHTML = '<i class="fas fa-magic"></i> Detect Courses';
+      }
     }
   }
 
@@ -3716,28 +4058,29 @@ class ProfileSetup {
     // Update stats
     coursesFound.textContent = `${result.stats.validCourses} courses found`;
 
-    // Generate course cards
+    // Generate course cards with badge-style design
     const courseCards = result.validationResult.validatedCourses
       .map(
         (course) => `
       <div class="course-card">
         <div class="course-header">
           <span class="course-code">${course.courseCode}</span>
-          ${
-            course.section
-              ? `<span class="course-section">Sec ${course.section}</span>`
-              : ""
-          }
+          ${course.section ? `<span class="course-section">Sec ${course.section}</span>` : ""}
         </div>
         <h4 class="course-name">${course.courseName}</h4>
-        <div class="course-details">
-          <div class="time-info">
-            <span class="days">${course.days.join(", ")}</span>
-            <span class="time">${course.startTime} - ${course.endTime}</span>
-          </div>
-          <div class="location-info">
-            <span class="room">Room: ${course.room}</span>
-          </div>
+        <div class="course-badges">
+          <span class="course-badge badge-days">
+            <i class="fas fa-calendar-day"></i>
+            ${course.days.join(", ")}
+          </span>
+          <span class="course-badge badge-time">
+            <i class="fas fa-clock"></i>
+            ${course.startTime} - ${course.endTime}
+          </span>
+          <span class="course-badge badge-room">
+            <i class="fas fa-map-marker-alt"></i>
+            ${course.room}
+          </span>
         </div>
       </div>
     `
@@ -3931,8 +4274,8 @@ class ProfileSetup {
       fallbackDiv.className = "avatar-fallback";
       fallbackDiv.setAttribute("aria-label", `Avatar fallback: ${initials}`);
       fallbackDiv.style.cssText = `
-        width: 96px;
-        height: 96px;
+        width: 100%;
+        height: 100%;
         border-radius: 50%;
         background: var(--avatar-fallback-bg, #b6e3f4);
         color: var(--avatar-fallback-fg, #222);
@@ -3943,7 +4286,6 @@ class ProfileSetup {
         font-weight: 700;
         letter-spacing: 0.05em;
         user-select: none;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
       `;
       fallbackDiv.textContent = initials;
       previewContainer.innerHTML = "";
@@ -3955,8 +4297,8 @@ class ProfileSetup {
       const spinnerWrapper = document.createElement("div");
       spinnerWrapper.className = "avatar-spinner-wrapper";
       spinnerWrapper.style.cssText = `
-        width: 96px;
-        height: 96px;
+        width: 100%;
+        height: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -4028,16 +4370,13 @@ class ProfileSetup {
     const img = document.createElement("img");
     img.src = avatarUrl;
     img.alt = "User avatar";
-    img.width = 96;
-    img.height = 96;
     img.loading = "lazy";
+    // Let CSS handle sizing - only set essential styles
     img.style.cssText = `
-      width: 96px;
-      height: 96px;
+      width: 100%;
+      height: 100%;
       border-radius: 50%;
       object-fit: cover;
-      background: #f3f4f6;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
       display: block;
     `;
     img.setAttribute("aria-label", "User avatar preview");

@@ -426,7 +426,7 @@ export class HorizontalFriendsBar {
               quickAccessData
             );
             // Only apply if component is still alive
-            if (!this.isInitialized) return;
+            if (!this.container || !this.container.isConnected) return;
             this.quickAccessFriends = hydrated;
             this.sortQuickAccessFriendsForDisplay();
             // Update existing dots in place and reorder minimally to avoid flicker
@@ -528,12 +528,39 @@ export class HorizontalFriendsBar {
         /* non-fatal */
       }
 
-      // Phase 3 – derive schedule-based presence for Quick Access friends
-      await this.enrichFriendsWithScheduleStatus();
+      // Phase 3 – derive schedule-based presence for Quick Access friends (non-blocking)
+      // Do not block first paint on per-friend schedule fetches (slow for large lists).
+      const presenceBudget = firstLoad ? 10 : 30;
+      this.addTrackedTimeout(() => {
+        if (!this.container || !this.container.isConnected) return;
+        this.enrichFriendsWithScheduleStatus(new Date(), {
+          maxScheduleFetches: presenceBudget,
+          concurrency: 4,
+        })
+          .then(() => {
+            if (!this.container || !this.container.isConnected) return;
+            this._updateAvatarPresencePills();
+          })
+          .catch((e) => {
+            console.warn(
+              "[HorizontalFriendsBar] Background presence compute failed:",
+              e
+            );
+          });
+      }, 0);
 
-      // Set up profile listeners (skip await on first paint; background task handles it)
-      if (this.quickAccessFriends.length > 0 && !firstLoad) {
-        await this.setupStarredFriendProfileListeners();
+      // Set up profile listeners ASAP so avatar/photo changes hydrate on first load.
+      // Do not block render: run in background and dedup internally.
+      if (this.quickAccessFriends.length > 0) {
+        this.addTrackedTimeout(() => {
+          if (!this.container || !this.container.isConnected) return;
+          this.setupStarredFriendProfileListeners().catch((e) => {
+            console.warn(
+              "[HorizontalFriendsBar] Failed to set up profile listeners",
+              e
+            );
+          });
+        }, 0);
       }
 
       // Note: Database updates are handled by HomePage, not here
@@ -617,7 +644,13 @@ export class HorizontalFriendsBar {
            aria-label="View your schedule">
         <div class="avatar-container">
           <div class="avatar-image">
-            ${renderUserAvatar(this.currentUser, true)}
+            ${renderUserAvatar(this.currentUser, {
+              useCache: true,
+              preferThumb: true,
+              loading: "eager",
+              decoding: "async",
+              fetchpriority: "high",
+            })}
             ${presenceMarkup}
             <div class="selection-ring"></div>
           </div>
@@ -645,6 +678,18 @@ export class HorizontalFriendsBar {
    * Render Quick Access friends avatars with privacy-aware disabled states and presence indicators
    */
   renderFriendsAvatars(container) {
+    // Eager-load only the first visible chunk (Instagram-style), adapt for slow connections.
+    const effectiveType = navigator?.connection?.effectiveType || "";
+    const saveData = navigator?.connection?.saveData === true;
+    const isSlowNet =
+      saveData ||
+      effectiveType === "slow-2g" ||
+      effectiveType === "2g" ||
+      effectiveType === "3g";
+    const eagerCount = isSlowNet ? 6 : 12;
+    const highPriorityCount = isSlowNet ? 3 : 6;
+    const parts = [];
+
     this.quickAccessFriends.forEach((friend, index) => {
       // Determine if avatar should be disabled based on privacy status
       const isDisabled = friend.isRestricted || false;
@@ -668,17 +713,18 @@ export class HorizontalFriendsBar {
         expanded: false,
       });
 
-      // Analytics: record pill render for friend
-      AnalyticsService.trackFeatureUsage("presence_pill_rendered", {
-        scope: "horizontal_friends_bar",
-        target: "friend",
-        friend_id: friend.friendId || friend.userId || friend.uid || null,
-        state: derivedStatus.state,
+      const friendId = friend.friendId || friend.userId;
+      const avatarMarkup = renderUserAvatar(friend, {
+        useCache: true,
+        preferThumb: true,
+        loading: index < eagerCount ? "eager" : "lazy",
+        decoding: "async",
+        fetchpriority: index < highPriorityCount ? "high" : "auto",
       });
 
       const friendAvatarHtml = `
         <div class="friend-avatar-item ${disabledClass}" 
-             data-friend-id="${friend.friendId || friend.userId}" 
+             data-friend-id="${friendId}" 
      data-friend-name="${friendLabel}"
              data-privacy-restricted="${isDisabled}"
              title="${tooltip}"
@@ -687,7 +733,7 @@ export class HorizontalFriendsBar {
              aria-label="${ariaLabel}">
           <div class="avatar-container">
             <div class="avatar-image">
-              ${renderUserAvatar(friend, true)}
+              ${avatarMarkup}
               ${presenceMarkup}
               <div class="selection-ring"></div>
             </div>
@@ -696,13 +742,15 @@ export class HorizontalFriendsBar {
         </div>
       `;
 
-      container.insertAdjacentHTML("beforeend", friendAvatarHtml);
+      parts.push(friendAvatarHtml);
+    });
 
-      // Store reference
-      const friendElement = container.querySelector(
-        `[data-friend-id="${friend.friendId || friend.userId}"]`
-      );
-      this.avatarElements.set(friend.friendId || friend.userId, friendElement);
+    container.innerHTML = parts.join("");
+
+    // Store references in one pass (avoid repeated querySelector in a loop)
+    container.querySelectorAll(".friend-avatar-item").forEach((el) => {
+      const id = el?.dataset?.friendId;
+      if (id) this.avatarElements.set(id, el);
     });
 
     document.dispatchEvent(
@@ -2455,7 +2503,11 @@ export class HorizontalFriendsBar {
    * a status map using SchedulePresenceService.deriveStatusForFriends.
    * @param {Date} [now]
    */
-  async enrichFriendsWithScheduleStatus(now = new Date()) {
+  async enrichFriendsWithScheduleStatus(now = new Date(), options = {}) {
+    const {
+      maxScheduleFetches = Number.POSITIVE_INFINITY,
+      concurrency = 4,
+    } = options || {};
     const friends = this.quickAccessFriends || [];
     if (!friends.length) {
       this.presenceStatusByFriendId.clear();
@@ -2481,58 +2533,78 @@ export class HorizontalFriendsBar {
     // Fetch schedules only for non-restricted friends, respecting TTL
     const nonRestricted = friends.filter((f) => !f.isRestricted);
 
+    const toFetch = [];
+    nonRestricted.forEach((friend) => {
+      const friendId = friend.friendId || friend.userId || friend.uid || friend.id;
+      if (!friendId) return;
+
+      const existing = this.scheduleCache.get(friendId);
+      const isFresh =
+        existing &&
+        nowMs - existing.fetchedAt < PRESENCE_CONFIG.SCHEDULE_CACHE_TTL_MS;
+      if (isFresh) return;
+
+      toFetch.push(friend);
+    });
+
+    const queue = toFetch.slice(
+      0,
+      Math.max(0, Number.isFinite(maxScheduleFetches) ? maxScheduleFetches : toFetch.length)
+    );
+    const workerCount = Math.max(
+      1,
+      Math.min(Number.isFinite(concurrency) ? concurrency : 4, queue.length || 1)
+    );
+
     await Promise.all(
-      nonRestricted.map(async (friend) => {
-        const friendId =
-          friend.friendId || friend.userId || friend.uid || friend.id;
-        if (!friendId) return;
+      Array.from({ length: workerCount }, () => null).map(async () => {
+        while (queue.length) {
+          const friend = queue.shift();
+          if (!friend) continue;
 
-        const existing = this.scheduleCache.get(friendId);
-        if (
-          existing &&
-          nowMs - existing.fetchedAt < PRESENCE_CONFIG.SCHEDULE_CACHE_TTL_MS
-        ) {
-          return;
-        }
+          const friendId =
+            friend.friendId || friend.userId || friend.uid || friend.id;
+          if (!friendId) continue;
 
-        try {
-          const scheduleData = await dataManager.getUserSchedule(friendId);
-          if (!scheduleData) {
+          try {
+            const scheduleData = await dataManager.getUserSchedule(friendId);
+            if (!scheduleData) {
+              this.scheduleCache.set(friendId, {
+                scheduleMatrix: null,
+                timeSlots: null,
+                fetchedAt: nowMs,
+              });
+              continue;
+            }
+
+            const homeFormat = scheduleStorageService.convertToHomePageFormat(
+              scheduleData,
+              friendId
+            );
+            const userSchedule = homeFormat?.users?.[friendId];
+
+            this.scheduleCache.set(friendId, {
+              scheduleMatrix: userSchedule?.schedule || null,
+              timeSlots: userSchedule?.timeSlots || null,
+              fetchedAt: nowMs,
+            });
+          } catch (error) {
+            console.warn(
+              "[HorizontalFriendsBar] Failed to fetch schedule for presence pills:",
+              friendId,
+              error
+            );
+            AnalyticsService.trackFeatureUsage("schedule_fetch_failed", {
+              scope: "horizontal_friends_bar",
+              friend_id: friendId,
+              message: error?.message || String(error),
+            });
             this.scheduleCache.set(friendId, {
               scheduleMatrix: null,
               timeSlots: null,
               fetchedAt: nowMs,
             });
-            return;
           }
-
-          const homeFormat = scheduleStorageService.convertToHomePageFormat(
-            scheduleData,
-            friendId
-          );
-          const userSchedule = homeFormat?.users?.[friendId];
-
-          this.scheduleCache.set(friendId, {
-            scheduleMatrix: userSchedule?.schedule || null,
-            timeSlots: userSchedule?.timeSlots || null,
-            fetchedAt: nowMs,
-          });
-        } catch (error) {
-          console.warn(
-            "[HorizontalFriendsBar] Failed to fetch schedule for presence pills:",
-            friendId,
-            error
-          );
-          AnalyticsService.trackFeatureUsage("schedule_fetch_failed", {
-            scope: "horizontal_friends_bar",
-            friend_id: friendId,
-            message: error?.message || String(error),
-          });
-          this.scheduleCache.set(friendId, {
-            scheduleMatrix: null,
-            timeSlots: null,
-            fetchedAt: nowMs,
-          });
         }
       })
     );
@@ -2812,17 +2884,35 @@ export class HorizontalFriendsBar {
    * Set up profile listeners for each starred friend to detect avatar/name changes
    */
   async setupStarredFriendProfileListeners() {
-    if (this._profileListenersInitialized) {
-      console.log("📡 Profile listeners already initialized (dedup guard)");
-      return;
-    }
     if (!this.quickAccessFriends?.length) {
       console.log("📡 No starred friends to set up profile listeners for");
       return;
     }
 
+    const MAX_PROFILE_LISTENERS = 50;
+    const desiredFriendIds = Array.from(
+      new Set(
+        this.quickAccessFriends
+          .map(
+            (f) => f?.friendId || f?.userId || f?.uid || f?.id || f?.userUID
+          )
+          .filter((id) => typeof id === "string" && id.length > 0)
+      )
+    );
+
+    const prioritizedFriendIds = desiredFriendIds.slice(0, MAX_PROFILE_LISTENERS);
+    const membershipKey = prioritizedFriendIds.slice().sort().join("|");
+    if (
+      this._profileListenersInitialized &&
+      membershipKey &&
+      membershipKey === this._profileListenerMembershipKey
+    ) {
+      console.log("📡 Profile listeners already initialized (dedup guard)");
+      return;
+    }
+
     console.log(
-      `📡 Setting up profile listeners for ${this.quickAccessFriends.length} starred friends`
+      `📡 Setting up profile listeners for ${prioritizedFriendIds.length} starred friends`
     );
 
     // Clean up existing listeners first
@@ -2838,17 +2928,14 @@ export class HorizontalFriendsBar {
     this.friendProfileUnsubscribers = [];
 
     // Set up a listener for each starred friend
-    for (const friend of this.quickAccessFriends) {
-      if (!friend.friendId) continue;
+    for (const friendId of prioritizedFriendIds) {
+      if (!friendId) continue;
 
       try {
         const unsubscriber = dataManager.listenToUserProfile(
-          friend.friendId,
+          friendId,
           (friendProfile) => {
-            this.handleStarredFriendProfileUpdate(
-              friend.friendId,
-              friendProfile
-            );
+            this.handleStarredFriendProfileUpdate(friendId, friendProfile);
           }
         );
 
@@ -2857,7 +2944,7 @@ export class HorizontalFriendsBar {
         }
       } catch (error) {
         console.warn(
-          `⚠️ Failed to set up profile listener for friend ${friend.friendId}:`,
+          `⚠️ Failed to set up profile listener for friend ${friendId}:`,
           error
         );
       }
@@ -2867,6 +2954,7 @@ export class HorizontalFriendsBar {
       `✅ Set up ${this.friendProfileUnsubscribers.length} friend profile listeners`
     );
     this._profileListenersInitialized = true;
+    this._profileListenerMembershipKey = membershipKey;
   }
 
   /**
@@ -3117,6 +3205,11 @@ export class HorizontalFriendsBar {
         friendProfile?.profilePhotoUrl ||
         currentFriend.profilePhotoUrl;
 
+      const newProfilePhotoThumbUrl =
+        friendProfile?.profile?.profilePhotoThumbUrl ||
+        friendProfile?.profilePhotoThumbUrl ||
+        currentFriend.profilePhotoThumbUrl;
+
       const newUseAvatar =
         typeof friendProfile?.profile?.useAvatar === "boolean"
           ? friendProfile.profile.useAvatar
@@ -3134,6 +3227,8 @@ export class HorizontalFriendsBar {
         newAvatarConfig &&
         !this.deepEqual(currentFriend.avatarConfig, newAvatarConfig);
       const photoChanged = newProfilePhotoUrl !== currentFriend.profilePhotoUrl;
+      const photoThumbChanged =
+        newProfilePhotoThumbUrl !== currentFriend.profilePhotoThumbUrl;
       const useAvatarChanged =
         typeof newUseAvatar === "boolean" &&
         newUseAvatar !== currentFriend.useAvatar;
@@ -3146,6 +3241,7 @@ export class HorizontalFriendsBar {
         !nameChanged &&
         !avatarChanged &&
         !photoChanged &&
+        !photoThumbChanged &&
         !useAvatarChanged &&
         !lastActiveChanged
       ) {
@@ -3192,6 +3288,11 @@ export class HorizontalFriendsBar {
         hasLocalUpdates = true;
       }
 
+      if (photoThumbChanged) {
+        updatedFriend.profilePhotoThumbUrl = newProfilePhotoThumbUrl || null;
+        hasLocalUpdates = true;
+      }
+
       if (useAvatarChanged) {
         updatedFriend.useAvatar = newUseAvatar;
         hasLocalUpdates = true;
@@ -3217,7 +3318,13 @@ export class HorizontalFriendsBar {
         this.quickAccessFriends[friendIndex] = updatedFriend;
 
         // Only trigger full re-render for profile changes (name/avatar/photo), not for presence updates
-        if (nameChanged || avatarChanged || photoChanged || useAvatarChanged) {
+        if (
+          nameChanged ||
+          avatarChanged ||
+          photoChanged ||
+          photoThumbChanged ||
+          useAvatarChanged
+        ) {
           this.updateFriendAvatarUI(friendId, updatedFriend);
           // Profile UI updated (no database sync)
           // Schedule a batched database sync for profile changes only (longer delay)
@@ -4618,7 +4725,13 @@ export class HorizontalFriendsBar {
       if (!avatarImage) return;
 
       // Replace avatar node only (keep presence pill + selection ring)
-      const avatarMarkup = renderUserAvatar(friendData, true);
+      const avatarMarkup = renderUserAvatar(friendData, {
+        useCache: true,
+        preferThumb: true,
+        loading: "eager",
+        decoding: "async",
+        fetchpriority: "auto",
+      });
       const tmp = document.createElement("div");
       tmp.innerHTML = String(avatarMarkup || "").trim();
       const newNode = tmp.firstElementChild;

@@ -30,13 +30,9 @@
     <div class="setup-body">
       <!-- Step 0: Basics -->
       <div class="setup-step active" data-step="0">
-        <div class="step-header">
-          <h2 class="step-title">
-            <i class="fas fa-user-edit"></i> Let's get started
-          </h2>
-          <p class="step-description">
-            Tell us the basics so we can set up your campus profile.
-          </p>
+        <div class="story-step-header">
+          <h2 class="story-title">The essentials</h2>
+          <p class="story-subtitle">Just the basics to get you started</p>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -123,13 +119,9 @@
 
       <!-- Step 1: Photo & Avatar -->
       <div class="setup-step" data-step="1">
-        <div class="step-header">
-          <h2 class="step-title">
-            <i class="fas fa-camera"></i> Show yourself
-          </h2>
-          <p class="step-description">
-            Upload a photo or pick an avatar—help classmates recognize you.
-          </p>
+        <div class="story-step-header">
+          <h2 class="story-title">Put a face to the name</h2>
+          <p class="story-subtitle">Photo or avatar — your call</p>
         </div>
 
         <!-- Single UI area that swaps between photo and avatar modes -->
@@ -168,7 +160,7 @@
               </div>
               <p id="profile-photo-helper-text" class="form-hint photo-helper-text">
                 <i class="fas fa-info-circle"></i>
-                <span><span id="profile-photo-helper-action">Upload a photo</span> to help friends recognize you. Auto-crops to square, stored as 512×512 WebP.</span>
+                <span><span id="profile-photo-helper-action">Upload a photo</span> to help friends recognize you.</span>
               </p>
             </section>
 
@@ -212,344 +204,249 @@
         </div>
       </div>
 
-      <!-- Step 2: Your Story (Bio, Icebreakers, Interests) -->
+      <!-- Step 2: Your Story (Bio, Icebreakers, Interests) - REDESIGNED -->
       <div class="setup-step" data-step="2">
-        <div class="step-header">
-          <h2 class="step-title">
-            <i class="fas fa-pencil-alt"></i> Tell your story
-          </h2>
-          <p class="step-description">
-            Share what makes you unique—help the right people find you.
-          </p>
+        <!-- Compact motivational header -->
+        <div class="story-step-header">
+          <h2 class="story-title">Make it yours</h2>
+          <p class="story-subtitle">Stand out from the crowd</p>
         </div>
 
-        <div class="form-group">
-          <label class="form-label" for="setup-bio"
-            ><i class="fas fa-align-left"></i> Bio (Optional)</label
-          >
-          <textarea
-            id="setup-bio"
-            name="setup-bio"
-            class="form-input"
-            rows="3"
-            maxlength="200"
-            placeholder="CS major who loves hiking and bad puns."
-          ></textarea>
-          <div class="char-counter-container">
-            <span id="bio-count">0</span>/200
+        <!-- Bio Section Card -->
+        <div class="story-section story-bio-section">
+          <div class="story-section-header">
+            <i class="fas fa-comment-dots section-icon"></i>
+            <span class="section-label">Your one-liner</span>
+            <span class="section-badge optional">Optional</span>
           </div>
-        </div>
-
-        <!-- Icebreaker Questions (PRD: ≥1, ≤5 answers; 10–150 chars each) -->
-        <div class="form-group">
-          <div class="step-header" style="margin-top: 1rem">
-            <h3 class="step-title" style="font-size: 1.1rem">
-              <i class="fas fa-comments"></i> Icebreaker questions
-            </h3>
-            <p class="step-description">
-              Answer at least one—give people a feel for who you are.
-            </p>
-          </div>
-          <div class="qna-controls" style="margin-bottom: 0.5rem">
-            <select
-              id="qna-picker"
-              class="form-input"
-              aria-label="Add an icebreaker question"
-            >
-              <option value="" selected disabled>
-                Add an icebreaker question…
-              </option>
-              <option value="three-words">
-                Three words my friends actually use for me:
-              </option>
-              <option value="group-role">
-                In a group project, I usually take the role of…
-              </option>
-              <option value="tiny-ritual">
-                A tiny ritual that makes my day 1% better is…
-              </option>
-              <option value="proudest">
-                My proudest personal achievement so far is…
-              </option>
-              <option value="niche-interest">
-                A niche interest that tells me we’ll get along is…
-              </option>
-              <option value="ask-me">
-                If we bump into each other on campus, ask me about…
-              </option>
-              <option value="this-semester">This semester, I’m into…</option>
-            </select>
-          </div>
-          <div id="qna-selected-list" class="qna-list"></div>
-          <div id="qna-feedback" class="field-hint">
-            <i class="fas fa-info-circle"></i> Answer at least 1 question
-            (10–150 characters each). Pick up to 5.
+          <div class="bio-input-wrapper">
+            <textarea
+              id="setup-bio"
+              name="setup-bio"
+              class="story-bio-input"
+              maxlength="200"
+              placeholder="The vibe? CS by day, memes by night 🌙"
+            ></textarea>
+            <div class="bio-progress-bar">
+              <div class="bio-progress-fill" id="bio-progress-fill"></div>
+            </div>
+            <div class="bio-counter">
+              <span id="bio-count">0</span><span class="bio-counter-max">/200</span>
+            </div>
           </div>
         </div>
 
-        <!-- Interests -->
-        <div class="form-group">
-          <div class="step-header" style="margin-top: 1rem">
-            <h3 class="step-title" style="font-size: 1.1rem">
-              <i class="fas fa-heart"></i> Interests
-            </h3>
-            <p class="step-description">
-              Pick a few things you're into—we'll use this for group and friend
-              suggestions.
-            </p>
+        <!-- Icebreaker Section Card - Tap-to-select cards -->
+        <div class="story-section story-icebreaker-section">
+          <div class="story-section-header">
+            <i class="fas fa-comments section-icon"></i>
+            <span class="section-label">Conversation starters</span>
+            <span class="section-counter" id="icebreaker-counter">0/5</span>
           </div>
-          <!-- Your Interests (Selected) -->
-          <div class="interests-selected-wrapper">
-            <label class="interests-section-label">
-              <i class="fas fa-check-circle"></i> Your interests
-            </label>
-            <div
-              id="interests-selected"
-              class="interests-selected chips-grid"
-            ></div>
+          <p class="section-hint">Tap a prompt to answer it</p>
+
+          <!-- Icebreaker cards container -->
+          <div class="icebreaker-cards" id="icebreaker-cards">
+            <!-- Cards will be rendered by JS -->
           </div>
 
-          <!-- Add Custom Interest -->
-          <div class="interests-add-custom">
-            <div
-              class="interests-controls"
-              style="display: flex; gap: 0.5rem; align-items: center"
-            >
+          <div id="qna-feedback" class="story-feedback">
+            <i class="fas fa-check-circle"></i> <span>Pick at least 1</span>
+          </div>
+        </div>
+
+        <!-- Interests Section Card - Unified tappable grid -->
+        <div class="story-section story-interests-section">
+          <div class="story-section-header">
+            <i class="fas fa-heart section-icon"></i>
+            <span class="section-label">What you're into</span>
+            <span class="section-counter" id="interests-counter">0/10</span>
+          </div>
+          <!-- Unified interests grid -->
+          <div class="interests-unified-grid" id="interests-unified">
+            <!-- Chips rendered by JS -->
+          </div>
+
+          <!-- Add custom interest inline -->
+          <div class="custom-interest-row">
+            <button type="button" class="add-custom-btn" id="add-custom-interest-toggle">
+              <i class="fas fa-plus"></i> Add your own
+            </button>
+            <div class="custom-interest-input-wrapper" id="custom-interest-wrapper">
               <input
                 id="interest-input"
-                class="form-input"
-                placeholder="Add your own (3–20 chars)"
+                class="custom-interest-input"
+                placeholder="e.g., K-drama"
+                maxlength="20"
               />
-              <button
-                type="button"
-                id="add-interest-btn"
-                class="button secondary"
-              >
-                <i class="fas fa-plus"></i> Add
+              <button type="button" id="add-interest-btn" class="custom-interest-submit">
+                <i class="fas fa-check"></i>
               </button>
             </div>
           </div>
-
-          <!-- Suggested Interests -->
-          <div class="interests-suggestions-wrapper">
-            <label class="interests-section-label">
-              <i class="fas fa-lightbulb"></i> Suggestions
-            </label>
-            <div id="interest-feedback" class="field-hint">
-              Tap any suggestion below to add it to your profile.
-            </div>
-            <div
-              id="interests-suggestions"
-              class="interests-suggestions chips-grid"
-            ></div>
-          </div>
+          <div id="interest-feedback" class="story-feedback hidden"></div>
         </div>
       </div>
 
-      <!-- Step 3: Schedule & Social -->
+      <!-- Step 3: Schedule & Social - REDESIGNED -->
       <div class="setup-step" data-step="3">
-        <div class="step-header">
-          <h2 class="step-title">
-            <i class="fas fa-calendar-alt"></i> Schedule & connect
-          </h2>
-          <p class="step-description">
-            Import your schedule to find classmates. Add social links if you'd
-            like.
-          </p>
+        <div class="story-step-header">
+          <h2 class="story-title">Almost there</h2>
+          <p class="story-subtitle">Import your schedule to find classmates</p>
         </div>
 
-        <div class="form-content">
-          <!-- Import Methods Container -->
-          <div class="import-methods">
-            <!-- Text Paste Option -->
-            <div class="import-option">
-              <div class="option-header">
-                <div class="option-icon">📝</div>
-                <h3>Paste Schedule Text</h3>
-              </div>
-              <div class="form-group">
-                <div class="label-row">
-                  <label class="form-label" for="schedule-text-input"
-                    >Schedule Text</label
-                  >
-                  <div class="import-help-row">
-                    <button
-                      type="button"
-                      id="schedule-help-trigger"
-                      class="import-help-trigger"
-                      aria-haspopup="dialog"
-                    >
-                      How?
-                    </button>
-                  </div>
-                </div>
-                <textarea
-                  id="schedule-text-input"
-                  name="schedule-text-input"
-                  class="form-input"
-                  rows="4"
-                  placeholder="Paste your schedule text here...
-Example: CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z"
-                ></textarea>
-                <div class="form-hint">
-                  <i class="fas fa-paste"></i> Copy schedule text from your
-                  university portal and paste here
-                </div>
-              </div>
-              <button
-                type="button"
-                id="parse-schedule-btn"
-                class="button secondary"
-              >
-                <i class="fas fa-search"></i> Parse Schedule
-              </button>
-            </div>
-
-            <!-- Upload Option (image upload) -->
-            <!--
-              Temporarily disabled: Image upload import is not available.
-              Keeping the markup commented to hide the feature in UI while preserving structure for future re-enable.
-              To re-enable, uncomment this block and restore event listeners in ProfileSetup.js.
-
-            <div class="import-option">
-              <div class="option-header">
-                <div class="option-icon">📷</div>
-                <h3>Upload Schedule Image</h3>
-              </div>
-              <div class="upload-area" id="schedule-upload-area">
-                <div class="upload-prompt">
-                  <i class="fas fa-cloud-upload-alt"></i>
-                  <p>Click to upload or drag & drop</p>
-                  <small>Supports JPG, PNG - Max 10MB</small>
-                </div>
-                <input type="file" id="schedule-image-input" accept="image/*" hidden>
-              </div>
-            </div>
-            -->
+        <!-- Schedule Import Section Card -->
+        <div class="story-section story-schedule-section">
+          <div class="story-section-header">
+            <i class="fas fa-calendar-alt section-icon"></i>
+            <span class="section-label">Your classes</span>
+            <button
+              type="button"
+              id="schedule-help-trigger"
+              class="section-help-btn help-how-btn"
+              aria-haspopup="dialog"
+            >
+              How?
+            </button>
           </div>
 
-          <!-- Schedule Preview -->
-          <div id="schedule-preview" class="schedule-preview hidden">
-            <div class="preview-header">
-              <h3>📋 Detected Courses</h3>
-              <div class="preview-stats">
-                <span id="courses-found" class="stat-badge">0 courses</span>
-              </div>
+          <div class="schedule-import-area">
+            <textarea
+              id="schedule-text-input"
+              name="schedule-text-input"
+              class="schedule-paste-input"
+              rows="3"
+              placeholder="Paste your schedule from the university portal..."
+            ></textarea>
+            <button
+              type="button"
+              id="parse-schedule-btn"
+              class="schedule-parse-btn"
+            >
+              <i class="fas fa-magic"></i> Detect Courses
+            </button>
+          </div>
+
+          <!-- Schedule Preview (shown after parsing) -->
+          <div id="schedule-preview" class="schedule-preview-card hidden">
+            <div class="preview-header-compact">
+              <i class="fas fa-check-circle"></i>
+              <span id="courses-found">0 courses</span> detected
             </div>
-            <div id="preview-content" class="courses-grid">
-              <!-- Generated course cards will appear here -->
+            <div id="preview-content" class="courses-chips">
+              <!-- Generated course chips will appear here -->
             </div>
           </div>
 
           <!-- Import Status -->
-          <div id="import-status" class="import-status hidden">
-            <div class="status-content">
-              <div class="spinner"></div>
-              <p id="status-text">Processing your schedule...</p>
-            </div>
-          </div>
-          <div
-            id="schedule-help-overlay"
-            class="schedule-help-overlay hidden"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="schedule-help-title"
-          >
-            <div class="schedule-help-backdrop"></div>
-            <div class="schedule-help-content">
-              <button
-                type="button"
-                class="close-help"
-                aria-label="Close schedule help"
-              >
-                <span aria-hidden="true">&times;</span>
-              </button>
-              <h3 id="schedule-help-title">Paste Your Schedule In Seconds</h3>
-              <p class="schedule-help-text">
-                Copy the highlighted text from your IUB portal just like this
-                and paste it into the box. Tap anywhere outside this card to
-                close.
-              </p>
-              <img
-                src="/assets/onboarding/paste-schedule-example.png"
-                alt="Example of semester-wise registered courses table highlighting the rows to copy"
-                class="schedule-help-image"
-              />
-            </div>
+          <div id="import-status" class="import-status-inline hidden">
+            <div class="spinner-small"></div>
+            <span id="status-text">Detecting courses...</span>
           </div>
         </div>
 
-        <!-- Social Links (Optional) -->
-        <div class="form-group">
-          <div class="step-header" style="margin-top: 1.5rem">
-            <h3 class="step-title" style="font-size: 1.1rem">
-              <i class="fas fa-link"></i> Social links (optional)
-            </h3>
-            <p class="step-description">
-              Connect your social profiles so classmates can find you elsewhere.
-            </p>
-          </div>
-          <div
-            class="social-links-controls"
-            style="
-              display: flex;
-              gap: 0.5rem;
-              align-items: flex-start;
-              flex-wrap: wrap;
-            "
-          >
-            <select
-              id="social-link-type"
-              class="form-input"
-              aria-label="Select social platform"
-              style="flex: 1; min-width: 140px"
-            >
-              <option value="instagram">Instagram</option>
-              <option value="facebook">Facebook</option>
-              <option value="linkedin">LinkedIn</option>
-              <option value="github">GitHub</option>
-              <option value="x">X (Twitter)</option>
-              <option value="custom">Custom Link</option>
-            </select>
-            <input
-              id="social-link-input"
-              class="form-input"
-              placeholder="Enter username or URL"
-              aria-label="Enter social media username or URL"
-              style="flex: 2; min-width: 180px"
-            />
+        <!-- Help Overlay (kept for functionality) -->
+        <div
+          id="schedule-help-overlay"
+          class="schedule-help-overlay hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="schedule-help-title"
+        >
+          <div class="schedule-help-backdrop"></div>
+          <div class="schedule-help-content">
             <button
               type="button"
-              id="add-social-link-btn"
-              class="button secondary"
+              class="close-help"
+              aria-label="Close schedule help"
             >
-              <i class="fas fa-plus"></i> Add
+              <span aria-hidden="true">&times;</span>
+            </button>
+            <h3 id="schedule-help-title">Quick Import</h3>
+            <p class="schedule-help-text">
+              Copy the highlighted text from your university portal and paste it above.
+            </p>
+            <img
+              src="/assets/onboarding/paste-schedule-example.png"
+              alt="Example of schedule text to copy"
+              class="schedule-help-image"
+            />
+          </div>
+        </div>
+
+        <!-- Social Links Section Card - Tappable Icons -->
+        <div class="story-section story-social-section">
+          <div class="story-section-header">
+            <i class="fas fa-share-alt section-icon"></i>
+            <span class="section-label">Connect elsewhere</span>
+            <span class="section-badge optional">Optional</span>
+          </div>
+
+          <!-- Tappable Platform Icons -->
+          <div class="social-platforms-grid">
+            <button type="button" class="social-platform-btn" data-platform="instagram" aria-label="Add Instagram">
+              <i class="fab fa-instagram"></i>
+              <span class="platform-name">Instagram</span>
+            </button>
+            <button type="button" class="social-platform-btn" data-platform="facebook" aria-label="Add Facebook">
+              <i class="fab fa-facebook-f"></i>
+              <span class="platform-name">Facebook</span>
+            </button>
+            <button type="button" class="social-platform-btn" data-platform="linkedin" aria-label="Add LinkedIn">
+              <i class="fab fa-linkedin-in"></i>
+              <span class="platform-name">LinkedIn</span>
+            </button>
+            <button type="button" class="social-platform-btn" data-platform="github" aria-label="Add GitHub">
+              <i class="fab fa-github"></i>
+              <span class="platform-name">GitHub</span>
+            </button>
+            <button type="button" class="social-platform-btn" data-platform="x" aria-label="Add X">
+              <i class="fab fa-x-twitter"></i>
+              <span class="platform-name">X</span>
+            </button>
+            <button type="button" class="social-platform-btn" data-platform="custom" aria-label="Add custom link">
+              <i class="fas fa-link"></i>
+              <span class="platform-name">Other</span>
             </button>
           </div>
-          <div id="social-link-feedback" class="field-hint">
-            <i class="fas fa-info-circle"></i> Optional—add up to 6 social
-            profiles.
+
+          <!-- Expandable Input Area (shown when platform selected) -->
+          <div class="social-input-area" id="social-input-area">
+            <div class="social-input-header">
+              <i class="fab fa-instagram" id="social-input-icon"></i>
+              <span id="social-input-label">Instagram</span>
+              <button type="button" class="social-input-close" id="social-input-close" aria-label="Cancel">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <div class="social-input-row">
+              <input
+                id="social-link-input"
+                class="social-link-field"
+                placeholder="@username"
+                aria-label="Enter username or URL"
+              />
+              <button type="button" id="add-social-link-btn" class="social-confirm-btn">
+                <i class="fas fa-check"></i>
+              </button>
+            </div>
           </div>
-          <div
-            id="social-links-list"
-            class="social-links-list"
-            style="margin-top: 0.75rem"
-          ></div>
+
+          <!-- Hidden select for JS compatibility -->
+          <select id="social-link-type" class="hidden" aria-hidden="true">
+            <option value="instagram">Instagram</option>
+            <option value="facebook">Facebook</option>
+            <option value="linkedin">LinkedIn</option>
+            <option value="github">GitHub</option>
+            <option value="x">X</option>
+            <option value="custom">Other</option>
+          </select>
+
+          <div id="social-link-feedback" class="story-feedback hidden"></div>
+          <div id="social-links-list" class="social-links-list"></div>
         </div>
       </div>
     </div>
-
-    <!-- Public View FAB (floating action button) -->
-    <button
-      type="button"
-      class="profile-preview-fab"
-      id="public-view-fab"
-      title="Preview Public Profile"
-      style="display: none;"
-    >
-      <i class="fas fa-eye"></i>
-      <span class="fab-label">Public View</span>
-    </button>
 
     <div class="setup-navigation">
       <button
@@ -570,6 +467,18 @@ Example: CMN205 Introduction to Interactive Media 2 C2002 ST:14:40-16:10 12/14 Z
           id="setup-skip-btn"
         >
           Skip
+        </button>
+
+        <!-- Public View (desktop: placed above Next Step; mobile: floats) -->
+        <button
+          type="button"
+          class="profile-preview-fab"
+          id="public-view-fab"
+          title="Preview Public Profile"
+          style="display: none;"
+        >
+          <i class="fas fa-eye"></i>
+          <span class="fab-label">Public View</span>
         </button>
         <button
           type="button"

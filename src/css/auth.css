@@ -30,6 +30,13 @@ Modern authentication modal that matches the MeetchuThere design language with:
   }
 }
 
+/* Auth modal form inputs - pill-like rounded corners
+   Higher specificity to override .form-group input from admin.css */
+.auth-modal .form-group .form-input,
+.auth-modal .form-group input.form-input {
+  border-radius: var(--radius-xl, 1rem) !important;
+}
+
 .auth-body {
   -webkit-overflow-scrolling: touch;
 }

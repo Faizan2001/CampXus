@@ -53,10 +53,28 @@ export async function uploadProfilePhotoBlobs(uid, mainBlob, thumbBlob) {
   const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
   const mainRef = ref(storage, `profilePhotos/${uid}/photo.webp`);
   const thumbRef = ref(storage, `profilePhotos/${uid}/thumb.webp`);
-  await uploadBytes(mainRef, mainBlob, { contentType: "image/webp" });
-  await uploadBytes(thumbRef, thumbBlob, { contentType: "image/webp" });
-  const url = await getDownloadURL(mainRef);
-  const thumbUrl = await getDownloadURL(thumbRef);
+  const metadata = {
+    contentType: "image/webp",
+    // Cache-friendly: we store versioned download URLs (via `v=` query param) so it's
+    // safe to cache aggressively without risking stale profile photos after an update.
+    cacheControl: "public, max-age=31536000, immutable",
+  };
+  await uploadBytes(mainRef, mainBlob, metadata);
+  await uploadBytes(thumbRef, thumbBlob, metadata);
+  const uploadedAt = Date.now();
+  const appendVersion = (rawUrl) => {
+    try {
+      const u = new URL(rawUrl);
+      u.searchParams.set("v", String(uploadedAt));
+      return u.toString();
+    } catch (_e) {
+      const sep = rawUrl.includes("?") ? "&" : "?";
+      return `${rawUrl}${sep}v=${uploadedAt}`;
+    }
+  };
+
+  const url = appendVersion(await getDownloadURL(mainRef));
+  const thumbUrl = appendVersion(await getDownloadURL(thumbRef));
   return { url, thumbUrl };
 }
 
@@ -71,4 +89,3 @@ export async function deleteExistingProfilePhotos(uid) {
     // Ignore deletions failures; they might not exist
   }
 }
-

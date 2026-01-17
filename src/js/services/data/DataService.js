@@ -999,7 +999,7 @@ class DataManager {
   /**
    * Get just the minimal profile info (firstName, email, avatarConfig).
    * @param {string|object} userIdOrObj - UID or user object
-   * @returns {Promise<{uid: string, handle: string|null, email: string|null, firstName: string, lastName: string, major: string, profilePhotoUrl: string|null, avatarConfig: object|null}|null>}
+   * @returns {Promise<{uid: string, handle: string|null, email: string|null, firstName: string, lastName: string, major: string, profilePhotoUrl: string|null, profilePhotoThumbUrl: string|null, avatarConfig: object|null, useAvatar: boolean|undefined}|null>}
    * @example
    *   const mini = await dataManager.getUserProfileMinimal("abc123");
    */
@@ -1034,7 +1034,10 @@ class DataManager {
         lastName: profile.lastName ?? "",
         major: profile.major ?? "",
         profilePhotoUrl: profile.profilePhotoUrl ?? null,
+        profilePhotoThumbUrl: profile.profilePhotoThumbUrl ?? null,
         avatarConfig: data?.avatarConfig ?? null,
+        useAvatar:
+          typeof profile.useAvatar === "boolean" ? profile.useAvatar : undefined,
       };
       console.log(
         `Returned minimal profile for ${userId}:`,
@@ -3743,7 +3746,7 @@ class DataManager {
 
       // Find and update the friend's last interaction timestamp
       const updatedStarredFriends = starredFriends.map((friend) => {
-        if (friend.userId === friendId) {
+        if (friend.friendId === friendId || friend.userId === friendId) {
           return {
             ...friend,
             lastInteraction: newTimestamp,
@@ -3823,7 +3826,7 @@ class DataManager {
 
       // Find the starred friend to update
       const friendIndex = starredFriends.findIndex(
-        (friend) => friend.userId === friendId
+        (friend) => friend.friendId === friendId || friend.userId === friendId
       );
 
       if (friendIndex === -1) {
@@ -3844,6 +3847,10 @@ class DataManager {
         profilePhotoUrl:
           friendData.profile?.profilePhotoUrl ||
           existingFriend.profilePhotoUrl ||
+          null,
+        profilePhotoThumbUrl:
+          friendData.profile?.profilePhotoThumbUrl ||
+          existingFriend.profilePhotoThumbUrl ||
           null,
         useAvatar:
           typeof friendData.profile?.useAvatar === "boolean"
@@ -3922,14 +3929,16 @@ class DataManager {
         (f) => f.friendId || f.userId
       );
       const freshProfileDocs = await Promise.all(
-        friendIds.map((friendId) => getDoc(doc(db, "users", friendId)))
+        friendIds.map((friendId) =>
+          friendId ? getDoc(doc(db, "users", friendId)) : Promise.resolve(null)
+        )
       );
 
       // Update starred friends with fresh data
       const updatedStarredFriends = currentStarredFriends.map(
         (existingFriend, index) => {
           const freshDoc = freshProfileDocs[index];
-          if (!freshDoc.exists()) {
+          if (!freshDoc || !freshDoc.exists()) {
             return existingFriend; // Keep existing if friend not found
           }
 
@@ -3942,6 +3951,10 @@ class DataManager {
             profilePhotoUrl:
               freshData.profile?.profilePhotoUrl ||
               existingFriend.profilePhotoUrl ||
+              null,
+            profilePhotoThumbUrl:
+              freshData.profile?.profilePhotoThumbUrl ||
+              existingFriend.profilePhotoThumbUrl ||
               null,
             useAvatar:
               typeof freshData.profile?.useAvatar === "boolean"

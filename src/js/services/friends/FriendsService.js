@@ -476,6 +476,7 @@ export class FriendsManager {
       major: friendship.friendInfo?.major || "Unknown Major",
       avatarConfig: friendship.friendInfo?.avatarConfig || null,
       profilePhotoUrl: friendship.friendInfo?.profilePhotoUrl || null,
+      profilePhotoThumbUrl: friendship.friendInfo?.profilePhotoThumbUrl || null,
       useAvatar:
         typeof friendship.friendInfo?.useAvatar === "boolean"
           ? friendship.friendInfo.useAvatar
@@ -1549,25 +1550,64 @@ export class FriendsManager {
         };
       }
 
+      // If friendInfo is missing avatar/photo fields (common for older/stale payloads),
+      // fetch a minimal profile once so the Home bar can render instantly.
+      let minimal = null;
+      const missingHandle = !friendInfo?.handle;
+      const missingAvatarFields =
+        !friendInfo?.avatarConfig &&
+        !friendInfo?.profilePhotoUrl &&
+        !friendInfo?.profilePhotoThumbUrl;
+      const missingUseAvatar = typeof friendInfo?.useAvatar !== "boolean";
+
+      if (missingHandle || missingAvatarFields || missingUseAvatar) {
+        try {
+          minimal = await dataManager.getUserProfileMinimal(friendId);
+        } catch (e) {
+          console.warn(
+            "⚠️ Failed to fetch minimal profile for Quick Access (non-fatal):",
+            e
+          );
+        }
+      }
+
+      // Merge friendInfo over minimal WITHOUT allowing null/undefined to clobber fetched values.
+      // This prevents older/stale payloads (e.g. profilePhotoUrl: null) from wiping a real photo URL.
+      const resolvedFriendInfo = { ...(minimal || {}) };
+      if (friendInfo && typeof friendInfo === "object") {
+        Object.entries(friendInfo).forEach(([key, value]) => {
+          if (value === null || value === undefined) return;
+          if (
+            (key === "handle" || key === "major") &&
+            typeof value === "string" &&
+            value.trim().length === 0
+          ) {
+            return;
+          }
+          resolvedFriendInfo[key] = value;
+        });
+      }
+
       // Create Quick Access entry with recent-first metadata
       const now = new Date();
       const quickAccessEntry = {
         friendId: friendId,
-        handle: friendInfo.handle,
-        major: friendInfo.major,
-        avatarConfig: friendInfo.avatarConfig,
-        profilePhotoUrl: friendInfo.profilePhotoUrl || null,
+        handle: resolvedFriendInfo.handle,
+        major: resolvedFriendInfo.major,
+        avatarConfig: resolvedFriendInfo.avatarConfig,
+        profilePhotoUrl: resolvedFriendInfo.profilePhotoUrl || null,
+        profilePhotoThumbUrl: resolvedFriendInfo.profilePhotoThumbUrl || null,
         starredAt: now,
         lastInteraction: now, // For recent-first ordering
       };
 
-      if (typeof friendInfo.useAvatar === "boolean") {
-        quickAccessEntry.useAvatar = friendInfo.useAvatar;
+      if (typeof resolvedFriendInfo.useAvatar === "boolean") {
+        quickAccessEntry.useAvatar = resolvedFriendInfo.useAvatar;
       }
 
       // 🌍 Campus Presence: Add friendshipId if available (required for bilateral location sharing)
-      if (friendInfo.friendshipId) {
-        quickAccessEntry.friendshipId = friendInfo.friendshipId;
+      if (resolvedFriendInfo.friendshipId) {
+        quickAccessEntry.friendshipId = resolvedFriendInfo.friendshipId;
       } else {
         console.warn(
           `⚠️ friendshipId not available for @${friendInfo.handle} - location sharing may not work`

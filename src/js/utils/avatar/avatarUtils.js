@@ -35,6 +35,7 @@ function extractAvatarFields(userData = {}) {
 
   let avatarConfig = null;
   let profilePhotoUrl = null;
+  let profilePhotoThumbUrl = null;
   let useAvatar;
 
   for (const src of sources) {
@@ -45,6 +46,9 @@ function extractAvatarFields(userData = {}) {
     if (!profilePhotoUrl && src.profilePhotoUrl) {
       profilePhotoUrl = src.profilePhotoUrl;
     }
+    if (!profilePhotoThumbUrl && src.profilePhotoThumbUrl) {
+      profilePhotoThumbUrl = src.profilePhotoThumbUrl;
+    }
     if (
       typeof useAvatar === "undefined" &&
       typeof src.useAvatar === "boolean"
@@ -53,20 +57,50 @@ function extractAvatarFields(userData = {}) {
     }
   }
 
-  return { avatarConfig, profilePhotoUrl, useAvatar };
+  return { avatarConfig, profilePhotoUrl, profilePhotoThumbUrl, useAvatar };
 }
 
 /**
  * 🎨 Render user avatar with consistent fallback behavior
  * @param {Object} userData - User data object from any source
- * @param {boolean} useCache - Whether to use cache-busting for fresh avatars
+ * @param {boolean|Object} useCacheOrOptions - Back-compat boolean or options:
+ *   { useCache?: boolean, loading?: "lazy"|"eager", decoding?: "async"|"sync"|"auto",
+ *     fetchpriority?: "high"|"low"|"auto", referrerpolicy?: string }
  * @returns {string} HTML for avatar
  */
-export function renderUserAvatar(userData, useCache = true) {
+export function renderUserAvatar(userData, useCacheOrOptions = true) {
   try {
-    const avatarUrl = getAvatarUrl(userData, useCache);
+    const options =
+      useCacheOrOptions && typeof useCacheOrOptions === "object"
+        ? useCacheOrOptions
+        : { useCache: useCacheOrOptions };
+
+    const useCache =
+      typeof options.useCache === "boolean" ? options.useCache : true;
+    const preferThumb = options.preferThumb === true;
+    const loading = options.loading || "lazy";
+    const decoding = options.decoding || "async";
+    const fetchpriority = options.fetchpriority || null;
+    const referrerpolicy = options.referrerpolicy || null;
+
+    const { profilePhotoThumbUrl, useAvatar } = extractAvatarFields(
+      userData || {}
+    );
+    const avatarUrl =
+      preferThumb && profilePhotoThumbUrl && useAvatar !== true
+        ? profilePhotoThumbUrl
+        : getAvatarUrl(userData, useCache);
     if (avatarUrl) {
-      return `<img src="${avatarUrl}" alt="User Avatar" class="user-avatar-img" loading="lazy">`;
+      const attrs = [
+        `src="${avatarUrl}"`,
+        `alt="User Avatar"`,
+        `class="user-avatar-img"`,
+        `loading="${loading}"`,
+        `decoding="${decoding}"`,
+      ];
+      if (fetchpriority) attrs.push(`fetchpriority="${fetchpriority}"`);
+      if (referrerpolicy) attrs.push(`referrerpolicy="${referrerpolicy}"`);
+      return `<img ${attrs.join(" ")}>`;
     }
   } catch (error) {
     console.error("❌ Error rendering avatar, falling back to default.", error);
@@ -102,18 +136,38 @@ export function getAvatarUrl(userData, useCache = true) {
     return profilePhotoUrl;
   }
 
-  if (
-    !avatarConfig ||
-    !avatarManager ||
-    typeof avatarManager.generateAvatarUrl !== "function"
-  ) {
+  if (!avatarManager || typeof avatarManager.generateAvatarUrl !== "function") {
     return null;
   }
 
   try {
+    // If user never set an avatar config, still show a deterministic DiceBear avatar
+    // (Messenger/Instagram-style: always show *something* meaningful).
+    const fallbackUserId =
+      userData?.uid ||
+      userData?.friendId ||
+      userData?.userId ||
+      userData?.id ||
+      userData?.profile?.uid ||
+      userData?.profile?.id ||
+      "default";
+
+    const hasValidConfig =
+      avatarConfig &&
+      typeof avatarManager.isValidAvatarConfig === "function" &&
+      avatarManager.isValidAvatarConfig(avatarConfig);
+
+    const config = hasValidConfig
+      ? avatarConfig
+      : typeof avatarManager.generateDefaultAvatar === "function"
+      ? avatarManager.generateDefaultAvatar(fallbackUserId)
+      : null;
+
+    if (!config) return null;
+
     // When useCache is true, do NOT bust cache (avoid adding timestamp),
     // so avatars remain stable across re-renders.
-    return avatarManager.generateAvatarUrl(avatarConfig, !useCache);
+    return avatarManager.generateAvatarUrl(config, !useCache);
   } catch (error) {
     console.error("❌ Error generating avatar URL:", error);
     return null;

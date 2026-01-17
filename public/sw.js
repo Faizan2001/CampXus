@@ -27,10 +27,12 @@
 // ═══════════════════════════════════════════════════════════════════
 
 // Bump version to force clients to re-cache everything (increment on deploy)
-const CACHE_VERSION = "v10";
+const CACHE_VERSION = "v11";
 const STATIC_CACHE = `meetchuthere-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `meetchuthere-dynamic-${CACHE_VERSION}`;
 const FONT_CACHE = `meetchuthere-fonts-${CACHE_VERSION}`;
+const AVATAR_CACHE = `meetchuthere-avatars-${CACHE_VERSION}`;
+const AVATAR_CACHE_MAX_ENTRIES = 300;
 
 // Core app shell - these MUST be cached for offline startup
 const APP_SHELL = [
@@ -63,7 +65,7 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   console.log("[SW] Activating service worker...");
-  const currentCaches = [STATIC_CACHE, DYNAMIC_CACHE, FONT_CACHE];
+  const currentCaches = [STATIC_CACHE, DYNAMIC_CACHE, FONT_CACHE, AVATAR_CACHE];
 
   event.waitUntil(
     caches
@@ -195,6 +197,70 @@ self.addEventListener("fetch", (event) => {
             // Return empty response for failed font requests
             return new Response("", { status: 503 });
           });
+      })
+    );
+    return;
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Strategy 3.5: AVATARS / PROFILE PHOTOS (DiceBear, Firebase Storage, Googleusercontent)
+  // Cache-first for instant avatar rendering (critical on the Home page).
+  // We cache opaque responses too (common for <img> no-cors requests).
+  // ─────────────────────────────────────────────────────────────────
+  const isAvatarHost =
+    url.hostname === "api.dicebear.com" ||
+    url.hostname.endsWith(".dicebear.com") ||
+    url.hostname === "firebasestorage.googleapis.com" ||
+    url.hostname === "storage.googleapis.com" ||
+    url.hostname === "googleusercontent.com" ||
+    url.hostname.endsWith(".googleusercontent.com");
+
+  if (isAvatarHost) {
+    // IMPORTANT:
+    // Only cache GET image requests. Firebase Storage uploads (POST/PUT) may hit
+    // `firebasestorage.googleapis.com` and must never be intercepted by Cache API.
+    if (request.method !== "GET") {
+      return;
+    }
+    const accept = request.headers.get("accept") || "";
+    const isImageRequest =
+      request.destination === "image" || accept.includes("image/");
+    if (!isImageRequest) {
+      return;
+    }
+
+    event.respondWith(
+      caches.open(AVATAR_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+
+        try {
+          const networkResponse = await fetch(request);
+          // Cache successful or opaque responses
+          if (
+            networkResponse &&
+            (networkResponse.status === 200 || networkResponse.type === "opaque")
+          ) {
+            await cache.put(request, networkResponse.clone());
+
+            // Simple eviction to prevent unbounded growth
+            try {
+              const keys = await cache.keys();
+              if (keys.length > AVATAR_CACHE_MAX_ENTRIES) {
+                const excess = keys.length - AVATAR_CACHE_MAX_ENTRIES;
+                for (let i = 0; i < excess; i++) {
+                  await cache.delete(keys[i]);
+                }
+              }
+            } catch (_e) {
+              // Non-fatal: cache eviction best-effort
+            }
+          }
+          return networkResponse;
+        } catch (_e) {
+          // Offline or fetch failed
+          return cached || new Response("", { status: 504 });
+        }
       })
     );
     return;
