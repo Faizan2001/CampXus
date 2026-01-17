@@ -136,38 +136,25 @@ export function getAvatarUrl(userData, useCache = true) {
     return profilePhotoUrl;
   }
 
-  if (!avatarManager || typeof avatarManager.generateAvatarUrl !== "function") {
+  if (!avatarConfig) {
     return null;
   }
 
   try {
-    // If user never set an avatar config, still show a deterministic DiceBear avatar
-    // (Messenger/Instagram-style: always show *something* meaningful).
-    const fallbackUserId =
-      userData?.uid ||
-      userData?.friendId ||
-      userData?.userId ||
-      userData?.id ||
-      userData?.profile?.uid ||
-      userData?.profile?.id ||
-      "default";
+    if (!avatarManager || typeof avatarManager.generateAvatarUrl !== "function") {
+      return null;
+    }
 
-    const hasValidConfig =
-      avatarConfig &&
+    if (
       typeof avatarManager.isValidAvatarConfig === "function" &&
-      avatarManager.isValidAvatarConfig(avatarConfig);
-
-    const config = hasValidConfig
-      ? avatarConfig
-      : typeof avatarManager.generateDefaultAvatar === "function"
-      ? avatarManager.generateDefaultAvatar(fallbackUserId)
-      : null;
-
-    if (!config) return null;
+      !avatarManager.isValidAvatarConfig(avatarConfig)
+    ) {
+      return null;
+    }
 
     // When useCache is true, do NOT bust cache (avoid adding timestamp),
     // so avatars remain stable across re-renders.
-    return avatarManager.generateAvatarUrl(config, !useCache);
+    return avatarManager.generateAvatarUrl(avatarConfig, !useCache);
   } catch (error) {
     console.error("❌ Error generating avatar URL:", error);
     return null;

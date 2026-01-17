@@ -3164,9 +3164,18 @@ export class HorizontalFriendsBar {
     // PROFILE UPDATE CIRCUIT BREAKER: Prevent infinite profile update loops
     const globalProfileKey = "profile_updates_in_progress";
     if (window[globalProfileKey]) {
-      console.log(
-        `🛑 PROFILE CIRCUIT BREAKER: Global profile updates in progress, blocking ${friendId}`
-      );
+      // IMPORTANT: don't drop updates on the floor.
+      // Many friends can fire an initial profile snapshot at once; queue and retry shortly so
+      // avatars/photos swap in as soon as they become available.
+      if (!this._queuedProfileUpdateIds) this._queuedProfileUpdateIds = new Set();
+      if (!this._queuedProfileUpdateIds.has(friendId)) {
+        this._queuedProfileUpdateIds.add(friendId);
+        this.addTrackedTimeout(() => {
+          this._queuedProfileUpdateIds.delete(friendId);
+          if (!this.container || !this.container.isConnected) return;
+          this.handleStarredFriendProfileUpdate(friendId, friendProfile);
+        }, 250);
+      }
       return;
     }
 
@@ -3339,11 +3348,11 @@ export class HorizontalFriendsBar {
       // Clear processing flags with staggered timing
       setTimeout(() => {
         this[profileUpdateKey] = false;
-      }, 500);
+      }, 150);
 
       setTimeout(() => {
         window[globalProfileKey] = false;
-      }, 1000);
+      }, 250);
     }
   }
 

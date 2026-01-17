@@ -3558,10 +3558,12 @@ class DataManager {
   /**
    * 📋 Get user's Quick Access friends data
    * @param {string} userId - The user's ID
+   * @param {{useCache?: boolean}} options - Optional cache control (default: use cache)
    * @returns {Promise<Object|null>} Quick Access data or null if not found
    */
-  async getQuickAccessFriends(userId) {
+  async getQuickAccessFriends(userId, options = {}) {
     try {
+      const useCache = options?.useCache !== false;
       // Skip Firestore read if signed out or during intentional logout
       const intentionalLogout =
         typeof sessionStorage !== "undefined" &&
@@ -3609,27 +3611,31 @@ class DataManager {
 
       // Check cache first
       const cacheKey = `quick_access_${userId}`;
-      console.log(`🔍 [DataManager] Cache lookup for key: ${cacheKey}`);
-      const cachedData = this.getCachedData(cacheKey);
-      console.log(
-        `🔍 [DataManager] Cache result:`,
-        cachedData
-          ? `HIT (${cachedData.starredFriends?.length || 0} friends)`
-          : "MISS"
-      );
-      if (cachedData) {
-        console.log("📦 [DataManager] Using cached Quick Access data");
-        // Ensure cached data has proper array structure (defensive check)
-        if (!Array.isArray(cachedData.starredFriends)) {
-          console.warn(
-            "⚠️ [DataManager] Cached starredFriends is not an array, fixing...",
-            typeof cachedData.starredFriends
-          );
-          cachedData.starredFriends = [];
-          // Update cache with fixed data
-          this.setCachedData(cacheKey, cachedData);
+      if (useCache) {
+        console.log(`🔍 [DataManager] Cache lookup for key: ${cacheKey}`);
+        const cachedData = this.getCachedData(cacheKey);
+        console.log(
+          `🔍 [DataManager] Cache result:`,
+          cachedData
+            ? `HIT (${cachedData.starredFriends?.length || 0} friends)`
+            : "MISS"
+        );
+        if (cachedData) {
+          console.log("📦 [DataManager] Using cached Quick Access data");
+          // Ensure cached data has proper array structure (defensive check)
+          if (!Array.isArray(cachedData.starredFriends)) {
+            console.warn(
+              "⚠️ [DataManager] Cached starredFriends is not an array, fixing...",
+              typeof cachedData.starredFriends
+            );
+            cachedData.starredFriends = [];
+            // Update cache with fixed data
+            this.setCachedData(cacheKey, cachedData);
+          }
+          return cachedData;
         }
-        return cachedData;
+      } else {
+        console.log("🌐 [DataManager] Bypassing Quick Access cache (fresh read)");
       }
 
       // Get from Firestore

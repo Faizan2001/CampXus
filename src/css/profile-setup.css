@@ -1593,8 +1593,10 @@ body:not(.dark-mode) .add-custom-btn {
   opacity: 1 !important;
   position: relative;
   overflow: hidden;
-  animation: howBtnPulse 2s ease-in-out infinite, howBtnShimmer 3s linear infinite;
-  box-shadow: 
+  animation:
+    howBtnPulse 2s ease-in-out infinite,
+    howBtnShimmer 3s linear infinite;
+  box-shadow:
     0 0 12px rgba(255, 107, 107, 0.5),
     0 0 24px rgba(238, 90, 36, 0.3),
     0 2px 8px rgba(0, 0, 0, 0.2);
@@ -1603,7 +1605,7 @@ body:not(.dark-mode) .add-custom-btn {
 }
 
 .help-how-btn::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -50%;
   left: -50%;
@@ -1621,11 +1623,13 @@ body:not(.dark-mode) .add-custom-btn {
 
 .help-how-btn:hover {
   transform: scale(1.08);
-  box-shadow: 
+  box-shadow:
     0 0 20px rgba(255, 107, 107, 0.7),
     0 0 40px rgba(238, 90, 36, 0.5),
     0 4px 12px rgba(0, 0, 0, 0.3);
-  animation: howBtnPulse 1s ease-in-out infinite, howBtnShimmer 1.5s linear infinite;
+  animation:
+    howBtnPulse 1s ease-in-out infinite,
+    howBtnShimmer 1.5s linear infinite;
 }
 
 .help-how-btn:active {
@@ -1633,14 +1637,15 @@ body:not(.dark-mode) .add-custom-btn {
 }
 
 @keyframes howBtnPulse {
-  0%, 100% {
-    box-shadow: 
+  0%,
+  100% {
+    box-shadow:
       0 0 12px rgba(255, 107, 107, 0.5),
       0 0 24px rgba(238, 90, 36, 0.3),
       0 2px 8px rgba(0, 0, 0, 0.2);
   }
   50% {
-    box-shadow: 
+    box-shadow:
       0 0 20px rgba(255, 107, 107, 0.8),
       0 0 40px rgba(238, 90, 36, 0.5),
       0 4px 16px rgba(0, 0, 0, 0.3);
@@ -1660,7 +1665,8 @@ body:not(.dark-mode) .add-custom-btn {
   0% {
     left: -100%;
   }
-  50%, 100% {
+  50%,
+  100% {
     left: 100%;
   }
 }

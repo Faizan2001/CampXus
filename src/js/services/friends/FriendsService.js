@@ -1779,7 +1779,9 @@ export class FriendsManager {
       );
 
       // Get Quick Access data from database
-      const quickAccessData = await dataManager.getQuickAccessFriends(uid);
+      const quickAccessData = await dataManager.getQuickAccessFriends(uid, {
+        useCache,
+      });
 
       if (!quickAccessData || !quickAccessData.starredFriends) {
         console.log("📋 No Quick Access friends found");

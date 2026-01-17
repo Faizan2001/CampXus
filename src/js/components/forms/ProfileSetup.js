@@ -100,7 +100,7 @@ class ProfileSetup {
     // CRITICAL: Prevent multiple instances from being created
     if (window.profileSetupInstance) {
       console.warn(
-        "⚠️ ProfileSetup instance already exists! Returning existing instance."
+        "⚠️ ProfileSetup instance already exists! Returning existing instance.",
       );
       return window.profileSetupInstance;
     }
@@ -493,7 +493,7 @@ class ProfileSetup {
               cooldownBadge.title = "Handle change locked until cooldown ends";
             }
             feedbackEl.textContent = `Handle locked – change available in ${formatCooldown(
-              remainingMs
+              remainingMs,
             )}`;
             feedbackEl.className = "field-hint";
             if (prefilledExistingHandle2) handleInput.classList.add("valid");
@@ -505,7 +505,7 @@ class ProfileSetup {
                 } else if (cooldownBadge) {
                   cooldownBadge.textContent = formatCooldown(res.remainingMs);
                   feedbackEl.textContent = `Handle locked – change available in ${formatCooldown(
-                    res.remainingMs
+                    res.remainingMs,
                   )}`;
                 }
               }, 60000);
@@ -517,7 +517,7 @@ class ProfileSetup {
         document.addEventListener(
           "profile:hydrated",
           () => updateCooldownUI(),
-          { once: true }
+          { once: true },
         );
       }
       if (email) email.value = getProfileValue("email") || "";
@@ -556,7 +556,7 @@ class ProfileSetup {
         // Read raw values from the organized profile object so we can detect absence
         const rawUseAvatar = Object.prototype.hasOwnProperty.call(
           profile,
-          "useAvatar"
+          "useAvatar",
         )
           ? profile.useAvatar
           : null;
@@ -601,7 +601,7 @@ class ProfileSetup {
           ? profile.interests
           : [];
         interests.forEach((i) =>
-          this.interests.add(i.toString().toLowerCase())
+          this.interests.add(i.toString().toLowerCase()),
         );
         this.renderInterestsSelected();
         this.renderInterestsSuggestions();
@@ -613,7 +613,7 @@ class ProfileSetup {
           ? profile.socialLinks
           : [];
         this.socialLinks = socialLinks.filter(
-          (link) => link && link.type && link.url
+          (link) => link && link.type && link.url,
         );
         this.renderSocialLinks();
       } catch (_) {}
@@ -778,7 +778,7 @@ class ProfileSetup {
           }
           // Provide feedback text
           feedbackEl.textContent = `Handle locked – change available in ${formatCooldown(
-            remainingMs
+            remainingMs,
           )}`;
           feedbackEl.className = "field-hint";
           // Ensure validation passes for current handle
@@ -793,7 +793,7 @@ class ProfileSetup {
               } else if (cooldownBadge) {
                 cooldownBadge.textContent = formatCooldown(res.remainingMs);
                 feedbackEl.textContent = `Handle locked – change available in ${formatCooldown(
-                  res.remainingMs
+                  res.remainingMs,
                 )}`;
               }
             }, 60000); // update every minute
@@ -1000,7 +1000,7 @@ class ProfileSetup {
         await this.initializeSetup();
       } else {
         console.warn(
-          "🤷 No user logged in. Profile setup will not initialize."
+          "🤷 No user logged in. Profile setup will not initialize.",
         );
 
         // We can optionally hide the setup form or show a login prompt here.
@@ -1113,7 +1113,7 @@ class ProfileSetup {
       } catch (error) {
         console.error(
           "❌ Error loading fresh profile data during re-initialization:",
-          error
+          error,
         );
         // Fallback to basic prefill if data loading fails
         this.prefillUserData();
@@ -1221,15 +1221,15 @@ class ProfileSetup {
     if (this.currentStep === 0) {
       // Step 0: Basics
       this.profileData.firstName = formatName(
-        document.getElementById("setup-first-name").value.trim()
+        document.getElementById("setup-first-name").value.trim(),
       );
       this.profileData.lastName = formatName(
-        document.getElementById("setup-last-name").value.trim()
+        document.getElementById("setup-last-name").value.trim(),
       );
       this.profileData.email = document.getElementById("setup-email").value; // Already pre-filled and readonly
       this.profileData.studentId = generateStudentId(this.profileData.email); // Generate using our function!
       this.profileData.startingYear = document.getElementById(
-        "setup-starting-year"
+        "setup-starting-year",
       ).value;
       this.profileData.major = document
         .getElementById("setup-major")
@@ -1372,7 +1372,7 @@ class ProfileSetup {
       } catch (error) {
         console.error(
           "⚠️ SPA Router not available during skip! Cannot navigate to home.",
-          error
+          error,
         );
         // In Vite/SPA mode, we should never fall back to hard refresh
       }
@@ -1380,7 +1380,7 @@ class ProfileSetup {
       console.error("Error during skip setup:", error);
       notificationManager.show(
         "Could not process skip action. Please try again.",
-        "error"
+        "error",
       );
       if (nextBtn) nextBtn.disabled = false;
     }
@@ -1478,7 +1478,7 @@ class ProfileSetup {
           lastName,
           email,
           startingYear,
-          major
+          major,
         );
       } else {
         nextBtn.classList.remove("disabled-state");
@@ -1576,63 +1576,63 @@ class ProfileSetup {
   /**
    * ===================== Q&A (Curated) - REDESIGNED Card-Based UI =====================
    */
-	  initQnaUI() {
-	    try {
-	      const cardsContainer = document.getElementById("icebreaker-cards");
-	      if (!cardsContainer) return;
+  initQnaUI() {
+    try {
+      const cardsContainer = document.getElementById("icebreaker-cards");
+      if (!cardsContainer) return;
 
-	      // Track which card is currently expanded
-	      this.expandedQnaId = null;
+      // Track which card is currently expanded
+      this.expandedQnaId = null;
 
-	      // Only count/render prompts that exist in the current bank.
-	      // This prevents stale/removed IDs from passing validation but not being saved.
-	      const bankIds = new Set((this.qnaBank || []).map((q) => q.id));
-	      const staleIds = Array.from(this.qnaAnswers.keys()).filter(
-	        (id) => !bankIds.has(id)
-	      );
-	      if (staleIds.length) {
-	        staleIds.forEach((id) => {
-	          this.qnaAnswers.delete(id);
-	          this.qnaSelectedIds.delete(id);
-	        });
-	        console.warn(
-	          "[ProfileSetup] Dropped stale icebreaker IDs (no longer in bank):",
-	          staleIds
-	        );
-	      }
+      // Only count/render prompts that exist in the current bank.
+      // This prevents stale/removed IDs from passing validation but not being saved.
+      const bankIds = new Set((this.qnaBank || []).map((q) => q.id));
+      const staleIds = Array.from(this.qnaAnswers.keys()).filter(
+        (id) => !bankIds.has(id),
+      );
+      if (staleIds.length) {
+        staleIds.forEach((id) => {
+          this.qnaAnswers.delete(id);
+          this.qnaSelectedIds.delete(id);
+        });
+        console.warn(
+          "[ProfileSetup] Dropped stale icebreaker IDs (no longer in bank):",
+          staleIds,
+        );
+      }
 
-	      // Start with existing answers' questionIds (in-bank only)
-	      const existingIds = Array.from(this.qnaAnswers.entries())
-	        // Align selection logic with the card UI: "selected" means a valid answer length.
-	        .filter(
-	          ([id, a]) =>
-	            bankIds.has(id) &&
-	            typeof a === "string" &&
-	            a.trim().length >= MIN_QA_ANSWER_LENGTH
-	        )
-	        .map(([id]) => id);
-	      if (existingIds.length) {
-	        existingIds.forEach((id) => this.qnaSelectedIds.add(id));
-	      }
+      // Start with existing answers' questionIds (in-bank only)
+      const existingIds = Array.from(this.qnaAnswers.entries())
+        // Align selection logic with the card UI: "selected" means a valid answer length.
+        .filter(
+          ([id, a]) =>
+            bankIds.has(id) &&
+            typeof a === "string" &&
+            a.trim().length >= MIN_QA_ANSWER_LENGTH,
+        )
+        .map(([id]) => id);
+      if (existingIds.length) {
+        existingIds.forEach((id) => this.qnaSelectedIds.add(id));
+      }
 
-	      // Render all icebreaker cards
-	      this.renderIcebreakerCards();
-	      this.updateIcebreakerCounter();
-	      this.validateCurrentStep();
+      // Render all icebreaker cards
+      this.renderIcebreakerCards();
+      this.updateIcebreakerCounter();
+      this.validateCurrentStep();
 
-	      // If we dropped stale answers and the user now has 0 valid answers, prompt them to pick a new one.
-	      if (staleIds.length) {
-	        const feedback = document.getElementById("qna-feedback");
-	        const count = this.getQnaResponseCount(MIN_QA_ANSWER_LENGTH);
-	        if (feedback && count < MIN_QA_ANSWERS) {
-	          feedback.innerHTML = `<i class="fas fa-info-circle"></i> <span>Some older prompts were retired — pick a new one</span>`;
-	          feedback.className = "story-feedback";
-	        }
-	      }
-	    } catch (err) {
-	      console.warn("initQnaUI failed:", err);
-	    }
-	  }
+      // If we dropped stale answers and the user now has 0 valid answers, prompt them to pick a new one.
+      if (staleIds.length) {
+        const feedback = document.getElementById("qna-feedback");
+        const count = this.getQnaResponseCount(MIN_QA_ANSWER_LENGTH);
+        if (feedback && count < MIN_QA_ANSWERS) {
+          feedback.innerHTML = `<i class="fas fa-info-circle"></i> <span>Some older prompts were retired — pick a new one</span>`;
+          feedback.className = "story-feedback";
+        }
+      }
+    } catch (err) {
+      console.warn("initQnaUI failed:", err);
+    }
+  }
 
   /**
    * Emoji icons for each icebreaker prompt
@@ -1642,7 +1642,7 @@ class ProfileSetup {
       "three-words": "💭",
       "group-role": "🎯",
       "tiny-ritual": "☀️",
-      "proudest": "🏆",
+      proudest: "🏆",
       "niche-interest": "🔮",
       "ask-me": "👋",
       "this-semester": "📚",
@@ -1663,7 +1663,9 @@ class ProfileSetup {
       card.className = "icebreaker-card";
       card.setAttribute("data-prompt", q.id);
 
-      const hasAnswer = this.qnaAnswers.has(q.id) && this.qnaAnswers.get(q.id).trim().length >= MIN_QA_ANSWER_LENGTH;
+      const hasAnswer =
+        this.qnaAnswers.has(q.id) &&
+        this.qnaAnswers.get(q.id).trim().length >= MIN_QA_ANSWER_LENGTH;
       const isExpanded = this.expandedQnaId === q.id;
       const answerText = this.qnaAnswers.get(q.id) || "";
 
@@ -1788,33 +1790,37 @@ class ProfileSetup {
   /**
    * Toggle icebreaker card expand/collapse
    */
-	  _toggleIcebreakerCard(id) {
-	    if (this.expandedQnaId === id) {
-	      // Collapse if already expanded
-	      this.expandedQnaId = null;
-	    } else {
+  _toggleIcebreakerCard(id) {
+    if (this.expandedQnaId === id) {
+      // Collapse if already expanded
+      this.expandedQnaId = null;
+    } else {
       // Check if we can add more (max 5 selected)
-      const hasAnswer = this.qnaAnswers.has(id) && this.qnaAnswers.get(id).trim().length >= MIN_QA_ANSWER_LENGTH;
-	      if (!hasAnswer && this.qnaSelectedIds.size >= MAX_QA_ANSWERS) {
-	        const feedback = document.getElementById("qna-feedback");
-	        if (feedback) {
-	          feedback.innerHTML = `<i class="fas fa-exclamation-circle"></i> <span>Max ${MAX_QA_ANSWERS} prompts</span>`;
-	          feedback.className = "story-feedback error";
-	          setTimeout(() => {
-	            // Restore the correct message for the current count (avoid misleading "Pick at least 1").
-	            this.updateIcebreakerCounter();
-	          }, 2000);
-	        }
-	        return;
-	      }
-	      this.expandedQnaId = id;
-	    }
+      const hasAnswer =
+        this.qnaAnswers.has(id) &&
+        this.qnaAnswers.get(id).trim().length >= MIN_QA_ANSWER_LENGTH;
+      if (!hasAnswer && this.qnaSelectedIds.size >= MAX_QA_ANSWERS) {
+        const feedback = document.getElementById("qna-feedback");
+        if (feedback) {
+          feedback.innerHTML = `<i class="fas fa-exclamation-circle"></i> <span>Max ${MAX_QA_ANSWERS} prompts</span>`;
+          feedback.className = "story-feedback error";
+          setTimeout(() => {
+            // Restore the correct message for the current count (avoid misleading "Pick at least 1").
+            this.updateIcebreakerCounter();
+          }, 2000);
+        }
+        return;
+      }
+      this.expandedQnaId = id;
+    }
     this.renderIcebreakerCards();
 
     // Focus textarea if expanded
     if (this.expandedQnaId) {
       setTimeout(() => {
-        const textarea = document.querySelector(`.icebreaker-card[data-prompt="${id}"] .icebreaker-answer-input`);
+        const textarea = document.querySelector(
+          `.icebreaker-card[data-prompt="${id}"] .icebreaker-answer-input`,
+        );
         if (textarea) textarea.focus();
       }, 100);
     }
@@ -1925,7 +1931,7 @@ class ProfileSetup {
       }
       if (fileInput && !fileInput.hasAttribute("data-listener-attached")) {
         fileInput.addEventListener("change", (e) =>
-          this.handlePhotoSelected(e)
+          this.handlePhotoSelected(e),
         );
         fileInput.setAttribute("data-listener-attached", "true");
       }
@@ -1933,7 +1939,7 @@ class ProfileSetup {
         swapBtn.addEventListener("click", () => {
           console.log(
             "🔄 Swapping UI mode. Current useAvatar:",
-            this.useAvatar
+            this.useAvatar,
           );
           // Toggle between photo and avatar UI
           this.useAvatar = !this.useAvatar;
@@ -1969,7 +1975,7 @@ class ProfileSetup {
       if (mainBlob.size > 400 * 1024) {
         notificationManager.show(
           "Photo is too large after processing. Please choose a different image.",
-          "warning"
+          "warning",
         );
         return;
       }
@@ -1980,7 +1986,7 @@ class ProfileSetup {
       const { url, thumbUrl } = await uploadProfilePhotoBlobs(
         userId,
         mainBlob,
-        thumbBlob
+        thumbBlob,
       );
 
       this.profilePhotoUrl = url;
@@ -1999,7 +2005,7 @@ class ProfileSetup {
       console.error("Photo upload failed:", err);
       notificationManager.show(
         "Failed to upload photo. Please try another image.",
-        "error"
+        "error",
       );
     }
   }
@@ -2131,7 +2137,11 @@ class ProfileSetup {
       const inputWrapper = document.getElementById("custom-interest-wrapper");
 
       // Custom interest toggle
-      if (toggleBtn && inputWrapper && !toggleBtn.hasAttribute("data-listener-attached")) {
+      if (
+        toggleBtn &&
+        inputWrapper &&
+        !toggleBtn.hasAttribute("data-listener-attached")
+      ) {
         toggleBtn.addEventListener("click", () => {
           toggleBtn.classList.add("hidden");
           inputWrapper.classList.add("visible");
@@ -2339,12 +2349,32 @@ class ProfileSetup {
 
       // Platform icon and placeholder config
       const platformConfig = {
-        instagram: { icon: "fab fa-instagram", label: "Instagram", placeholder: "@username" },
-        facebook: { icon: "fab fa-facebook-f", label: "Facebook", placeholder: "Profile URL or username" },
-        linkedin: { icon: "fab fa-linkedin-in", label: "LinkedIn", placeholder: "Profile URL or username" },
-        github: { icon: "fab fa-github", label: "GitHub", placeholder: "@username" },
+        instagram: {
+          icon: "fab fa-instagram",
+          label: "Instagram",
+          placeholder: "@username",
+        },
+        facebook: {
+          icon: "fab fa-facebook-f",
+          label: "Facebook",
+          placeholder: "Profile URL or username",
+        },
+        linkedin: {
+          icon: "fab fa-linkedin-in",
+          label: "LinkedIn",
+          placeholder: "Profile URL or username",
+        },
+        github: {
+          icon: "fab fa-github",
+          label: "GitHub",
+          placeholder: "@username",
+        },
         x: { icon: "fab fa-x-twitter", label: "X", placeholder: "@handle" },
-        custom: { icon: "fas fa-link", label: "Other", placeholder: "https://..." },
+        custom: {
+          icon: "fas fa-link",
+          label: "Other",
+          placeholder: "https://...",
+        },
       };
 
       // Show input area for selected platform
@@ -2637,7 +2667,7 @@ class ProfileSetup {
     } else if (!isValidStartingYear(startingYear)) {
       this.showFieldError(
         "setup-starting-year",
-        "Please enter a valid starting year"
+        "Please enter a valid starting year",
       );
     }
 
@@ -2646,7 +2676,7 @@ class ProfileSetup {
     } else if (!this.isValidMajorCode(major.toUpperCase())) {
       this.showFieldError(
         "setup-major",
-        "Please select a valid major code from the list"
+        "Please select a valid major code from the list",
       );
     }
   }
@@ -2684,7 +2714,7 @@ class ProfileSetup {
   clearValidationErrors() {
     // Remove error styling from all form fields
     const formFields = document.querySelectorAll(
-      ".form-field input, .form-field select, .form-field textarea"
+      ".form-field input, .form-field select, .form-field textarea",
     );
     formFields.forEach((field) => {
       field.classList.remove("error");
@@ -2711,7 +2741,7 @@ class ProfileSetup {
     steps.forEach((step) => step.classList.remove("active")); // More robust way to hide
 
     const currentStepElement = document.querySelector(
-      `.setup-step[data-step="${this.currentStep}"]`
+      `.setup-step[data-step="${this.currentStep}"]`,
     );
 
     if (currentStepElement) {
@@ -2719,7 +2749,7 @@ class ProfileSetup {
     } else {
       console.error(
         "❌ Could not find step element for step:",
-        this.currentStep
+        this.currentStep,
       );
     }
 
@@ -2792,7 +2822,7 @@ class ProfileSetup {
               if (!uid) {
                 notificationManager.show(
                   "Please sign in to preview your public profile.",
-                  "info"
+                  "info",
                 );
                 return;
               }
@@ -2848,7 +2878,7 @@ class ProfileSetup {
    */
   showSuccessMessage(
     message = "All Set! 🎉",
-    subtitle = "Your profile is ready. Redirecting..."
+    subtitle = "Your profile is ready. Redirecting...",
   ) {
     if (this.dom.card) {
       this.dom.card.innerHTML = `
@@ -2894,7 +2924,7 @@ class ProfileSetup {
       // the default generated avatar).
       try {
         this.avatarConfig = avatarManager.generateDefaultAvatar(
-          this.currentUser.uid
+          this.currentUser.uid,
         );
       } catch (e) {
         console.warn("⚠️ Failed to generate default avatar config", e);
@@ -2925,7 +2955,7 @@ class ProfileSetup {
       now - this._lastAvatarEditClickAt < 2000;
     if (!recentExplicitClick) {
       console.warn(
-        "[ProfileSetup] Ignoring openAvatarEditor call without recent explicit avatar button click"
+        "[ProfileSetup] Ignoring openAvatarEditor call without recent explicit avatar button click",
       );
       return;
     }
@@ -2937,7 +2967,7 @@ class ProfileSetup {
       console.error("❌ Avatar manager not available");
       notificationManager.show(
         "Avatar system is not loaded. Please refresh the page.",
-        "error"
+        "error",
       );
       return;
     }
@@ -2946,7 +2976,7 @@ class ProfileSetup {
       console.error("❌ No user available for avatar editor");
       notificationManager.show(
         "Please sign in to customize your avatar.",
-        "info"
+        "info",
       );
       return;
     }
@@ -2987,12 +3017,12 @@ class ProfileSetup {
       // 🛡️ SAFEGUARD: Ensure avatar config is clean (should already be clean from avatar editor)
       console.log(
         "🛡️ [ProfileSetup] Verifying avatar config is clean:",
-        newAvatarConfig
+        newAvatarConfig,
       );
       const cleanedConfig = avatarManager.cleanAvatarConfig(newAvatarConfig);
       console.log(
         "🛡️ [ProfileSetup] Verified clean avatar config:",
-        cleanedConfig
+        cleanedConfig,
       );
 
       // 1. Get the current profile and update avatarConfig
@@ -3005,7 +3035,7 @@ class ProfileSetup {
       // 2. Save the updated profile to Firestore
       const result = await dataManager.saveUserProfile(
         currentUser.user.uid,
-        updatedProfile
+        updatedProfile,
       );
 
       if (!result.success) {
@@ -3025,15 +3055,14 @@ class ProfileSetup {
             avatarConfig: cleanedConfig,
             timestamp: Date.now(),
           },
-        })
+        }),
       );
 
       // 5. 🛡️ FALLBACK: Also try direct force refresh as backup
       try {
         // Dynamic import to avoid circular dependencies
-        const { forceAvatarRefresh } = await import(
-          "../../components/navigation/Menu.js"
-        );
+        const { forceAvatarRefresh } =
+          await import("../../components/navigation/Menu.js");
         if (typeof forceAvatarRefresh === "function") {
           forceAvatarRefresh(updatedProfile);
           console.log("✅ Direct avatar refresh fallback called");
@@ -3041,7 +3070,7 @@ class ProfileSetup {
       } catch (error) {
         console.log(
           "⚠️ Direct avatar refresh fallback failed (not critical):",
-          error
+          error,
         );
       }
 
@@ -3109,7 +3138,7 @@ class ProfileSetup {
       ).trim();
       if (!effectiveEmail) {
         throw new Error(
-          "No email available. Please sign in and fill your email."
+          "No email available. Please sign in and fill your email.",
         );
       }
       const domainPart = effectiveEmail.includes("@")
@@ -3201,7 +3230,7 @@ class ProfileSetup {
         } catch (error) {
           console.warn(
             "⚠️ Failed to hydrate onboarding state before profile save; falling back to persisted data",
-            error
+            error,
           );
           runtimeOnboardingState = onboardingService.getState
             ? onboardingService.getState()
@@ -3225,8 +3254,8 @@ class ProfileSetup {
           if (!cooldown.allowed) {
             throw new Error(
               `Handle recently changed. Try again in ${formatCooldown(
-                cooldown.remainingMs
-              )}.`
+                cooldown.remainingMs,
+              )}.`,
             );
           }
         }
@@ -3249,7 +3278,7 @@ class ProfileSetup {
                 createdAt: serverTimestamp(),
                 lastClaimedAt: serverTimestamp(),
               },
-              { merge: false }
+              { merge: false },
             );
           }
           // Release old handle if changing (delete old doc). Product decision: immediate release.
@@ -3279,7 +3308,7 @@ class ProfileSetup {
         // observed during setup. For existing users, merge to preserve progress.
         systemInfoUpdates.onboarding = this.getInitialOnboardingState(
           userData?.systemInfo?.onboarding,
-          isNewUser ? {} : runtimeOnboardingState
+          isNewUser ? {} : runtimeOnboardingState,
         );
         profileDataForFirestore.systemInfo.onboarding =
           systemInfoUpdates.onboarding;
@@ -3301,7 +3330,7 @@ class ProfileSetup {
         } catch (error) {
           console.warn(
             "⚠️ Failed to reset onboarding session hints for new user",
-            error
+            error,
           );
         }
       }
@@ -3311,7 +3340,7 @@ class ProfileSetup {
       // 📊 Track user registration in analytics (moved outside transaction scope)
       AnalyticsService.trackUserRegistration(
         profileDataForFirestore.universityInfo?.university,
-        cleanProfileData.major
+        cleanProfileData.major,
       );
       AnalyticsService.setUserProperties(profileDataForFirestore);
 
@@ -3323,13 +3352,13 @@ class ProfileSetup {
       ) {
         await this.saveScheduleToFirestore();
         console.log(
-          "📅 Schedule saved to Firestore with dual storage strategy"
+          "📅 Schedule saved to Firestore with dual storage strategy",
         );
       }
 
       // 🎯 CRITICAL FIX: Update currentUser store with fresh profile data immediately
       console.log(
-        "🔄 Updating currentUser store with fresh profile data after save..."
+        "🔄 Updating currentUser store with fresh profile data after save...",
       );
 
       // Use the imported currentUser module, not window.currentUser
@@ -3346,19 +3375,19 @@ class ProfileSetup {
       // Dispatch event after a short delay so the router handles navigation
       setTimeout(() => {
         console.log(
-          "🚀 Dispatching profile:setup:complete event for navigation..."
+          "🚀 Dispatching profile:setup:complete event for navigation...",
         );
         document.dispatchEvent(
           new CustomEvent("profile:setup:complete", {
             detail: { userData: profileDataForFirestore },
-          })
+          }),
         );
       }, 1500); // 1.5-second delay
     } catch (error) {
       console.error("❌ Final profile save failed:", error);
       notificationManager.show(
         "Oh no! Something went wrong while saving your profile. Please check your connection and try again.",
-        "error"
+        "error",
       );
     }
   }
@@ -3412,12 +3441,12 @@ class ProfileSetup {
       // Use ScheduleStorageService for Phase-1 dual storage strategy
       const success = await scheduleStorageService.saveUserSchedule(
         userId,
-        scheduleDataWithMetadata
+        scheduleDataWithMetadata,
       );
 
       if (success) {
         console.log(
-          "✅ Schedule saved successfully with dual storage strategy"
+          "✅ Schedule saved successfully with dual storage strategy",
         );
 
         // 📊 Track schedule upload in analytics
@@ -3457,7 +3486,7 @@ class ProfileSetup {
 
       // Don't throw error - profile saving should still succeed even if schedule save fails
       console.warn(
-        "⚠️ Profile setup will continue despite schedule save failure"
+        "⚠️ Profile setup will continue despite schedule save failure",
       );
     }
   }
@@ -3545,7 +3574,7 @@ class ProfileSetup {
       !parseScheduleBtn.hasAttribute("data-listener-attached")
     ) {
       parseScheduleBtn.addEventListener("click", () =>
-        this.handleScheduleParsing()
+        this.handleScheduleParsing(),
       );
       parseScheduleBtn.setAttribute("data-listener-attached", "true");
     }
@@ -3572,10 +3601,10 @@ class ProfileSetup {
     // }
 
     const scheduleHelpTrigger = document.getElementById(
-      "schedule-help-trigger"
+      "schedule-help-trigger",
     );
     const scheduleHelpOverlay = document.getElementById(
-      "schedule-help-overlay"
+      "schedule-help-overlay",
     );
 
     if (
@@ -3583,7 +3612,7 @@ class ProfileSetup {
       !scheduleHelpTrigger.hasAttribute("data-listener-attached")
     ) {
       scheduleHelpTrigger.addEventListener("click", () =>
-        this.openScheduleHelpOverlay()
+        this.openScheduleHelpOverlay(),
       );
       scheduleHelpTrigger.setAttribute("data-listener-attached", "true");
     }
@@ -3605,7 +3634,7 @@ class ProfileSetup {
       const closeBtn = scheduleHelpOverlay.querySelector(".close-help");
       if (closeBtn && !closeBtn.hasAttribute("data-listener-attached")) {
         closeBtn.addEventListener("click", () =>
-          this.closeScheduleHelpOverlay()
+          this.closeScheduleHelpOverlay(),
         );
         closeBtn.setAttribute("data-listener-attached", "true");
       }
@@ -3714,7 +3743,7 @@ class ProfileSetup {
       if (!s) return [];
       return this.MAJORS.filter(
         (m) =>
-          m.code.toLowerCase().includes(s) || m.name.toLowerCase().includes(s)
+          m.code.toLowerCase().includes(s) || m.name.toLowerCase().includes(s),
       );
     };
 
@@ -3899,7 +3928,7 @@ class ProfileSetup {
 
       // Process the schedule text
       const result = await this.scheduleImportService.processScheduleText(
-        textInput.value
+        textInput.value,
       );
 
       if (result.success) {
@@ -3933,7 +3962,7 @@ class ProfileSetup {
     } catch (error) {
       console.error("❌ Schedule parsing error:", error);
       this.showScheduleError(
-        "An error occurred while parsing your schedule. Please try again."
+        "An error occurred while parsing your schedule. Please try again.",
       );
     } finally {
       parseBtn.disabled = false;
@@ -3954,7 +3983,7 @@ class ProfileSetup {
       event.target.value = "";
     }
     this.showScheduleError(
-      "Image upload is not available. Please paste your schedule text instead."
+      "Image upload is not available. Please paste your schedule text instead.",
     );
     return;
   }
@@ -3976,7 +4005,7 @@ class ProfileSetup {
       // Update status styling based on type
       statusDiv.className = statusDiv.className.replace(
         /status-(info|success|error)/g,
-        ""
+        "",
       );
       statusDiv.classList.add(`status-${type}`);
 
@@ -4083,7 +4112,7 @@ class ProfileSetup {
           </span>
         </div>
       </div>
-    `
+    `,
       )
       .join("");
 
@@ -4131,13 +4160,13 @@ class ProfileSetup {
   addDiagnosticInfo() {
     // Only show critical diagnostic info - current step not found
     const currentStepEl = document.querySelector(
-      `[data-step="${this.currentStep}"]`
+      `[data-step="${this.currentStep}"]`,
     );
     if (!currentStepEl) {
       console.error("❌ Current step element NOT found!");
       console.error(
         "🔍 Looking for selector:",
-        `[data-step="${this.currentStep}"]`
+        `[data-step="${this.currentStep}"]`,
       );
     }
   }
@@ -4150,7 +4179,7 @@ class ProfileSetup {
    */
   updateStepTitles(mode = "setup") {
     const stepDescription = document.querySelector(
-      '[data-step="1"] .step-description'
+      '[data-step="1"] .step-description',
     );
 
     if (stepDescription) {
@@ -4184,7 +4213,7 @@ class ProfileSetup {
       } else {
         console.error(
           "❌ DiceBear API returned error status:",
-          response.status
+          response.status,
         );
         return false;
       }
@@ -4320,7 +4349,7 @@ class ProfileSetup {
       // SVG spinner (accessible, contrast-friendly)
       const spinner = document.createElementNS(
         "http://www.w3.org/2000/svg",
-        "svg"
+        "svg",
       );
       spinner.setAttribute("width", "48");
       spinner.setAttribute("height", "48");
@@ -4460,7 +4489,7 @@ class ProfileSetup {
           setTimeout(() => this.updateAvatarPreview(), 50);
         }
       },
-      { once: true }
+      { once: true },
     );
   }
 }
@@ -4508,23 +4537,23 @@ function checkAuthenticationAndInitialize() {
   const currentUser = authManager.getCurrentUser();
   console.log(
     "🔍 Current user from auth manager:",
-    currentUser?.email || "None"
+    currentUser?.email || "None",
   );
 
   if (currentUser) {
     console.log(
-      "✅ Found signed-in user, initializing profile setup immediately"
+      "✅ Found signed-in user, initializing profile setup immediately",
     );
 
     // Check if we're still on the profile page before creating instance
     const profileElements = document.querySelector(
-      "#setup-email, #setup-student-id, .profile-setup-card"
+      "#setup-email, #setup-student-id, .profile-setup-card",
     );
     if (profileElements && !profileSetupInstance) {
       profileSetupInstance = new ProfileSetup();
     } else if (!profileElements) {
       console.log(
-        "🔄 User found but not on profile page, skipping initialization"
+        "🔄 User found but not on profile page, skipping initialization",
       );
     }
     return;
@@ -4535,12 +4564,12 @@ function checkAuthenticationAndInitialize() {
   authManager.onAuthStateChanged((user) => {
     if (user && !profileSetupInstance) {
       console.log(
-        "✅ User signed in via state change, checking if on profile page"
+        "✅ User signed in via state change, checking if on profile page",
       );
 
       // Only initialize if we're on the profile page
       const profileElements = document.querySelector(
-        "#setup-email, #setup-student-id, .profile-setup-card"
+        "#setup-email, #setup-student-id, .profile-setup-card",
       );
       if (profileElements) {
         console.log("✅ On profile page, initializing profile setup");
@@ -4621,7 +4650,7 @@ document.addEventListener("spa:navigation", (event) => {
       }, 200);
     } else {
       console.log(
-        "🔄 Profile setup already exists, checking if template needs re-initialization..."
+        "🔄 Profile setup already exists, checking if template needs re-initialization...",
       );
 
       // 🎯 CRITICAL FIX: Always re-initialize when navigating back to profile page
@@ -4637,7 +4666,7 @@ document.addEventListener("spa:navigation", (event) => {
             !studentIdInput.value || studentIdInput.value.trim() === "";
 
           console.log(
-            `🔍 Template reload check - Email empty: ${emailEmpty}, Student ID empty: ${studentIdEmpty}`
+            `🔍 Template reload check - Email empty: ${emailEmpty}, Student ID empty: ${studentIdEmpty}`,
           );
 
           if (
@@ -4646,12 +4675,12 @@ document.addEventListener("spa:navigation", (event) => {
             profileSetupInstance.currentUser
           ) {
             console.log(
-              "🔄 Template was reloaded with empty fields, re-populating..."
+              "🔄 Template was reloaded with empty fields, re-populating...",
             );
             profileSetupInstance.reinitializeForFreshTemplate();
           } else if (emailEmpty || studentIdEmpty) {
             console.log(
-              "🔄 Some fields empty, ensuring all fields are populated..."
+              "🔄 Some fields empty, ensuring all fields are populated...",
             );
             profileSetupInstance.prefillUserData();
           } else {
@@ -4774,7 +4803,7 @@ export function validateRequiredFields(data) {
     (field) =>
       data[field] &&
       typeof data[field] === "string" &&
-      data[field].trim() !== ""
+      data[field].trim() !== "",
   );
 }
 
@@ -4843,7 +4872,7 @@ if (!ProfileSetup.prototype.applyHandleCooldownState) {
       badge.title = "Handle change locked until cooldown ends";
       if (feedbackEl) {
         feedbackEl.textContent = `Handle locked – change available in ${formatCooldown(
-          remainingMs
+          remainingMs,
         )}`;
         feedbackEl.className = "field-hint";
       }
@@ -4862,7 +4891,7 @@ if (!ProfileSetup.prototype.applyHandleCooldownState) {
             badge.textContent = formatCooldown(res.remainingMs);
             if (feedbackEl)
               feedbackEl.textContent = `Handle locked – change available in ${formatCooldown(
-                res.remainingMs
+                res.remainingMs,
               )}`;
           }
         }, 60000);
