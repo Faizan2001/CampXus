@@ -204,7 +204,16 @@ export const pwaCache = {
       .map((f) => ({
         displayName: f.displayName || f.profile?.displayName || "",
         handle: f.handle || f.profile?.handle || "",
-        avatarUrl: f.avatarUrl || f.profile?.avatarUrl || "",
+        // Cache enough fields for the Home friends bar to render a real photo/avatar instantly.
+        profilePhotoUrl:
+          f.profilePhotoUrl || f.profile?.profilePhotoUrl || null,
+        profilePhotoThumbUrl:
+          f.profilePhotoThumbUrl || f.profile?.profilePhotoThumbUrl || null,
+        avatarConfig: f.avatarConfig || f.profile?.avatarConfig || null,
+        useAvatar:
+          typeof (f.useAvatar ?? f.profile?.useAvatar) === "boolean"
+            ? f.useAvatar ?? f.profile?.useAvatar
+            : undefined,
         uid: f.uid || f.id || "",
         // Include friendId/userId for compatibility with HorizontalFriendsBar
         friendId: f.friendId || f.userId || f.uid || f.id || "",

@@ -1027,19 +1027,9 @@
           setTimeout(hideSkeleton, 500);
         });
 
-        // 4. SERVICE WORKER REGISTRATION (moved here for earlier registration)
-        if ("serviceWorker" in navigator) {
-          window.addEventListener("load", function () {
-            navigator.serviceWorker
-              .register("/sw.js")
-              .then(function (reg) {
-                console.log("[PWA] Service worker registered");
-              })
-              .catch(function (err) {
-                console.warn("[PWA] Service worker registration failed:", err);
-              });
-          });
-        }
+        // NOTE: Service worker registration is handled in `src/js/app.js`.
+        // Keeping it in one place avoids duplicate registrations which can cause
+        // stale JS/CSS caching and unexpected Cache Storage growth (especially in dev).
       })();
     </script>
 

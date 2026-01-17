@@ -305,6 +305,16 @@ self.addEventListener("fetch", (event) => {
     ) || url.pathname === "/manifest.json";
 
   if (isSameOrigin && isStaticAsset && !isIconPath && !isTemplatePath) {
+    // In dev (Vite), module URLs often include cache-buster query params like `?t=...`.
+    // Caching those causes Cache Storage to grow on every reload and can interfere with HMR.
+    if (
+      url.searchParams.has("t") ||
+      url.pathname.startsWith("/@vite") ||
+      url.pathname.startsWith("/src/")
+    ) {
+      return;
+    }
+
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
         // Start network fetch in background (revalidate)

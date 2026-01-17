@@ -144,9 +144,33 @@ export class HorizontalFriendsBar {
     this.userSchedulePresenceStatus = null;
     this.statusUpdateTimer = null;
 
+    // Debug: enable detailed avatar swap/load logs via:
+    // localStorage.setItem("debugAvatarBar", "true"); location.reload();
+    try {
+      this._debugAvatarBar =
+        (typeof localStorage !== "undefined" &&
+          localStorage.getItem("debugAvatarBar") === "true") ||
+        (typeof sessionStorage !== "undefined" &&
+          sessionStorage.getItem("debugAvatarBar") === "true");
+    } catch (_) {
+      this._debugAvatarBar = false;
+    }
+    this._avatarInitTs =
+      typeof performance !== "undefined" && performance.now
+        ? performance.now()
+        : Date.now();
+    this._avatarSwapLogged = new Set(); // friendId -> boolean
+
     logManager.ui.init(
       `HorizontalFriendsBar created for container: ${containerId}`
     );
+  }
+
+  _debugAvatar(...args) {
+    if (!this._debugAvatarBar) return;
+    try {
+      console.debug("[HB Avatar]", ...args);
+    } catch (_) {}
   }
 
   /**
@@ -528,6 +552,19 @@ export class HorizontalFriendsBar {
         /* non-fatal */
       }
 
+      // Background: if any friend is missing photo/avatar fields, fetch minimal profile once
+      // and swap fallback -> real image ASAP (without needing a page revisit).
+      this.addTrackedTimeout(() => {
+        if (!this.container || !this.container.isConnected) return;
+        const limit = firstLoad ? 12 : 25;
+        this._hydrateMissingFriendAvatarData({
+          limit,
+          concurrency: 4,
+        }).catch((e) => {
+          this._debugAvatar("hydrate missing avatar data failed", String(e));
+        });
+      }, 0);
+
       // Phase 3 – derive schedule-based presence for Quick Access friends (non-blocking)
       // Do not block first paint on per-friend schedule fetches (slow for large lists).
       const presenceBudget = firstLoad ? 10 : 30;
@@ -714,6 +751,29 @@ export class HorizontalFriendsBar {
       });
 
       const friendId = friend.friendId || friend.userId;
+      if (this._debugAvatarBar && index < 8) {
+        const hasThumb = !!friend?.profilePhotoThumbUrl;
+        const hasPhoto = !!friend?.profilePhotoUrl;
+        const hasAvatarCfg = !!(friend?.avatarConfig && friend?.avatarConfig?.seed);
+        const useAvatar = friend?.useAvatar === true;
+        const expected =
+          useAvatar
+            ? hasAvatarCfg
+              ? "avatar"
+              : "fallback"
+            : hasThumb || hasPhoto
+            ? "photo"
+            : hasAvatarCfg
+            ? "avatar"
+            : "fallback";
+        this._debugAvatar("render friend", friendId, {
+          expected,
+          hasThumb,
+          hasPhoto,
+          hasAvatarCfg,
+          useAvatar,
+        });
+      }
       const avatarMarkup = renderUserAvatar(friend, {
         useCache: true,
         preferThumb: true,
@@ -752,6 +812,29 @@ export class HorizontalFriendsBar {
       const id = el?.dataset?.friendId;
       if (id) this.avatarElements.set(id, el);
     });
+
+    if (this._debugAvatarBar) {
+      let photoCount = 0;
+      let avatarCount = 0;
+      let fallbackCount = 0;
+      (this.quickAccessFriends || []).forEach((f) => {
+        const hasPhoto = !!(f?.profilePhotoThumbUrl || f?.profilePhotoUrl);
+        const hasAvatar = !!(f?.avatarConfig && f?.avatarConfig?.seed);
+        const useAvatar = f?.useAvatar === true;
+        if (useAvatar) {
+          if (hasAvatar) avatarCount++;
+          else fallbackCount++;
+        } else if (hasPhoto) photoCount++;
+        else if (hasAvatar) avatarCount++;
+        else fallbackCount++;
+      });
+      this._debugAvatar("render summary", {
+        total: this.quickAccessFriends.length,
+        photoCount,
+        avatarCount,
+        fallbackCount,
+      });
+    }
 
     document.dispatchEvent(
       new CustomEvent("friendsbar:avatarsRendered", {
@@ -3111,6 +3194,23 @@ export class HorizontalFriendsBar {
    * FIXED: Prevents infinite loops with proper change detection and re-entrancy protection
    */
   async handleStarredFriendProfileUpdate(friendId, friendProfile) {
+    this._debugAvatar("profile snapshot", friendId, {
+      hasDoc: !!friendProfile,
+      hasPhoto: !!(
+        friendProfile?.profile?.profilePhotoUrl || friendProfile?.profilePhotoUrl
+      ),
+      hasThumb: !!(
+        friendProfile?.profile?.profilePhotoThumbUrl ||
+        friendProfile?.profilePhotoThumbUrl
+      ),
+      hasAvatarCfg: !!(friendProfile?.avatarConfig || friendProfile?.profile?.avatarConfig),
+      useAvatar:
+        typeof friendProfile?.profile?.useAvatar === "boolean"
+          ? friendProfile.profile.useAvatar
+          : typeof friendProfile?.useAvatar === "boolean"
+          ? friendProfile.useAvatar
+          : undefined,
+    });
     // ⚡ Presence-first fast path: if this update contains presence info,
     // update the dot immediately (but DON'T return - continue to process avatar/photo).
     const presenceInfo = friendProfile?.systemInfo?.lastKnownLocation;
@@ -4705,9 +4805,210 @@ export class HorizontalFriendsBar {
       return;
     }
 
+    // If we first painted from a minimal cache (PWA/session) and then loaded richer friend data,
+    // the membership may be the same but avatar URLs/configs may now exist. Swap avatars in-place.
+    this._updateAvatarImagesFromData({ maxUpdates: 30 });
     this._updateAvatarPresencePills();
     this._reorderDomToMatchQuickAccessOrder();
     this.updateScrollIndicators();
+  }
+
+  /**
+   * Swap fallback avatars to real photos/avatars as soon as data is available.
+   * This is especially important when the bar first renders from cached minimal data.
+   */
+  _updateAvatarImagesFromData({ maxUpdates = 30 } = {}) {
+    try {
+      if (!this.avatarsContainer || !this.quickAccessFriends?.length) return;
+      let updated = 0;
+      for (const friend of this.quickAccessFriends) {
+        if (updated >= maxUpdates) break;
+        const friendId = friend?.friendId || friend?.userId;
+        if (!friendId) continue;
+
+        const avatarElement =
+          this.avatarElements.get(friendId) ||
+          this.avatarsContainer.querySelector(
+            `.friend-avatar-item[data-friend-id="${friendId}"]`
+          );
+        if (!avatarElement) continue;
+
+        const avatarImage = avatarElement.querySelector(".avatar-image");
+        if (!avatarImage) continue;
+
+        const desiredMarkup = renderUserAvatar(friend, {
+          useCache: true,
+          preferThumb: true,
+          loading: "eager",
+          decoding: "async",
+          fetchpriority: "auto",
+        });
+        const tmp = document.createElement("div");
+        tmp.innerHTML = String(desiredMarkup || "").trim();
+        const desiredNode = tmp.firstElementChild;
+        if (!desiredNode) continue;
+
+        // Only swap when we actually have a real <img> (photo or DiceBear avatar).
+        if (desiredNode.tagName !== "IMG") continue;
+
+        const existingImg = avatarImage.querySelector(".user-avatar-img");
+        const existingFallback = avatarImage.querySelector(".user-avatar");
+
+        if (existingImg) {
+          const nextSrc = desiredNode.getAttribute("src") || "";
+          const curSrc = existingImg.getAttribute("src") || "";
+          if (nextSrc && nextSrc !== curSrc) {
+            existingImg.replaceWith(desiredNode);
+            this._debugAvatar("in-place img src updated", friendId, {
+              from: curSrc.slice(0, 60) + (curSrc.length > 60 ? "…" : ""),
+              to: nextSrc.slice(0, 60) + (nextSrc.length > 60 ? "…" : ""),
+            });
+            updated++;
+          }
+          continue;
+        }
+
+        if (existingFallback) {
+          existingFallback.replaceWith(desiredNode);
+          this._debugAvatar("in-place fallback -> img", friendId, {
+            to:
+              (desiredNode.getAttribute("src") || "").slice(0, 60) +
+              ((desiredNode.getAttribute("src") || "").length > 60 ? "…" : ""),
+          });
+          updated++;
+          continue;
+        }
+
+        // No existing avatar node? Insert before pill/ring to keep overlays.
+        const before =
+          avatarImage.querySelector(".presence-pill") ||
+          avatarImage.querySelector(".selection-ring") ||
+          null;
+        if (before) avatarImage.insertBefore(desiredNode, before);
+        else avatarImage.appendChild(desiredNode);
+        updated++;
+      }
+    } catch (e) {
+      console.warn(
+        "[HorizontalFriendsBar] Failed to update avatar images in place",
+        e
+      );
+    }
+  }
+
+  /**
+   * Fetch minimal profiles for friends who are missing both photo + avatar info,
+   * then update the UI in-place so fallback icons are replaced ASAP.
+   *
+   * This is a one-time best-effort "hydration" to handle older Quick Access entries
+   * that don't yet have `profilePhotoUrl/profilePhotoThumbUrl/avatarConfig/useAvatar`.
+   */
+  async _hydrateMissingFriendAvatarData({ limit = 25, concurrency = 4 } = {}) {
+    if (!this.quickAccessFriends?.length) return;
+
+    const needsHydration = [];
+    for (const friend of this.quickAccessFriends) {
+      const friendId = friend?.friendId || friend?.userId;
+      if (!friendId) continue;
+
+      const hasPhoto = !!(friend?.profilePhotoThumbUrl || friend?.profilePhotoUrl);
+      const hasAvatar = !!(friend?.avatarConfig && friend?.avatarConfig?.seed);
+      const useAvatar = friend?.useAvatar === true;
+
+      // If user chose avatar, we need avatarConfig. Otherwise photo preferred, avatar acceptable.
+      const isReady = useAvatar ? hasAvatar : hasPhoto || hasAvatar;
+      if (!isReady) needsHydration.push(friendId);
+    }
+
+    const ids = Array.from(new Set(needsHydration)).slice(0, limit);
+    if (!ids.length) return;
+
+    this._debugAvatar("hydrating missing avatar data", {
+      count: ids.length,
+      concurrency,
+    });
+
+    let idx = 0;
+    let updatedCount = 0;
+    const worker = async () => {
+      while (idx < ids.length) {
+        const myIndex = idx++;
+        const friendId = ids[myIndex];
+        try {
+          const minimal = await dataManager.getUserProfileMinimal(friendId);
+          if (!minimal) continue;
+
+          const friendIndex = this.quickAccessFriends.findIndex(
+            (f) => (f.friendId || f.userId) === friendId
+          );
+          if (friendIndex === -1) continue;
+
+          const current = this.quickAccessFriends[friendIndex];
+          const next = { ...current };
+          let changed = false;
+
+          // Merge only if missing locally (do not clobber newer data)
+          if (!next.handle && minimal.handle) {
+            next.handle = minimal.handle;
+            changed = true;
+          }
+          if (!next.major && minimal.major) {
+            next.major = minimal.major;
+            changed = true;
+          }
+          if (!next.avatarConfig && minimal.avatarConfig) {
+            next.avatarConfig = minimal.avatarConfig;
+            changed = true;
+          }
+          if (!next.profilePhotoUrl && minimal.profilePhotoUrl) {
+            next.profilePhotoUrl = minimal.profilePhotoUrl;
+            changed = true;
+          }
+          if (!next.profilePhotoThumbUrl && minimal.profilePhotoThumbUrl) {
+            next.profilePhotoThumbUrl = minimal.profilePhotoThumbUrl;
+            changed = true;
+          }
+          if (typeof next.useAvatar !== "boolean" && typeof minimal.useAvatar === "boolean") {
+            next.useAvatar = minimal.useAvatar;
+            changed = true;
+          }
+
+          if (!changed) continue;
+
+          this.quickAccessFriends[friendIndex] = next;
+          updatedCount++;
+          this._debugAvatar("hydrated friend", friendId, {
+            hasPhoto: !!(next.profilePhotoThumbUrl || next.profilePhotoUrl),
+            hasAvatar: !!(next.avatarConfig && next.avatarConfig.seed),
+            useAvatar: next.useAvatar === true,
+          });
+          this.updateFriendAvatarUI(friendId, next);
+        } catch (e) {
+          this._debugAvatar("hydrate friend failed", friendId, String(e));
+        }
+      }
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.max(1, concurrency) }, () => worker())
+    );
+
+    if (updatedCount > 0) {
+      // Refresh fast caches so a revisit isn't required to see the photo/avatar.
+      try {
+        const uid = currentUser?.uid || currentUser?.user?.uid;
+        if (uid) {
+          uiCache.set(
+            uiCache.keys.quickAccessFriends(uid),
+            this.quickAccessFriends,
+            10 * 60 * 1000
+          );
+          pwaCache.saveQuickAccessFriends(uid, this.quickAccessFriends);
+        }
+      } catch (_) {}
+
+      this._debugAvatar("hydration complete", { updatedCount });
+    }
   }
 
   /**
@@ -4717,8 +5018,21 @@ export class HorizontalFriendsBar {
   updateFriendAvatarUI(friendId, friendData) {
     try {
       if (!friendId) return;
-      const avatarElement = this.avatarElements.get(friendId);
-      if (!avatarElement) return;
+      const avatarElement =
+        this.avatarElements.get(friendId) ||
+        this.avatarsContainer?.querySelector(
+          `.friend-avatar-item[data-friend-id="${friendId}"]`
+        );
+      if (!avatarElement) {
+        // If a profile update arrives before the DOM finishes rendering, retry shortly.
+        this._debugAvatar("avatar element missing; retry queued", friendId);
+        this.addTrackedTimeout(() => {
+          if (!this.container || !this.container.isConnected) return;
+          this.updateFriendAvatarUI(friendId, friendData);
+        }, 150);
+        return;
+      }
+      this.avatarElements.set(friendId, avatarElement);
 
       const friendLabel = friendData?.handle || "unknown";
       const isDisabled = !!(friendData?.isRestricted || false);
@@ -4769,6 +5083,8 @@ export class HorizontalFriendsBar {
           avatarImage.querySelector(".user-avatar-img") ||
           avatarImage.querySelector(".user-avatar") ||
           avatarImage.querySelector(".avatar-placeholder");
+        const newSrc =
+          newNode.tagName === "IMG" ? newNode.getAttribute("src") || "" : "";
         if (existingAvatarNode) {
           existingAvatarNode.replaceWith(newNode);
         } else {
@@ -4778,6 +5094,46 @@ export class HorizontalFriendsBar {
             null;
           if (before) avatarImage.insertBefore(newNode, before);
           else avatarImage.appendChild(newNode);
+        }
+
+        // Debug: confirm the swapped image actually loads
+        if (
+          this._debugAvatarBar &&
+          newNode.tagName === "IMG" &&
+          newSrc &&
+          !this._avatarSwapLogged.has(friendId)
+        ) {
+          this._avatarSwapLogged.add(friendId);
+          const start =
+            typeof performance !== "undefined" && performance.now
+              ? performance.now()
+              : Date.now();
+          this._debugAvatar("avatar swapped", friendId, {
+            src: newSrc.slice(0, 80) + (newSrc.length > 80 ? "…" : ""),
+          });
+          newNode.addEventListener(
+            "load",
+            () => {
+              const end =
+                typeof performance !== "undefined" && performance.now
+                  ? performance.now()
+                  : Date.now();
+              this._debugAvatar("img load OK", friendId, {
+                msSinceSwap: Math.round(end - start),
+                msSinceInit: Math.round(end - this._avatarInitTs),
+              });
+            },
+            { once: true }
+          );
+          newNode.addEventListener(
+            "error",
+            () => {
+              this._debugAvatar("img load ERROR", friendId, {
+                src: newSrc.slice(0, 80) + (newSrc.length > 80 ? "…" : ""),
+              });
+            },
+            { once: true }
+          );
         }
       }
 

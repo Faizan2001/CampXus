@@ -936,16 +936,19 @@ function syncMetaThemeColorToNav() {
  */
 function tryRegisterServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
-  // Allow service worker in development for testing push notifications
-  // Can be disabled via localStorage.setItem('disableDevSW', 'true')
   const isProduction = import.meta.env && import.meta.env.PROD;
-  const devSWDisabled =
-    !isProduction && localStorage.getItem("disableDevSW") === "true";
-  if (devSWDisabled) {
-    logManager.system.info(
-      "Service worker disabled in dev mode (localStorage.disableDevSW)"
-    );
-    return;
+  // In dev (Vite/HMR), a SW can easily cause stale assets + Cache Storage growth.
+  // Opt-in only: localStorage.setItem("enableDevSW","true")
+  if (!isProduction) {
+    const enabled =
+      typeof localStorage !== "undefined" &&
+      localStorage.getItem("enableDevSW") === "true";
+    if (!enabled) {
+      logManager.system.info(
+        "Service worker not registered in dev (set localStorage.enableDevSW=true to enable)"
+      );
+      return;
+    }
   }
   const isSecure =
     location.protocol === "https:" || location.hostname === "localhost";
