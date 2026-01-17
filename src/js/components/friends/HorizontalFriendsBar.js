@@ -3112,9 +3112,10 @@ export class HorizontalFriendsBar {
    */
   async handleStarredFriendProfileUpdate(friendId, friendProfile) {
     // ⚡ Presence-first fast path: if this update contains presence info,
-    // bypass profile circuit breakers and update the dot immediately.
+    // update the dot immediately (but DON'T return - continue to process avatar/photo).
     const presenceInfo = friendProfile?.systemInfo?.lastKnownLocation;
     const presenceLastActive = friendProfile?.systemInfo?.lastActive;
+    let presenceHandled = false;
     if (presenceInfo || presenceLastActive) {
       try {
         const friendIndex = this.quickAccessFriends.findIndex(
@@ -3132,7 +3133,8 @@ export class HorizontalFriendsBar {
           logManager.presence?.debug?.(
             `⚡ Presence fast-path applied for ${friendId}`
           );
-          return; // Presence handled; skip profile processing
+          presenceHandled = true;
+          // NOTE: Do NOT return here! Continue to process avatar/photo updates below.
         }
       } catch (e) {
         console.warn(
@@ -3241,10 +3243,25 @@ export class HorizontalFriendsBar {
       const useAvatarChanged =
         typeof newUseAvatar === "boolean" &&
         newUseAvatar !== currentFriend.useAvatar;
+      // Skip lastActiveChanged if presence was already handled in fast-path
       const lastActiveChanged =
+        !presenceHandled &&
         newLastActive &&
         (!currentLastActive ||
           newLastActive.toMillis() !== currentLastActive.toMillis());
+
+      // Debug: log avatar/photo changes for troubleshooting
+      if (avatarChanged || photoChanged || photoThumbChanged || useAvatarChanged) {
+        console.log(`📸 Avatar/photo change detected for ${currentFriend.handle}:`, {
+          avatarChanged,
+          photoChanged,
+          photoThumbChanged,
+          useAvatarChanged,
+          newAvatarConfig: !!newAvatarConfig,
+          newProfilePhotoUrl: newProfilePhotoUrl?.substring(0, 50),
+          currentProfilePhotoUrl: currentFriend.profilePhotoUrl?.substring(0, 50),
+        });
+      }
 
       if (
         !nameChanged &&
@@ -3254,9 +3271,12 @@ export class HorizontalFriendsBar {
         !useAvatarChanged &&
         !lastActiveChanged
       ) {
-        console.log(
-          `📡 No significant profile changes for ${currentFriend.handle}, skipping update`
-        );
+        // Only log if this wasn't purely a presence update
+        if (!presenceHandled) {
+          console.log(
+            `📡 No significant profile changes for ${currentFriend.handle}, skipping update`
+          );
+        }
         return;
       }
 
