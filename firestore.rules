@@ -433,21 +433,35 @@ service cloud.firestore {
     
     // --- Friendships (/friendships) ---
     match /friendships/{friendshipId} {
+      // Helper to check if current user is involved in the friendship (by doc ID)
+      // Document IDs follow pattern: sortedUserId1_sortedUserId2
+      function isInvolvedInFriendship() {
+        // Defensive: old/dev data may have non-standard IDs (no underscore), which would
+        // otherwise throw a Null value error when indexing split results.
+        return friendshipId.matches('^[^_]+_[^_]+$') &&
+          (
+            friendshipId.split('_')[0] == request.auth.uid ||
+            friendshipId.split('_')[1] == request.auth.uid
+          );
+      }
+      
       // Read access: only participants in the friendship can read
-      // This is enforced at the document level; client queries must include
-      // a filter like where("users", "array-contains", request.auth.uid)
-      // so that only documents containing the caller are ever returned.
-      allow read: if request.auth != null &&
-        (
-          request.auth.uid in resource.data.users ||
+      // For list queries and get operations, check doc ID pattern first (handles non-existent docs)
+      // For existing docs, also verify via data fields for extra security
+      allow read: if request.auth != null && (
+        // Check doc ID pattern (works for both existing and non-existing docs)
+        isInvolvedInFriendship() ||
+        // For existing documents: also allow via data fields
+        (resource != null && (
+          ('users' in resource.data && request.auth.uid in resource.data.users) ||
           resource.data.user1Id == request.auth.uid ||
           resource.data.user2Id == request.auth.uid
-        );
+        ))
+      );
 
       // Delete requires friendship ID to contain requester's UID  
       allow delete: if request.auth != null &&
-        (friendshipId.split('_')[0] == request.auth.uid || 
-         friendshipId.split('_')[1] == request.auth.uid);
+        isInvolvedInFriendship();
 
       // Create/update require verified OR dev email and caller must be a participant
       allow create: if request.auth != null &&
@@ -463,8 +477,32 @@ service cloud.firestore {
     }
 
 	    // --- Friend Requests (/friendRequests) ---
+	    // Document IDs follow pattern: fromUserId_toUserId
 	    match /friendRequests/{requestId} {
-	      allow read, delete: if request.auth != null && (resource.data.toUserId == request.auth.uid || resource.data.fromUserId == request.auth.uid);
+	      // Helper to check if current user is involved in the request (by doc ID)
+	      // This allows transaction.get() to check for existing docs before creating
+	      function isInvolvedInRequest() {
+          // Defensive: old/dev data may have non-standard IDs (no underscore), which would
+          // otherwise throw a Null value error when indexing split results.
+          return requestId.matches('^[^_]+_[^_]+$') &&
+            (
+              requestId.split('_')[0] == request.auth.uid ||
+              requestId.split('_')[1] == request.auth.uid
+            );
+	      }
+	      
+	      // Allow read if user is sender or recipient.
+	      // For get operations on non-existent docs (transaction existence check), use doc ID pattern.
+	      // For list queries and existing docs, verify via data fields.
+	      allow read: if request.auth != null && (
+	        // Check doc ID pattern (works for get on both existing and non-existing docs)
+	        isInvolvedInRequest() ||
+	        // For list queries on existing documents: check data fields
+	        (resource != null && (resource.data.toUserId == request.auth.uid || resource.data.fromUserId == request.auth.uid))
+	      );
+	      
+	      allow delete: if request.auth != null && 
+	        (resource.data.toUserId == request.auth.uid || resource.data.fromUserId == request.auth.uid);
 	      // Create friend request requires verified OR dev email
 	      allow create: if request.auth != null &&
 	        request.resource.data.fromUserId == request.auth.uid &&

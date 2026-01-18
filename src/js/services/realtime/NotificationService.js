@@ -12,6 +12,10 @@ class NotificationManager {
     this.maxNotifications = 5;
     this.notificationDuration = 5000; // 5 seconds
     this.container = null;
+
+    // 🛡️ Dedupe guard: prevent identical notifications within a short window
+    this.recentNotifications = new Map(); // key: "type|message" → timestamp
+    this.dedupeWindowMs = 1000; // 1 second window
   }
 
   /**
@@ -177,6 +181,29 @@ class NotificationManager {
    * @param {Object} notification - Notification data
    */
   showNotification(notification) {
+    // 🛡️ Dedupe guard: suppress identical (type, message) within the dedupe window
+    const dedupeType = notification?.type || "unknown";
+    const dedupeMessage = notification?.message || "";
+    const dedupeKey = `${dedupeType}|${dedupeMessage}`;
+    const now = Date.now();
+    const lastShown = this.recentNotifications.get(dedupeKey);
+
+    if (typeof lastShown === "number" && now - lastShown < this.dedupeWindowMs) {
+      console.log(
+        `🛡️ Notification suppressed (duplicate within ${this.dedupeWindowMs}ms): ${dedupeType} - ${dedupeMessage}`
+      );
+      return;
+    }
+
+    // Record this notification's timestamp for future dedupe checks
+    this.recentNotifications.set(dedupeKey, now);
+
+    // Cleanup old entries to prevent memory growth (keep only last 50)
+    if (this.recentNotifications.size > 50) {
+      const oldestKey = this.recentNotifications.keys().next().value;
+      this.recentNotifications.delete(oldestKey);
+    }
+
     // Add to notifications array
     this.notifications.unshift(notification);
 

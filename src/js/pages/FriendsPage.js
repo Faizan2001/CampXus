@@ -2953,13 +2953,6 @@ class FriendsUI {
       if (result.success) {
         this.showMessage(result.message, "success");
 
-        // Show success notification
-        notificationManager.showSystemNotification(
-          `Friend request sent to @${targetHandle}`,
-          "success",
-          { duration: 3000 }
-        );
-
         // 📋 Let the real-time system handle the button state updates
         // The real-time outgoing friend request listener will automatically update the
         // outgoingRequestsMap when the request is created in the database, which will
@@ -3051,9 +3044,6 @@ class FriendsUI {
 
       if (result.success) {
         this.showMessage(result.message, "success");
-
-        // Show friend accepted notification
-        notificationManager.showFriendAcceptedNotification(requestData);
 
         // Remove the request card
         const card = document.querySelector(`[data-request-id="${requestId}"]`);
