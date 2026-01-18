@@ -11,10 +11,30 @@ body.page-messages .main-content {
   padding: 0.75rem 0.75rem 0.75rem 0.75rem;
 }
 
+/* Desktop-enhanced page container */
+@media (min-width: 1024px) {
+  body.page-groups .main-content {
+    padding: 1.5rem 2rem;
+  }
+}
+
+@media (min-width: 1400px) {
+  body.page-groups .main-content {
+    padding: 2rem 3rem;
+  }
+}
+
 .groups-section {
   max-width: 1280px;
   margin: 0 auto;
   width: 100%;
+}
+
+/* Wider container on very large screens */
+@media (min-width: 1600px) {
+  .groups-section {
+    max-width: 1440px;
+  }
 }
 
 /* Content container - prevents layout shift on tab switch */
@@ -98,6 +118,40 @@ body.page-messages .main-content {
 
   .groups-header .groups-title i {
     font-size: 1.25rem;
+  }
+}
+
+/* Large desktop header */
+@media (min-width: 1200px) {
+  .groups-header {
+    padding: 1rem 0 1.75rem 0;
+    margin-bottom: 0.75rem;
+  }
+
+  .groups-header .groups-title {
+    font-size: 1.75rem;
+    gap: 0.75rem;
+  }
+
+  .groups-header .groups-title i {
+    font-size: 1.4rem;
+  }
+}
+
+/* Very large desktop header */
+@media (min-width: 1600px) {
+  .groups-header {
+    padding: 1.25rem 0 2rem 0;
+    margin-bottom: 1rem;
+  }
+
+  .groups-header .groups-title {
+    font-size: 1.85rem;
+    gap: 0.85rem;
+  }
+
+  .groups-header .groups-title i {
+    font-size: 1.5rem;
   }
 }
 
@@ -415,25 +469,43 @@ body.page-messages .main-content {
   }
 }
 
-/* ===== GROUPS LIST - CHAT STYLE STACK ===== */
+/* ===== GROUPS LIST - SINGLE COLUMN STACK ===== */
 .groups-page .groups-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
+/* Tablet - slightly more gap */
 @media (min-width: 768px) {
   .groups-page .groups-list {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.875rem;
+    gap: 0.75rem;
+    max-width: 640px;
+    margin: 0 auto;
   }
 }
 
+/* Desktop - centered column with comfortable width */
+@media (min-width: 1024px) {
+  .groups-page .groups-list {
+    gap: 0.875rem;
+    max-width: 720px;
+  }
+}
+
+/* Large desktop - wider cards */
 @media (min-width: 1200px) {
   .groups-page .groups-list {
-    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
+    max-width: 800px;
+  }
+}
+
+/* Very large screens - premium spacing */
+@media (min-width: 1600px) {
+  .groups-page .groups-list {
+    gap: 1.125rem;
+    max-width: 880px;
   }
 }
 
@@ -474,6 +546,27 @@ body.page-messages .main-content {
   }
 }
 
+/* Large desktop cards - more spacious */
+@media (min-width: 1200px) {
+  .groups-page .group-card {
+    padding: 1rem 1.35rem 1rem 0.85rem;
+    min-height: 88px;
+    gap: 1rem;
+    border-radius: 18px;
+    border-width: 1.5px;
+  }
+}
+
+/* Very large desktop - premium feel */
+@media (min-width: 1600px) {
+  .groups-page .group-card {
+    padding: 1.15rem 1.5rem 1.15rem 0.95rem;
+    min-height: 96px;
+    gap: 1.125rem;
+    border-radius: 20px;
+  }
+}
+
 @keyframes cardSlideIn {
   to {
     opacity: 1;
@@ -500,6 +593,23 @@ body.page-messages .main-content {
   .groups-page .group-card:hover .card-avatar {
     transform: scale(1.06);
     box-shadow: 0 4px 16px var(--accent-glow, var(--course-default-glow));
+  }
+}
+
+/* Enhanced hover on large screens - subtle lift for single column */
+@media (hover: hover) and (min-width: 1200px) {
+  .groups-page .group-card:hover {
+    background: var(--glass-hover, rgba(255, 255, 255, 0.14));
+    border-color: var(--glass-hover-border, rgba(168, 85, 247, 0.35));
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12),
+      0 0 0 1.5px rgba(168, 85, 247, 0.15),
+      0 0 32px rgba(168, 85, 247, 0.06);
+    transform: translateY(-2px);
+  }
+
+  .groups-page .group-card:hover .card-avatar {
+    transform: scale(1.06);
+    box-shadow: 0 5px 18px var(--accent-glow, var(--course-default-glow));
   }
 }
 
@@ -550,6 +660,28 @@ body.page-messages .main-content {
   }
 }
 
+/* Large desktop avatar */
+@media (min-width: 1200px) {
+  .groups-page .card-avatar {
+    width: 54px;
+    height: 54px;
+    min-width: 54px;
+    font-size: 1.25rem;
+    border-radius: 15px;
+  }
+}
+
+/* Very large desktop avatar */
+@media (min-width: 1600px) {
+  .groups-page .card-avatar {
+    width: 58px;
+    height: 58px;
+    min-width: 58px;
+    font-size: 1.35rem;
+    border-radius: 16px;
+  }
+}
+
 .groups-page .card-avatar i {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
@@ -566,6 +698,13 @@ body.page-messages .main-content {
 @media (min-width: 768px) {
   .groups-page .card-body {
     gap: 0.4rem;
+  }
+}
+
+/* Large desktop card body */
+@media (min-width: 1200px) {
+  .groups-page .card-body {
+    gap: 0.5rem;
   }
 }
 
@@ -604,6 +743,23 @@ body.page-messages .main-content {
   .groups-page .course-tag {
     font-size: 0.72rem;
     padding: 0.22rem 0.55rem;
+  }
+}
+
+/* Large desktop course tag */
+@media (min-width: 1200px) {
+  .groups-page .course-tag {
+    font-size: 0.78rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 8px;
+  }
+}
+
+/* Very large desktop course tag */
+@media (min-width: 1600px) {
+  .groups-page .course-tag {
+    font-size: 0.82rem;
+    padding: 0.28rem 0.75rem;
   }
 }
 
@@ -1609,66 +1765,186 @@ body.immersive-chat-mode .main-content {
   align-items: center;
 }
 
+/* Base member action buttons - glassmorphism style */
 .member-profile-btn,
 .member-report-btn,
 .member-add-btn,
 .member-friends-btn {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.7);
-  padding: 0.4rem 0.6rem;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.15s ease;
-  font-size: 0.9rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  position: relative;
+  overflow: hidden;
+  text-decoration: none;
 }
 
+/* Profile button - Purple/Violet theme */
+.member-profile-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.12) 0%,
+    rgba(168, 85, 247, 0.16) 100%
+  );
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: rgba(139, 92, 246, 0.85);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* Add friend button - Blue theme */
+.member-add-btn,
+.member-friends-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.12) 0%,
+    rgba(99, 102, 241, 0.16) 100%
+  );
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: rgba(59, 130, 246, 0.85);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* Report button - Red theme */
+.member-report-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(239, 68, 68, 0.1) 0%,
+    rgba(244, 63, 94, 0.14) 100%
+  );
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: rgba(239, 68, 68, 0.75);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* Block/Unblock buttons */
 .member-block-btn,
 .member-unblock-btn {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.7);
-  padding: 0.4rem 0.6rem;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.15s ease;
-  font-size: 0.9rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  position: relative;
+  overflow: hidden;
+}
+
+.member-block-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(239, 68, 68, 0.1) 0%,
+    rgba(244, 63, 94, 0.14) 100%
+  );
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: rgba(239, 68, 68, 0.75);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.member-unblock-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.1) 0%,
+    rgba(34, 197, 94, 0.14) 100%
+  );
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: rgba(16, 185, 129, 0.75);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .member-block-btn:hover {
-  background: rgba(255, 99, 132, 0.15);
-  border-color: rgba(255, 99, 132, 0.3);
-  color: #ff6384;
+  background: linear-gradient(
+    135deg,
+    rgba(239, 68, 68, 0.18) 0%,
+    rgba(244, 63, 94, 0.24) 100%
+  );
+  border-color: rgba(239, 68, 68, 0.45);
+  color: rgba(244, 63, 94, 0.95);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.2),
+    0 2px 8px rgba(244, 63, 94, 0.15), 0 1px 3px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .member-unblock-btn:hover {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: rgba(16, 185, 129, 0.3);
-  color: #10b981;
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.18) 0%,
+    rgba(34, 197, 94, 0.24) 100%
+  );
+  border-color: rgba(16, 185, 129, 0.45);
+  color: rgba(34, 197, 94, 0.95);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.2),
+    0 2px 8px rgba(34, 197, 94, 0.15), 0 1px 3px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .member-profile-btn:hover {
-  background: rgba(108, 99, 255, 0.15);
-  border-color: rgba(108, 99, 255, 0.3);
-  color: #6c63ff;
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.22) 0%,
+    rgba(168, 85, 247, 0.28) 100%
+  );
+  border-color: rgba(139, 92, 246, 0.5);
+  color: rgba(168, 85, 247, 0.95);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.25),
+    0 2px 8px rgba(168, 85, 247, 0.2), 0 1px 3px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.member-profile-btn:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .member-report-btn:hover {
-  background: rgba(255, 75, 87, 0.15);
-  border-color: rgba(255, 75, 87, 0.3);
-  color: #ff4b57;
+  background: linear-gradient(
+    135deg,
+    rgba(239, 68, 68, 0.18) 0%,
+    rgba(244, 63, 94, 0.24) 100%
+  );
+  border-color: rgba(239, 68, 68, 0.45);
+  color: rgba(244, 63, 94, 0.95);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.2),
+    0 2px 8px rgba(244, 63, 94, 0.15), 0 1px 3px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-.member-add-btn:hover {
-  background: rgba(108, 99, 255, 0.15);
-  border-color: rgba(108, 99, 255, 0.3);
-  color: #6c63ff;
+.member-add-btn:hover,
+.member-friends-btn:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.22) 0%,
+    rgba(99, 102, 241, 0.28) 100%
+  );
+  border-color: rgba(59, 130, 246, 0.5);
+  color: rgba(99, 102, 241, 0.95);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25),
+    0 2px 8px rgba(99, 102, 241, 0.2), 0 1px 3px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .member-friends-btn[disabled] {

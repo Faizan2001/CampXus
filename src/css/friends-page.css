@@ -1996,7 +1996,8 @@ div.friend-options-menu.show div.options-dropdown,
 
 .quick-access-star,
 .mutual-schedule-btn,
-.mutual-location-btn {
+.mutual-location-btn,
+.profile-view-btn {
   border-radius: 12px;
   width: var(--friends-action-size);
   height: var(--friends-action-size);
@@ -2012,12 +2013,14 @@ div.friend-options-menu.show div.options-dropdown,
   position: relative;
   overflow: hidden;
   margin-right: 4px;
+  text-decoration: none;
 }
 
 /* Exact 44x44 sizing for core action buttons across all devices */
 .quick-access-star,
 .mutual-schedule-btn,
 .mutual-location-btn,
+.profile-view-btn,
 .friend-options-menu .options-button {
   width: 44px !important;
   height: 44px !important;
@@ -2121,6 +2124,60 @@ div.friend-options-menu.show div.options-dropdown,
     opacity: 1;
     transform: scale(1.1);
   }
+}
+
+/* Profile View Button - Purple/Violet theme to match app branding */
+.profile-view-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.1) 0%,
+    rgba(168, 85, 247, 0.15) 100%
+  );
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.profile-view-btn i {
+  font-size: 0.875rem;
+  color: rgba(139, 92, 246, 0.8);
+  transition: all 0.3s ease;
+  z-index: 1;
+  position: relative;
+}
+.profile-view-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%
+  );
+  border-radius: 12px 12px 0 0;
+  pointer-events: none;
+}
+.profile-view-btn:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.2) 0%,
+    rgba(168, 85, 247, 0.25) 100%
+  );
+  border-color: rgba(139, 92, 246, 0.5);
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.25),
+    0 2px 8px rgba(168, 85, 247, 0.2), 0 1px 3px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.profile-view-btn:hover i {
+  color: rgba(168, 85, 247, 0.95);
+  transform: scale(1.1);
+}
+.profile-view-btn:active {
+  transform: translateY(0) scale(0.98);
 }
 
 /* Mutual schedule */
@@ -3013,6 +3070,7 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   .quick-access-star,
   .mutual-schedule-btn,
   .mutual-location-btn,
+  .profile-view-btn,
   .btn-friend-menu,
   .friend-options-menu .options-button {
     width: var(--friends-action-size-mobile);
@@ -3063,6 +3121,7 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   .quick-access-star,
   .mutual-schedule-btn,
   .mutual-location-btn,
+  .profile-view-btn,
   .btn-friend-menu,
   .friend-options-menu .options-button {
     width: var(--friends-action-size-tablet);
@@ -3113,6 +3172,7 @@ body.dark-mode.page-friends .friend-options-menu .menu-option + .menu-option {
   .quick-access-star,
   .mutual-schedule-btn,
   .mutual-location-btn,
+  .profile-view-btn,
   .btn-friend-menu,
   .friend-options-menu .options-button {
     width: var(--friends-action-size);
