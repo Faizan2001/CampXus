@@ -1,4 +1,8 @@
-import app, { db } from "../../lib/firebase/firebase-config.js";
+import app, {
+  db,
+  auth,
+  getFunctionsInstance,
+} from "../../lib/firebase/firebase-config.js";
 import {
   doc,
   getDoc,
@@ -14,9 +18,114 @@ import {
   updateDoc,
   serverTimestamp,
   getDocs,
+  where,
+  documentId,
 } from "firebase/firestore";
 
 export class ClassSpacesService {
+  async ensureSignedInUser(timeoutMs = 2500) {
+    try {
+      if (auth?.currentUser) return auth.currentUser;
+      const { onAuthStateChanged } = await import("firebase/auth");
+      return new Promise((resolve) => {
+        let done = false;
+        const timeout = setTimeout(() => {
+          if (done) return;
+          done = true;
+          resolve(null);
+        }, timeoutMs);
+
+        const unsub = onAuthStateChanged(auth, (user) => {
+          if (done) return;
+          done = true;
+          clearTimeout(timeout);
+          try {
+            unsub();
+          } catch (_) {}
+          resolve(user || null);
+        });
+      });
+    } catch (_) {
+      return auth?.currentUser || null;
+    }
+  }
+
+  isLocalhost() {
+    return (
+      typeof window !== "undefined" &&
+      (window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1")
+    );
+  }
+
+  async callFunctionsEmulatorDirect(functionName, data = {}) {
+    const user = await this.ensureSignedInUser();
+    if (!user?.uid) {
+      console.error("[ClassSpacesService] No signed-in user found");
+      throw new Error("Must be signed in");
+    }
+
+    const projectId = app?.options?.projectId;
+    if (!projectId) {
+      throw new Error("Missing Firebase projectId");
+    }
+
+    let idToken;
+    try {
+      idToken = await user.getIdToken(true); // force refresh
+      console.log(
+        "[ClassSpacesService] Got ID token for",
+        user.uid,
+        "token length:",
+        idToken?.length,
+      );
+    } catch (tokenErr) {
+      console.error("[ClassSpacesService] Failed to get ID token:", tokenErr);
+      throw new Error("Failed to get auth token");
+    }
+
+    const url = `http://localhost:5001/${projectId}/us-central1/${functionName}`;
+    console.log("[ClassSpacesService] Calling emulator:", url);
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({ data }),
+    });
+
+    console.log("[ClassSpacesService] Response status:", res.status);
+
+    const text = await res.text();
+    console.log("[ClassSpacesService] Raw response text:", text);
+    let json = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch (_) {
+      json = null;
+    }
+
+    if (!res.ok) {
+      console.error(
+        "[ClassSpacesService] Function error response:",
+        JSON.stringify(json, null, 2),
+      );
+      const msg =
+        json?.error?.message ||
+        json?.error?.status ||
+        json?.message ||
+        `Function ${functionName} failed`;
+      const err = new Error(msg);
+      err.code = json?.error?.status || "functions/unknown";
+      throw err;
+    }
+
+    // Callable protocol responses can include { result } or { data }
+    return json?.result ?? json?.data ?? json;
+  }
+
   async getSpace(spaceId) {
     const ref = doc(db, "classSpaces", spaceId);
     const snap = await getDoc(ref);
@@ -42,7 +151,7 @@ export class ClassSpacesService {
       ref,
       orderBy("createdAt", "desc"),
       startAfter(firstDoc),
-      qLimit(pageSize)
+      qLimit(pageSize),
     );
     const snap = await getDocs(q);
     const items = [];
@@ -53,8 +162,6 @@ export class ClassSpacesService {
 
   async sendMessage(spaceId, content) {
     // Ensure signed-in user
-    const { getAuth } = await import("firebase/auth");
-    const auth = getAuth(app);
     const uid = auth?.currentUser?.uid || null;
     if (!uid) {
       throw new Error("Must be signed in");
@@ -97,17 +204,26 @@ export class ClassSpacesService {
     } catch (directErr) {
       console.warn("Direct write failed, trying callable path", directErr);
       try {
-        const { getFunctions, httpsCallable, connectFunctionsEmulator } = await import(
-          "firebase/functions"
-        );
+        const { getFunctions, httpsCallable, connectFunctionsEmulator } =
+          await import("firebase/functions");
         const functions = getFunctions(app, "us-central1");
-        const isLocal =
-          typeof window !== "undefined" &&
-          (window.location.hostname === "localhost" ||
-            window.location.hostname === "127.0.0.1");
+        const isLocal = this.isLocalhost();
+
+        // Emulator workaround: call direct with explicit Authorization header.
         if (isLocal) {
-          try { connectFunctionsEmulator(functions, "localhost", 5001); } catch (_) {}
+          const res = await this.callFunctionsEmulatorDirect(
+            "sendGroupMessage",
+            {
+              spaceId,
+              content,
+            },
+          );
+          return res?.messageId || null;
         }
+
+        try {
+          connectFunctionsEmulator(functions, "localhost", 5001);
+        } catch (_) {}
         const callable = httpsCallable(functions, "sendGroupMessage");
         const res = await callable({ spaceId, content });
         return res?.data?.messageId || null;
@@ -115,6 +231,130 @@ export class ClassSpacesService {
         throw e2;
       }
     }
+  }
+
+  /**
+   * Leave a class space
+   * @param {string} spaceId - The space to leave
+   * @returns {Promise<{success: boolean}>}
+   */
+  async leaveSpace(spaceId) {
+    const user = await this.ensureSignedInUser();
+    if (!user?.uid) {
+      throw new Error("Must be signed in");
+    }
+
+    // Warm token so callable attaches Authorization reliably
+    try {
+      await user.getIdToken(true);
+    } catch (_) {}
+
+    const { httpsCallable } = await import("firebase/functions");
+    const functions = await getFunctionsInstance();
+    const callable = httpsCallable(functions, "leaveClassSpace");
+    const res = await callable({ spaceId });
+    return res?.data || { success: true };
+  }
+
+  /**
+   * Rejoin a class space that was previously left
+   * @param {string} spaceId - The space to rejoin
+   * @returns {Promise<{success: boolean, memberCount?: number}>}
+   */
+  async rejoinSpace(spaceId) {
+    const user = await this.ensureSignedInUser();
+    if (!user?.uid) {
+      throw new Error("Must be signed in");
+    }
+
+    // Warm token so callable attaches Authorization reliably
+    try {
+      await user.getIdToken(true);
+    } catch (_) {}
+
+    const { httpsCallable } = await import("firebase/functions");
+    const functions = await getFunctionsInstance();
+    const callable = httpsCallable(functions, "rejoinClassSpace");
+    const res = await callable({ spaceId });
+    return res?.data || { success: true };
+  }
+
+  /**
+   * Get user's left spaces that are still active
+   * @returns {Promise<Array<{space: object, canRejoinToday: boolean}>>}
+   */
+  async getLeftSpaces() {
+    const uid = auth?.currentUser?.uid || null;
+    if (!uid) {
+      return [];
+    }
+
+    // Get user's leftSpaces from their document
+    const userRef = doc(db, "users", uid);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) {
+      return [];
+    }
+
+    const userData = userSnap.data() || {};
+    const leftSpaces = userData.leftSpaces || {};
+    const spaceIds = Object.keys(leftSpaces);
+
+    if (spaceIds.length === 0) {
+      return [];
+    }
+
+    // Get today's date in YYYY-MM-DD format (Asia/Dhaka timezone)
+    const now = new Date();
+    const dhaka = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+    const today = dhaka.toISOString().split("T")[0];
+
+    // Firestore 'in' queries support max 30 items at a time
+    const results = [];
+    const chunkSize = 30;
+
+    for (let i = 0; i < spaceIds.length; i += chunkSize) {
+      const chunk = spaceIds.slice(i, i + chunkSize);
+      const spacesRef = collection(db, "classSpaces");
+      const q = query(
+        spacesRef,
+        where(documentId(), "in", chunk),
+        where("active", "==", true),
+      );
+      const snap = await getDocs(q);
+
+      snap.forEach((d) => {
+        const spaceData = { spaceId: d.id, ...d.data() };
+
+        // Skip spaces where user is currently a member (they rejoined)
+        const memberIds = Array.isArray(spaceData.memberIds)
+          ? spaceData.memberIds
+          : [];
+        if (memberIds.includes(uid)) {
+          return; // User is a member, don't show in "Left Spaces"
+        }
+
+        const leftInfo = leftSpaces[d.id] || {};
+        const lastRejoinDate = leftInfo.lastRejoinDate || null;
+        const canRejoinToday = lastRejoinDate !== today;
+
+        results.push({
+          space: spaceData,
+          leftAt: leftInfo.leftAt,
+          lastRejoinDate,
+          canRejoinToday,
+        });
+      });
+    }
+
+    // Sort by leftAt (most recent first)
+    results.sort((a, b) => {
+      const aTime = a.leftAt?.toDate?.()?.getTime?.() || 0;
+      const bTime = b.leftAt?.toDate?.()?.getTime?.() || 0;
+      return bTime - aTime;
+    });
+
+    return results;
   }
 }
 

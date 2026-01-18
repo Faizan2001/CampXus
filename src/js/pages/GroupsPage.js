@@ -5,6 +5,7 @@ import { currentUser } from "../store/userStore.js";
 import { groupsCache } from "../services/groups/GroupsCache.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
 import { authManager } from "../services/auth/AuthService.js";
+import { classSpacesService } from "../services/groups/ClassSpacesService.js";
 
 function isNonProductionEnvironment() {
   try {
@@ -148,6 +149,13 @@ export class GroupsPage {
           <i class="fas fa-users-slash"></i>
           <h3>No Class Spaces Yet</h3>
           <p>When classmates join MeetchuThere and add their schedules, you'll be matched into Class Spaces automatically each morning.</p>
+        </div>
+        <div id="left-spaces-section" class="left-spaces-section hidden">
+          <div class="left-spaces-header">
+            <i class="fas fa-door-open"></i>
+            <span>Left Spaces</span>
+          </div>
+          <div id="left-spaces-list" class="left-spaces-list"></div>
         </div>
       </section>
     `;
@@ -551,6 +559,149 @@ export class GroupsPage {
       });
       listEl.appendChild(card);
     });
+
+    // Load and render left spaces after active spaces
+    this.loadLeftSpaces();
+  }
+
+  async loadLeftSpaces() {
+    const targetEl = this.groupsRoot || this.container;
+    const sectionEl = targetEl.querySelector("#left-spaces-section");
+    const listEl = targetEl.querySelector("#left-spaces-list");
+
+    if (!sectionEl || !listEl) return;
+
+    try {
+      const leftSpaces = await classSpacesService.getLeftSpaces();
+
+      if (!leftSpaces || leftSpaces.length === 0) {
+        sectionEl.classList.add("hidden");
+        return;
+      }
+
+      sectionEl.classList.remove("hidden");
+      this.renderLeftSpaces(leftSpaces, listEl);
+    } catch (err) {
+      console.error("[GroupsPage] Failed to load left spaces:", err);
+      sectionEl.classList.add("hidden");
+    }
+  }
+
+  renderLeftSpaces(leftSpaces, listEl) {
+    listEl.innerHTML = "";
+
+    leftSpaces.forEach((item, index) => {
+      const { space, canRejoinToday } = item;
+      const s = space;
+
+      // Dynamic styling based on course code
+      const courseCode =
+        s.courseCode || (s.courseName ? s.courseName.substring(0, 3) : "GEN");
+      const { hue, icon, category } = this.getCourseStyle(courseCode);
+
+      // Build section label
+      const secNum = s.section ? parseInt(s.section, 10) : NaN;
+      const sectionLabel =
+        !Number.isNaN(secNum) && secNum > 0 ? `S-${secNum}` : "";
+
+      const card = document.createElement("div");
+      card.className = "group-card left-space-card";
+      card.setAttribute("data-course", category);
+      card.style.setProperty("--course-hue", hue);
+      card.style.setProperty("--card-index", index);
+
+      card.innerHTML = `
+        <div class="card-accent"></div>
+        <div class="card-avatar">
+          <i class="fas ${icon}"></i>
+        </div>
+        <div class="card-body">
+          <div class="card-row-top">
+            <span class="course-tag">${courseCode}</span>
+            ${
+              sectionLabel
+                ? `<span class="section-tag">${sectionLabel}</span>`
+                : ""
+            }
+          </div>
+          <div class="card-row-main">
+            <span class="schedule-info">
+              <i class="far fa-clock"></i>
+              <strong>${this.slotToDisplay(s) || "TBD"}</strong>
+            </span>
+            <span class="room-info">
+              <i class="fas fa-door-open"></i>
+              <strong>${s.classroom || "TBD"}</strong>
+            </span>
+          </div>
+        </div>
+        <button class="rejoin-btn" data-space-id="${s.spaceId}" ${!canRejoinToday ? "disabled" : ""}>
+          <i class="fas fa-redo"></i>
+          <span>${canRejoinToday ? "Rejoin" : "Tomorrow"}</span>
+        </button>
+      `;
+
+      // Bind rejoin button
+      const rejoinBtn = card.querySelector(".rejoin-btn");
+      if (rejoinBtn && canRejoinToday) {
+        rejoinBtn.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          await this.handleRejoin(s.spaceId, rejoinBtn, card);
+        });
+      }
+
+      listEl.appendChild(card);
+    });
+  }
+
+  async handleRejoin(spaceId, button, card) {
+    button.disabled = true;
+    button.classList.add("loading");
+    const originalHtml = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Rejoining...</span>';
+
+    try {
+      await classSpacesService.rejoinSpace(spaceId);
+      notificationManager.show("Successfully rejoined the class space!", "success");
+
+      // Remove the card with animation
+      card.style.opacity = "0";
+      card.style.transform = "translateX(-20px)";
+      setTimeout(() => {
+        card.remove();
+
+        // Check if left spaces section should be hidden
+        const targetEl = this.groupsRoot || this.container;
+        const listEl = targetEl.querySelector("#left-spaces-list");
+        const sectionEl = targetEl.querySelector("#left-spaces-section");
+        if (listEl && listEl.children.length === 0 && sectionEl) {
+          sectionEl.classList.add("hidden");
+        }
+      }, 300);
+
+      // Reload groups to show the space in active list
+      const userId = currentUser?.uid;
+      if (userId) {
+        groupsCache.invalidate(userId);
+      }
+      await this.loadGroups();
+    } catch (err) {
+      console.error("[GroupsPage] Rejoin failed:", err);
+      button.disabled = false;
+      button.classList.remove("loading");
+      button.innerHTML = originalHtml;
+
+      // Show specific error message
+      const errMsg = err?.message || err?.code || "Failed to rejoin class space";
+      if (errMsg.includes("once per day")) {
+        notificationManager.show("You can only rejoin this space once per day. Try again tomorrow.", "warning");
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-clock"></i> <span>Tomorrow</span>';
+      } else {
+        notificationManager.show(errMsg, "error");
+      }
+    }
   }
 
   getCourseStyle(code) {

@@ -34,13 +34,13 @@ function validateDocumentId(id, fieldName = "id") {
   if (!id || typeof id !== "string") {
     throw new https.HttpsError(
       "invalid-argument",
-      `${fieldName} is required and must be a string`
+      `${fieldName} is required and must be a string`,
     );
   }
   if (!VALID_DOC_ID_PATTERN.test(id)) {
     throw new https.HttpsError(
       "invalid-argument",
-      `${fieldName} contains invalid characters. Only alphanumeric, underscore, and hyphen are allowed.`
+      `${fieldName} contains invalid characters. Only alphanumeric, underscore, and hyphen are allowed.`,
     );
   }
 }
@@ -98,12 +98,12 @@ async function enforceAdminRateLimit(userId, actionKey, limitPerDay = 100) {
   const allowed = await incrementRate(
     userId,
     `admin_${actionKey}`,
-    limitPerDay
+    limitPerDay,
   );
   if (!allowed) {
     throw new https.HttpsError(
       "resource-exhausted",
-      `Rate limit exceeded for ${actionKey}. Please try again tomorrow.`
+      `Rate limit exceeded for ${actionKey}. Please try again tomorrow.`,
     );
   }
 }
@@ -147,7 +147,7 @@ async function getUserTokens(userId) {
 
 function _shouldDeleteTokenForError(err) {
   const s = `${String(err?.code || "").toLowerCase()} ${String(
-    err?.message || ""
+    err?.message || "",
   ).toLowerCase()}`;
   return (
     s.includes("registration-token-not-registered") ||
@@ -172,7 +172,7 @@ async function removeInvalidTokens(userId, tokens, responses) {
             .collection("users")
             .doc(userId)
             .collection("fcmTokens")
-            .doc(tokenId)
+            .doc(tokenId),
         );
       }
     }
@@ -390,7 +390,7 @@ async function assertSuperAdmin(context) {
     // SECURITY FIX: Require BOTH emulator flag AND localhost check
     if (isEmulator && isLocalhost) {
       logger.warn(
-        "assertSuperAdmin: missing auth in emulator (localhost verified), allowing call for local development"
+        "assertSuperAdmin: missing auth in emulator (localhost verified), allowing call for local development",
       );
       return { uid: "emulator-dev", config: {} };
     }
@@ -407,6 +407,35 @@ async function assertSuperAdmin(context) {
   }
 
   return { uid: context.auth.uid, config: data };
+}
+
+// v2-compatible version of assertSuperAdmin (uses request.auth instead of context.auth)
+async function assertSuperAdminV2(request) {
+  const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
+  const isLocalhost =
+    process.env.GCLOUD_PROJECT === "demo-project" ||
+    process.env.FIREBASE_CONFIG?.includes("localhost");
+
+  if (!request.auth) {
+    if (isEmulator && isLocalhost) {
+      logger.warn(
+        "assertSuperAdminV2: missing auth in emulator (localhost verified), allowing call for local development",
+      );
+      return { uid: "emulator-dev", config: {} };
+    }
+
+    throw new HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  const snap = await db.doc("admin/superAdmins").get();
+  const data = snap.exists ? snap.data() || {} : {};
+  const uids = Array.isArray(data.uids) ? data.uids : [];
+
+  if (!uids.includes(request.auth.uid)) {
+    throw new HttpsError("permission-denied", "Not authorized");
+  }
+
+  return { uid: request.auth.uid, config: data };
 }
 
 async function assertSafModerator(context) {
@@ -462,7 +491,7 @@ async function assertClubRoleManager(uid, club) {
 
   throw new https.HttpsError(
     "permission-denied",
-    "Not authorized to manage club roles"
+    "Not authorized to manage club roles",
   );
 }
 
@@ -484,7 +513,7 @@ async function setUserClubRole(userId, clubId, club, role, title) {
         [clubId]: payload,
       },
     },
-    { merge: true }
+    { merge: true },
   );
 }
 
@@ -496,7 +525,7 @@ async function clearUserClubRole(userId, clubId) {
         [clubId]: FieldValue.delete(),
       },
     },
-    { merge: true }
+    { merge: true },
   );
 }
 
@@ -559,7 +588,7 @@ function isStarredBy(recipientUser, actorId) {
   const list = recipientUser?.quickAccessData?.starredFriends || [];
   // Expect objects like { friendId: "..." }
   return list.some((f) =>
-    typeof f === "string" ? f === actorId : f?.friendId === actorId
+    typeof f === "string" ? f === actorId : f?.friendId === actorId,
   );
 }
 
@@ -587,7 +616,7 @@ export const addSafModerator = https.onCall(async (data, context) => {
       addedAt: FieldValue.serverTimestamp(),
       addedBy: callerUid,
     },
-    { merge: true }
+    { merge: true },
   );
 
   if (universityId) {
@@ -687,7 +716,7 @@ export const promoteClubOfficial = https.onCall(async (data, context) => {
     }
 
     const uniqueOfficialIds = new Set(
-      Array.isArray(current.officialIds) ? current.officialIds : []
+      Array.isArray(current.officialIds) ? current.officialIds : [],
     );
     uniqueOfficialIds.add(userId);
 
@@ -743,7 +772,7 @@ export const demoteClubOfficial = https.onCall(async (data, context) => {
   if (club.presidentId === userId) {
     throw new https.HttpsError(
       "failed-precondition",
-      "Use assignClubPresident to change the president"
+      "Use assignClubPresident to change the president",
     );
   }
 
@@ -975,7 +1004,7 @@ export const removeClubMember = https.onCall(async (data, context) => {
   if (club.presidentId === userId) {
     throw new https.HttpsError(
       "failed-precondition",
-      "Cannot remove the current president; transfer presidency first"
+      "Cannot remove the current president; transfer presidency first",
     );
   }
 
@@ -1043,19 +1072,19 @@ export const approveClubEventSaf = https.onCall(async (data, context) => {
   if (!moderatorUniversityId) {
     throw new https.HttpsError(
       "permission-denied",
-      "SAF moderator is not scoped to a university"
+      "SAF moderator is not scoped to a university",
     );
   }
   if (!clubUniversityId) {
     throw new https.HttpsError(
       "permission-denied",
-      "Club is not scoped to a university"
+      "Club is not scoped to a university",
     );
   }
   if (moderatorUniversityId !== clubUniversityId) {
     throw new https.HttpsError(
       "permission-denied",
-      "Cannot moderate clubs outside your university"
+      "Cannot moderate clubs outside your university",
     );
   }
 
@@ -1069,7 +1098,7 @@ export const approveClubEventSaf = https.onCall(async (data, context) => {
   if (event.status !== "pending_saf") {
     throw new https.HttpsError(
       "failed-precondition",
-      "Only events with status 'pending_saf' can be SAF-approved"
+      "Only events with status 'pending_saf' can be SAF-approved",
     );
   }
 
@@ -1106,7 +1135,7 @@ export const rejectClubEventSaf = https.onCall(async (data, context) => {
   if (!reason) {
     throw new https.HttpsError(
       "invalid-argument",
-      "Parameter 'reason' is required for rejection"
+      "Parameter 'reason' is required for rejection",
     );
   }
 
@@ -1125,19 +1154,19 @@ export const rejectClubEventSaf = https.onCall(async (data, context) => {
   if (!moderatorUniversityId) {
     throw new https.HttpsError(
       "permission-denied",
-      "SAF moderator is not scoped to a university"
+      "SAF moderator is not scoped to a university",
     );
   }
   if (!clubUniversityId) {
     throw new https.HttpsError(
       "permission-denied",
-      "Club is not scoped to a university"
+      "Club is not scoped to a university",
     );
   }
   if (moderatorUniversityId !== clubUniversityId) {
     throw new https.HttpsError(
       "permission-denied",
-      "Cannot moderate clubs outside your university"
+      "Cannot moderate clubs outside your university",
     );
   }
 
@@ -1151,7 +1180,7 @@ export const rejectClubEventSaf = https.onCall(async (data, context) => {
   if (event.status !== "pending_saf") {
     throw new https.HttpsError(
       "failed-precondition",
-      "Only events with status 'pending_saf' can be SAF-rejected"
+      "Only events with status 'pending_saf' can be SAF-rejected",
     );
   }
 
@@ -1247,7 +1276,7 @@ export const syncUserAvatarPhotoChanges = onDocumentUpdated(
           "syncUserAvatarPhotoChanges: missing before/after snapshot",
           {
             userId,
-          }
+          },
         );
         return;
       }
@@ -1386,7 +1415,7 @@ export const syncUserAvatarPhotoChanges = onDocumentUpdated(
             {
               userId,
               error: String(err),
-            }
+            },
           );
           return { empty: true, docs: [] };
         });
@@ -1423,7 +1452,7 @@ export const syncUserAvatarPhotoChanges = onDocumentUpdated(
             {
               userId,
               error: String(err),
-            }
+            },
           );
           return { empty: true, docs: [] };
         });
@@ -1454,7 +1483,7 @@ export const syncUserAvatarPhotoChanges = onDocumentUpdated(
             {
               userId,
               error: String(err),
-            }
+            },
           );
           return { empty: true, docs: [] };
         });
@@ -1539,8 +1568,8 @@ export const syncUserAvatarPhotoChanges = onDocumentUpdated(
           data.user1Id === userId
             ? "user1Info"
             : data.user2Id === userId
-            ? "user2Info"
-            : null;
+              ? "user2Info"
+              : null;
 
         if (prefix) {
           updates[`${prefix}.handle`] = updatedUserInfo.handle;
@@ -1640,7 +1669,7 @@ export const syncUserAvatarPhotoChanges = onDocumentUpdated(
         error: String(err),
       });
     }
-  }
+  },
 );
 
 // 0b) Maintain club followerCount when a user's followedClubs array changes
@@ -1742,7 +1771,7 @@ export const onClubFollow = onDocumentUpdated(
         error: String(err),
       });
     }
-  }
+  },
 );
 
 // 1) Friend Requests → notify recipient automatically
@@ -1785,7 +1814,7 @@ export const onFriendRequestCreated = onDocumentCreated(
     };
     const res = await sendToUser(toUserId, notification, payload);
     logger.info("Friend request push sent", res);
-  }
+  },
 );
 
 // 2) Location share requests (existing notifications collection)
@@ -1805,7 +1834,7 @@ export const onNotificationCreated = onDocumentCreated(
         const ok = await incrementRate(
           data.fromUserId,
           "locationRequestsSent",
-          60
+          60,
         );
         if (!ok) {
           logger.warn("Location request rate limit exceeded", {
@@ -1884,7 +1913,7 @@ export const onNotificationCreated = onDocumentCreated(
       }
       return;
     }
-  }
+  },
 );
 
 // 3) Starred presence alert when a user becomes ON CAMPUS
@@ -1943,7 +1972,7 @@ export const onUserPresenceUpdated = onDocumentUpdated(
     for (let i = 0; i < friendIds.length; i += 10) {
       const chunk = friendIds.slice(i, i + 10);
       const friendDocs = await db.getAll(
-        ...chunk.map((id) => db.collection("users").doc(id))
+        ...chunk.map((id) => db.collection("users").doc(id)),
       );
       friendDocs.forEach((doc) => {
         if (doc.exists) friendDataMap[doc.id] = doc.data();
@@ -1998,11 +2027,11 @@ export const onUserPresenceUpdated = onDocumentUpdated(
             actorId,
             ...res,
           });
-        })
+        }),
       );
     }
     await Promise.allSettled(sendPromises);
-  }
+  },
 );
 
 // (Availability ping/response Cloud Functions removed as the feature was deprecated)
@@ -2033,7 +2062,7 @@ export const onFcmTokenWrite = onDocumentWritten(
       await batch.commit();
       logger.info("Server token dedupe complete", { userId, removed });
     }
-  }
+  },
 );
 
 // 5) Monthly stale token cleanup (older than 90 days by updatedAt or createdAt)
@@ -2098,7 +2127,7 @@ export const aggregateDailyStats = onSchedule("every day 00:10", async () => {
       pwaInstalls,
       generatedAt: new Date().toISOString(),
     },
-    { merge: true }
+    { merge: true },
   );
   logger.info("Daily stats aggregated", { dayKey, active24h, pwaInstalls });
 });
@@ -2177,7 +2206,7 @@ async function notifyClubFollowers(clubId, notificationData) {
 async function notifySafModeratorsForUniversity(
   universityId,
   clubId,
-  notificationData
+  notificationData,
 ) {
   // Query SAF moderators for this university
   const safModsSnapshot = await db
@@ -2237,7 +2266,7 @@ async function notifySafModeratorsForUniversity(
 async function notifyAllUniversityUsers(
   universityCode,
   clubId,
-  notificationData
+  notificationData,
 ) {
   // Query all users with matching university code
   const usersSnapshot = await db
@@ -2375,7 +2404,7 @@ export const onClubEventCreated = onDocumentCreated(
           {
             clubId,
             eventId,
-          }
+          },
         );
         return;
       }
@@ -2427,7 +2456,7 @@ export const onClubEventCreated = onDocumentCreated(
           eventId,
           createdBy: data.createdBy || null,
           universityId,
-        }
+        },
       );
       return;
     }
@@ -2471,7 +2500,7 @@ export const onClubEventCreated = onDocumentCreated(
         createdBy: data.createdBy || null,
       });
     }
-  }
+  },
 );
 
 // When event status changes (approved / rejected / cancelled), notify creator and followers
@@ -2623,7 +2652,7 @@ export const onClubEventStatusChanged = onDocumentUpdated(
           eventId,
           createdBy: after.createdBy || null,
           universityId,
-        }
+        },
       );
     }
 
@@ -2712,7 +2741,7 @@ export const onClubEventStatusChanged = onDocumentUpdated(
         stoppedBy,
       });
     }
-  }
+  },
 );
 
 // When an event is marked as started (isLive toggles to true), notify ALL users in the university
@@ -2780,7 +2809,7 @@ export const onClubEventStarted = onDocumentUpdated(
         eventId,
       });
     }
-  }
+  },
 );
 
 // Scheduled: send 30-minute reminders for approved events (each time slot)
@@ -2910,7 +2939,7 @@ export const sendClubEventReminders = onSchedule(
         }
       }
     }
-  }
+  },
 );
 
 // Scheduled: cleanup club notifications older than 30 days
@@ -2953,7 +2982,7 @@ export const cleanupOldClubNotifications = onSchedule(
     logger.info("Cleanup old club notifications complete", {
       totalDeleted,
     });
-  }
+  },
 );
 
 // 7) Cascade cleanup when a user document is deleted
@@ -2973,7 +3002,7 @@ export const onUserDeleted = onDocumentDeleted(
       subDocsDeleted: total,
       friendshipsRemoved,
     });
-  }
+  },
 );
 
 // 9) Maintain club memberCount based on /clubs/{clubId}/members subcollection
@@ -3015,7 +3044,7 @@ export const onClubMemberChanged = onDocumentWritten(
         error: String(error),
       });
     }
-  }
+  },
 );
 
 // 8) Debug: send a test push to the authenticated user (or provided target)
@@ -3076,7 +3105,10 @@ async function fetchMemberInfo(uid) {
   }
 }
 
-async function deleteClassSpaceRecursive(spaceId, { deleteBatchSize = 500 } = {}) {
+async function deleteClassSpaceRecursive(
+  spaceId,
+  { deleteBatchSize = 500 } = {},
+) {
   const ref = db.collection("classSpaces").doc(spaceId);
 
   // Prefer Firestore Admin recursiveDelete when available (deletes subcollections too).
@@ -3114,16 +3146,23 @@ async function runClassSpacesScheduler({
 
   let usersConsidered = 0;
   let coursesConsidered = 0;
+  let usersSkippedDueToLeft = 0;
   for (const docSnap of usersSnap.docs) {
     usersConsidered++;
     const d = docSnap.data() || {};
     const uni = d?.universityInfo?.university || "";
     const arr = Array.isArray(d?.courses) ? d.courses : [];
+    const leftSpaces = d?.leftSpaces || {};
     if (!uni || arr.length === 0) continue;
     for (const c of arr) {
       coursesConsidered++;
       const id = buildSpaceIdFromCourse(uni, c);
       if (!id) continue;
+      // Skip if user has manually left this space
+      if (leftSpaces[id]) {
+        usersSkippedDueToLeft++;
+        continue;
+      }
       if (!buckets.has(id)) buckets.set(id, new Set());
       buckets.get(id).add(docSnap.id);
       if (!index.has(id)) index.set(id, { university: uni, course: c });
@@ -3173,7 +3212,8 @@ async function runClassSpacesScheduler({
     const prior = existing.get(spaceId) || null;
     if (prior?.devTest === true) continue;
     const wasActive = prior?.active === true;
-    const hadMembers = Array.isArray(prior?.memberIds) && prior.memberIds.length;
+    const hadMembers =
+      Array.isArray(prior?.memberIds) && prior.memberIds.length;
 
     if (members.length >= threshold) {
       const memberInfo = {};
@@ -3182,7 +3222,7 @@ async function runClassSpacesScheduler({
         preview.map(async (uid) => {
           const info = await fetchMemberInfo(uid);
           if (info) memberInfo[uid] = info;
-        })
+        }),
       );
 
       const payload = {
@@ -3233,7 +3273,7 @@ async function runClassSpacesScheduler({
               lastMemberUpdate: FieldValue.serverTimestamp(),
               updatedAt: FieldValue.serverTimestamp(),
             },
-            { merge: true }
+            { merge: true },
           );
           spacesDeactivated++;
         } else if (prior.active !== false) {
@@ -3241,7 +3281,7 @@ async function runClassSpacesScheduler({
           await queueSet(
             ref,
             { active: false, updatedAt: FieldValue.serverTimestamp() },
-            { merge: true }
+            { merge: true },
           );
           spacesDeactivated++;
         }
@@ -3255,8 +3295,10 @@ async function runClassSpacesScheduler({
     if (prior?.devTest === true) continue;
 
     const wasActive = prior?.active === true;
-    const hadMembers = Array.isArray(prior?.memberIds) && prior.memberIds.length;
-    const shouldClear = wasActive || hadMembers || (prior?.memberCount || 0) > 0;
+    const hadMembers =
+      Array.isArray(prior?.memberIds) && prior.memberIds.length;
+    const shouldClear =
+      wasActive || hadMembers || (prior?.memberCount || 0) > 0;
     const ref = db.collection("classSpaces").doc(spaceId);
     if (shouldClear) {
       await queueSet(
@@ -3269,7 +3311,7 @@ async function runClassSpacesScheduler({
           lastMemberUpdate: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         },
-        { merge: true }
+        { merge: true },
       );
       spacesCleared++;
     }
@@ -3296,12 +3338,15 @@ async function runClassSpacesScheduler({
             spacesDeleted++;
           } catch (err) {
             spacesDeleteFailed++;
-            logger.error("runClassSpacesScheduler: failed to delete classSpace", {
-              spaceId,
-              error: String(err),
-            });
+            logger.error(
+              "runClassSpacesScheduler: failed to delete classSpace",
+              {
+                spaceId,
+                error: String(err),
+              },
+            );
           }
-        })
+        }),
       );
     }
   }
@@ -3310,6 +3355,7 @@ async function runClassSpacesScheduler({
     threshold,
     usersConsidered,
     coursesConsidered,
+    usersSkippedDueToLeft,
     totalBuckets: buckets.size,
     activeSpaces,
     spacesUpserted,
@@ -3410,7 +3456,9 @@ export const onUserCoursesChangedSyncClassSpaces = onDocumentUpdated(
         .where("memberIds", "array-contains", userId)
         .get();
 
-      const currentlyMemberOf = new Set(currentSpacesSnap.docs.map((d) => d.id));
+      const currentlyMemberOf = new Set(
+        currentSpacesSnap.docs.map((d) => d.id),
+      );
 
       let batch = db.batch();
       let opsInBatch = 0;
@@ -3460,7 +3508,11 @@ export const onUserCoursesChangedSyncClassSpaces = onDocumentUpdated(
 
       // 2) Add user to spaces they now match IF the space already exists and is active.
       // This avoids surfacing <3-member spaces in the client (GroupsPage queries by memberIds).
-      const toCheck = Array.from(afterKeys).filter((k) => !currentlyMemberOf.has(k));
+      // Also skip spaces the user has manually left (they must explicitly rejoin).
+      const leftSpaces = after?.leftSpaces || {};
+      const toCheck = Array.from(afterKeys).filter(
+        (k) => !currentlyMemberOf.has(k) && !leftSpaces[k],
+      );
       const refs = toCheck.map((k) => db.collection("classSpaces").doc(k));
       const snaps = refs.length ? await db.getAll(...refs) : [];
 
@@ -3501,15 +3553,26 @@ export const onUserCoursesChangedSyncClassSpaces = onDocumentUpdated(
         error: String(err),
       });
     }
-  }
+  },
 );
 
 export const scheduleDailyClassSpaces = onSchedule(
-  { schedule: "every day 06:00", timeZone: "Asia/Dhaka" },
+  {
+    schedule: "every day 06:00",
+    timeZone: "Asia/Dhaka",
+    timeoutSeconds: 540, // 9 minutes to handle large user bases
+    memory: "512MiB",
+  },
   async () => {
-    const summary = await runClassSpacesScheduler({ threshold: 3 });
-    logger.info("scheduleDailyClassSpaces completed", summary);
-  }
+    logger.info("scheduleDailyClassSpaces starting...");
+    try {
+      const summary = await runClassSpacesScheduler({ threshold: 3 });
+      logger.info("scheduleDailyClassSpaces completed successfully", summary);
+    } catch (err) {
+      logger.error("scheduleDailyClassSpaces FAILED", { error: String(err) });
+      throw err; // Re-throw to mark function as failed
+    }
+  },
 );
 
 // Rate-limited message sending via callable (membership checked in CF)
@@ -3523,7 +3586,7 @@ export const sendGroupMessage = https.onCall(async (data, context) => {
   if (!spaceId || !content) {
     throw new https.HttpsError(
       "invalid-argument",
-      "spaceId and content required"
+      "spaceId and content required",
     );
   }
   if (content.length > 500) {
@@ -3587,7 +3650,7 @@ export const sendGroupMessage = https.onCall(async (data, context) => {
             createdAt: FieldValue.serverTimestamp(),
           },
         },
-        { merge: true }
+        { merge: true },
       );
     }
   } catch (e) {
@@ -3596,13 +3659,264 @@ export const sendGroupMessage = https.onCall(async (data, context) => {
   return { success: true, messageId: msgRef.id };
 });
 
+// =============================================================================
+// LEAVE / REJOIN CLASS SPACES
+// =============================================================================
+
+/**
+ * Helper to get today's date as YYYY-MM-DD string in Asia/Dhaka timezone
+ */
+function getTodayDateString() {
+  const now = new Date();
+  // Convert to Asia/Dhaka timezone (UTC+6)
+  const dhaka = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+  return dhaka.toISOString().split("T")[0];
+}
+
+/**
+ * Leave a class space
+ * - Removes user from space memberIds and memberInfo
+ * - Adds spaceId to user's leftSpaces map
+ */
+export const leaveClassSpace = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be signed in");
+  }
+  const uid = request.auth.uid;
+  const spaceId = String(request.data?.spaceId || "").trim();
+
+  if (!spaceId) {
+    throw new HttpsError("invalid-argument", "spaceId is required");
+  }
+
+  // Validate spaceId format
+  if (!/^[a-zA-Z0-9_-]+(__[a-zA-Z0-9_-]+)+$/.test(spaceId)) {
+    throw new HttpsError("invalid-argument", "Invalid spaceId format");
+  }
+
+  const spaceRef = db.collection("classSpaces").doc(spaceId);
+  const userRef = db.collection("users").doc(uid);
+
+  try {
+    await db.runTransaction(async (tx) => {
+      const spaceDoc = await tx.get(spaceRef);
+      const userDoc = await tx.get(userRef);
+
+      if (!spaceDoc.exists) {
+        throw new HttpsError("not-found", "Space not found");
+      }
+
+      const spaceData = spaceDoc.data() || {};
+
+      // Cannot leave dev test spaces via this function
+      if (spaceData.devTest === true) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Cannot leave dev test spaces",
+        );
+      }
+
+      // Verify user is a member
+      const memberIds = Array.isArray(spaceData.memberIds)
+        ? spaceData.memberIds
+        : [];
+      if (!memberIds.includes(uid)) {
+        throw new HttpsError(
+          "failed-precondition",
+          "You are not a member of this space",
+        );
+      }
+
+      // Remove user from memberIds
+      const newMemberIds = memberIds.filter((id) => id !== uid);
+      const newMemberCount = newMemberIds.length;
+
+      // Remove user from memberInfo
+      const memberInfo = spaceData.memberInfo || {};
+      const newMemberInfo = { ...memberInfo };
+      delete newMemberInfo[uid];
+
+      // Prepare space update
+      const spaceUpdate = {
+        memberIds: newMemberIds,
+        memberCount: newMemberCount,
+        memberInfo: newMemberInfo,
+        lastMemberUpdate: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      tx.update(spaceRef, spaceUpdate);
+
+      // Add to user's leftSpaces
+      const userData = userDoc.exists ? userDoc.data() : {};
+      const leftSpaces = userData.leftSpaces || {};
+
+      // Preserve lastRejoinDate so users cannot bypass the once-per-day rejoin limit
+      // by leaving again on the same day.
+      const prior = leftSpaces[spaceId] || {};
+      leftSpaces[spaceId] = {
+        ...prior,
+        leftAt: FieldValue.serverTimestamp(),
+        lastRejoinDate: prior?.lastRejoinDate || null,
+      };
+
+      tx.set(userRef, { leftSpaces }, { merge: true });
+    });
+
+    logger.info("leaveClassSpace: user left space", { uid, spaceId });
+    return { success: true };
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    logger.error("leaveClassSpace failed", {
+      uid,
+      spaceId,
+      error: String(err),
+    });
+    throw new HttpsError("internal", "Failed to leave space");
+  }
+});
+
+/**
+ * Rejoin a class space that user previously left
+ * - Validates space is still active
+ * - Validates user has matching course
+ * - Enforces once-per-day limit per space
+ * - Adds user back to memberIds and memberInfo
+ */
+export const rejoinClassSpace = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be signed in");
+  }
+  const uid = request.auth.uid;
+  const spaceId = String(request.data?.spaceId || "").trim();
+
+  if (!spaceId) {
+    throw new HttpsError("invalid-argument", "spaceId is required");
+  }
+
+  // Validate spaceId format
+  if (!/^[a-zA-Z0-9_-]+(__[a-zA-Z0-9_-]+)+$/.test(spaceId)) {
+    throw new HttpsError("invalid-argument", "Invalid spaceId format");
+  }
+
+  const spaceRef = db.collection("classSpaces").doc(spaceId);
+  const userRef = db.collection("users").doc(uid);
+  const today = getTodayDateString();
+
+  try {
+    const result = await db.runTransaction(async (tx) => {
+      const [spaceDoc, userDoc] = await Promise.all([
+        tx.get(spaceRef),
+        tx.get(userRef),
+      ]);
+
+      if (!spaceDoc.exists) {
+        throw new HttpsError("not-found", "Space not found");
+      }
+
+      const spaceData = spaceDoc.data() || {};
+      const userData = userDoc.exists ? userDoc.data() : {};
+
+      // Check if space is active
+      if (spaceData.active !== true) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This space is no longer active",
+        );
+      }
+
+      // Check if user has this space in leftSpaces
+      const leftSpaces = userData.leftSpaces || {};
+      if (!leftSpaces[spaceId]) {
+        throw new HttpsError(
+          "failed-precondition",
+          "You have not left this space",
+        );
+      }
+
+      // Check daily rejoin limit
+      const lastRejoinDate = leftSpaces[spaceId]?.lastRejoinDate || null;
+      if (lastRejoinDate === today) {
+        throw new HttpsError(
+          "resource-exhausted",
+          "You can only rejoin this space once per day. Try again tomorrow.",
+        );
+      }
+
+      // Validate user has matching course
+      const userUni = userData?.universityInfo?.university || "";
+      const userCourses = Array.isArray(userData?.courses)
+        ? userData.courses
+        : [];
+      const userSpaceIds = buildSpaceIdsForUser(userUni, userCourses);
+
+      if (!userSpaceIds.has(spaceId)) {
+        throw new HttpsError(
+          "failed-precondition",
+          "You no longer have the matching course for this space",
+        );
+      }
+
+      // Check if already a member (shouldn't happen but defensive)
+      const memberIds = Array.isArray(spaceData.memberIds)
+        ? spaceData.memberIds
+        : [];
+      if (memberIds.includes(uid)) {
+        throw new HttpsError(
+          "failed-precondition",
+          "You are already a member of this space",
+        );
+      }
+
+      // Fetch member info for the user
+      const memberInfoData = await fetchMemberInfo(uid);
+
+      // Add user to space
+      const newMemberIds = [...memberIds, uid];
+      const newMemberInfo = { ...(spaceData.memberInfo || {}) };
+      if (memberInfoData) {
+        newMemberInfo[uid] = memberInfoData;
+      }
+
+      tx.update(spaceRef, {
+        memberIds: newMemberIds,
+        memberCount: newMemberIds.length,
+        memberInfo: newMemberInfo,
+        lastMemberUpdate: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      // Update leftSpaces with today's rejoin date (keep in leftSpaces to track history)
+      leftSpaces[spaceId].lastRejoinDate = today;
+      tx.set(userRef, { leftSpaces }, { merge: true });
+
+      return { newMemberCount: newMemberIds.length };
+    });
+
+    logger.info("rejoinClassSpace: user rejoined space", {
+      uid,
+      spaceId,
+      newMemberCount: result.newMemberCount,
+    });
+    return { success: true, memberCount: result.newMemberCount };
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    logger.error("rejoinClassSpace failed", {
+      uid,
+      spaceId,
+      error: String(err),
+    });
+    throw new HttpsError("internal", "Failed to rejoin space");
+  }
+});
+
 // Nightly trim to 2,000 latest messages per space
 export const trimSpaceMessages = onSchedule(
   { schedule: "every day 03:00", timeZone: "Asia/Dhaka" },
   async () => {
     const summary = await runTrimSpaceMessages();
     logger.info("trimSpaceMessages completed", summary);
-  }
+  },
 );
 
 // =============================================================================
@@ -3667,16 +3981,16 @@ export const triggerClassSpaceScheduler = https.onRequest(async (req, res) => {
 // 🔐 Super Admin: Manual automation triggers (callable)
 // =============================================================================
 
-export const runAdminAutomationJob = https.onCall(async (data, context) => {
-  const { uid: callerUid } = await assertSuperAdmin(context);
+export const runAdminAutomationJob = onCall(async (request) => {
+  const { uid: callerUid } = await assertSuperAdminV2(request);
 
   // Rate limit: avoid accidental rapid re-runs
   await enforceAdminRateLimit(callerUid, "runAdminAutomationJob", 20);
 
-  const job = String(data?.job || "").trim();
+  const job = String(request.data?.job || "").trim();
   const allowedJobs = new Set(["classSpacesScheduler", "trimSpaceMessages"]);
   if (!allowedJobs.has(job)) {
-    throw new https.HttpsError("invalid-argument", "Unknown job");
+    throw new HttpsError("invalid-argument", "Unknown job");
   }
 
   try {
@@ -3761,7 +4075,7 @@ export const onFriendshipWriteUpdateFriendIds = onDocumentWritten(
       // Just an update to the friendship doc (e.g., privacy settings)
       // friendIds don't need to change
       logger.info(
-        "onFriendshipWriteUpdateFriendIds: Friendship updated (not create/delete), skipping"
+        "onFriendshipWriteUpdateFriendIds: Friendship updated (not create/delete), skipping",
       );
       return;
     }
@@ -3781,15 +4095,15 @@ export const onFriendshipWriteUpdateFriendIds = onDocumentWritten(
       ]);
 
       logger.info(
-        "onFriendshipWriteUpdateFriendIds: Successfully updated both users"
+        "onFriendshipWriteUpdateFriendIds: Successfully updated both users",
       );
     } catch (error) {
       logger.error(
         "onFriendshipWriteUpdateFriendIds: Error updating friendIds",
-        error
+        error,
       );
     }
-  }
+  },
 );
 
 /**
@@ -3878,7 +4192,7 @@ export const onMessageCreate = onDocumentCreated(
                 violations: FieldValue.increment(1),
                 lastViolation: FieldValue.serverTimestamp(),
               },
-              { merge: true }
+              { merge: true },
             );
             violated = true;
             logger.warn("Rate limit violation (onCreate)", {
@@ -3927,7 +4241,7 @@ export const onMessageCreate = onDocumentCreated(
                 createdAt: FieldValue.serverTimestamp(),
               },
             },
-            { merge: true }
+            { merge: true },
           );
         }
       } catch (e) {
@@ -3936,7 +4250,7 @@ export const onMessageCreate = onDocumentCreated(
     } catch (err) {
       logger.error("onMessageCreate failed", err);
     }
-  }
+  },
 );
 
 // -----------------------------
@@ -4026,7 +4340,7 @@ export const cleanupOldClubEvents = onSchedule(
       totalDeleted,
       imagesDeleted,
     });
-  }
+  },
 );
 
 // -----------------------------

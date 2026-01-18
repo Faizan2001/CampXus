@@ -20,7 +20,7 @@ function loadFirebaseConfig() {
   if (!window.ENV) {
     console.error("❌ Environment configuration not loaded");
     throw new Error(
-      "Missing environment configuration. Please run: npm run dev:serve"
+      "Missing environment configuration. Please run: npm run dev:serve",
     );
   }
 
@@ -79,19 +79,19 @@ try {
   });
   if (typeof window !== "undefined" && window.logManager) {
     window.logManager.dev.debug(
-      "Firebase Auth initialized with optimized persistence (localStorage priority)"
+      "Firebase Auth initialized with optimized persistence (localStorage priority)",
     );
   }
 } catch (error) {
   if (typeof window !== "undefined" && window.logManager) {
     window.logManager.auth.error(
       "Failed to initialize Auth with custom persistence, falling back to default",
-      { message: error.message }
+      { message: error.message },
     );
   } else {
     console.warn(
       "⚠️ Failed to initialize Auth with custom persistence, falling back to default:",
-      error.message
+      error.message,
     );
   }
   // Fallback to default auth initialization if custom persistence fails
@@ -99,7 +99,7 @@ try {
   auth = getAuth(app);
   if (typeof window !== "undefined" && window.logManager) {
     window.logManager.dev.debug(
-      "Firebase Auth initialized with default persistence"
+      "Firebase Auth initialized with default persistence",
     );
   }
 }
@@ -115,7 +115,7 @@ try {
   // Fallback to default Firestore if persistence setup fails
   console.warn(
     "⚠️ Failed to initialize Firestore with persistent cache (non-fatal):",
-    error?.message || error
+    error?.message || error,
   );
   db = getFirestore(app);
 }
@@ -123,6 +123,9 @@ try {
 // Initialize other services with error handling
 export { auth };
 export { db };
+
+// Functions instance (will be connected to emulator if localhost)
+let functions = null;
 
 // Connect to emulators in development (localhost only)
 const isLocalhost =
@@ -133,6 +136,8 @@ const isLocalhost =
 if (isLocalhost) {
   const { connectAuthEmulator } = await import("firebase/auth");
   const { connectFirestoreEmulator } = await import("firebase/firestore");
+  const { getFunctions, connectFunctionsEmulator } =
+    await import("firebase/functions");
 
   try {
     // Connect Auth emulator
@@ -143,34 +148,46 @@ if (isLocalhost) {
     // Connect Firestore emulator
     connectFirestoreEmulator(db, "localhost", 8080);
 
+    // Connect Functions emulator
+    functions = getFunctions(app, "us-central1");
+    connectFunctionsEmulator(functions, "localhost", 5001);
+
     console.log(
       "%c🔧 EMULATOR MODE 🔧",
-      "background: #ff6b6b; color: white; font-size: 16px; font-weight: bold; padding: 8px 16px; border-radius: 4px;"
+      "background: #ff6b6b; color: white; font-size: 16px; font-weight: bold; padding: 8px 16px; border-radius: 4px;",
     );
     console.log(
       "%cConnected to Firebase Emulators:\n" +
         "  • Auth:      http://localhost:9099\n" +
         "  • Firestore: http://localhost:8080\n" +
+        "  • Functions: http://localhost:5001\n" +
         "  • Storage:   http://localhost:9199\n" +
         "  • UI:        http://localhost:4000",
-      "color: #51cf66; font-weight: bold;"
+      "color: #51cf66; font-weight: bold;",
     );
     console.log(
       "%c⚠️  Data will NOT persist unless you use --export-on-exit",
-      "color: #ffd43b; font-weight: bold;"
+      "color: #ffd43b; font-weight: bold;",
     );
   } catch (error) {
     console.warn(
       "⚠️ Emulator connection failed (may already be connected):",
-      error.message
+      error.message,
     );
   }
 }
 
+export { functions };
+
+export async function getFunctionsInstance() {
+  if (functions) return functions;
+  const { getFunctions } = await import("firebase/functions");
+  return getFunctions(app, "us-central1");
+}
+
 export async function getStorageInstance() {
-  const { getStorage, connectStorageEmulator } = await import(
-    "firebase/storage"
-  );
+  const { getStorage, connectStorageEmulator } =
+    await import("firebase/storage");
   const storage = getStorage(app);
 
   // Connect Storage emulator in development
@@ -207,7 +224,7 @@ if (typeof window !== "undefined") {
       };
       console.log(
         "%cHandle Dev Test API available as window.__fireTest",
-        "color:#4ade80"
+        "color:#4ade80",
       );
     });
   } catch (e) {

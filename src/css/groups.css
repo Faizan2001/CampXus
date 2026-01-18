@@ -1967,3 +1967,272 @@ body.immersive-chat-mode .main-content {
 .message-report-btn:hover {
   color: #ff4b57;
 }
+
+/* ===== LEAVE BUTTON - Group Header ===== */
+.group-leave-btn {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: rgba(239, 68, 68, 0.8);
+  font-size: 0.95rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  margin-left: auto;
+  transition: all 0.2s ease;
+}
+
+.group-leave-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+}
+
+.group-leave-btn:active {
+  transform: scale(0.95);
+}
+
+/* ===== LEAVE CONFIRMATION MODAL ===== */
+.leave-confirm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.leave-confirm-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.leave-confirm-content {
+  position: relative;
+  background: var(--bg-color, #1e1b29);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 1.5rem;
+  max-width: 340px;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  animation: modalSlideIn 0.25s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.leave-confirm-content h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+  margin: 0 0 0.75rem 0;
+}
+
+.leave-confirm-content p {
+  font-size: 0.9rem;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+  margin: 0 0 0.5rem 0;
+  line-height: 1.5;
+}
+
+.leave-confirm-note {
+  font-size: 0.8rem !important;
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.5)) !important;
+  margin-bottom: 1.25rem !important;
+}
+
+.leave-confirm-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.leave-confirm-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+  padding: 0.6rem 1.1rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.leave-confirm-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.leave-confirm-submit {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border: none;
+  color: #fff;
+  padding: 0.6rem 1.1rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.leave-confirm-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+}
+
+.leave-confirm-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ===== LEFT SPACES SECTION ===== */
+.left-spaces-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.left-spaces-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.left-spaces-header i {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.left-spaces-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Left Space Card - Muted/Faded Style */
+.groups-page .group-card.left-space-card {
+  opacity: 0.7;
+  background: rgba(255, 255, 255, 0.04);
+  border-style: dashed;
+}
+
+.groups-page .group-card.left-space-card:hover {
+  opacity: 0.85;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.groups-page .group-card.left-space-card .card-accent {
+  opacity: 0.5;
+}
+
+.groups-page .group-card.left-space-card .card-avatar {
+  opacity: 0.6;
+  filter: grayscale(30%);
+}
+
+/* Rejoin Button */
+.rejoin-btn {
+  background: linear-gradient(135deg, var(--course-default) 0%, var(--course-default-dark) 100%);
+  border: none;
+  color: #fff;
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.rejoin-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--course-default-glow);
+}
+
+.rejoin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.rejoin-btn i {
+  font-size: 0.7rem;
+}
+
+/* Rejoin disabled hint */
+.rejoin-hint {
+  font-size: 0.7rem;
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.4));
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* Left Space Card Row Adjustments */
+.groups-page .group-card.left-space-card .card-members {
+  display: none;
+}
+
+/* Loading and refreshing states for rejoin */
+.rejoin-btn.loading {
+  pointer-events: none;
+}
+
+.rejoin-btn.loading i {
+  animation: spin 0.8s linear infinite;
+}
+
+/* Empty left spaces state */
+.left-spaces-empty {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.4));
+  font-size: 0.85rem;
+}
+
+/* Desktop responsive adjustments */
+@media (min-width: 768px) {
+  .left-spaces-section {
+    margin-top: 2.5rem;
+    padding-top: 2rem;
+  }
+
+  .left-spaces-header {
+    font-size: 0.9rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .rejoin-btn {
+    padding: 0.45rem 1rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .left-spaces-section {
+    margin-top: 3rem;
+  }
+}

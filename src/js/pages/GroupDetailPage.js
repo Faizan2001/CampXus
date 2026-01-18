@@ -211,6 +211,18 @@ export class GroupDetailPage {
       titleEl.parentNode.insertBefore(backBtn, titleEl);
     }
 
+    // Add Leave button
+    const leaveBtn = document.createElement("button");
+    leaveBtn.className = "group-leave-btn";
+    leaveBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i>';
+    leaveBtn.title = "Leave this class space";
+    leaveBtn.onclick = () => this.showLeaveConfirmModal();
+
+    // Insert leave button after title
+    if (titleEl && titleEl.parentNode) {
+      titleEl.parentNode.appendChild(leaveBtn);
+    }
+
     // Hide subtitle
     if (subEl) subEl.style.display = "none";
 
@@ -627,6 +639,71 @@ export class GroupDetailPage {
       .split(" ")
       .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ""))
       .join(" ");
+  }
+
+  /**
+   * Show confirmation modal for leaving the class space
+   */
+  showLeaveConfirmModal() {
+    // Remove existing modal if any
+    const existingModal = document.querySelector(".leave-confirm-modal");
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement("div");
+    modal.className = "leave-confirm-modal";
+    modal.innerHTML = `
+      <div class="leave-confirm-overlay"></div>
+      <div class="leave-confirm-content">
+        <h3>Leave Class Space?</h3>
+        <p>Are you sure you want to leave this class space?</p>
+        <p class="leave-confirm-note">You can rejoin once per day if the space is still active.</p>
+        <div class="leave-confirm-actions">
+          <button class="leave-confirm-cancel">Cancel</button>
+          <button class="leave-confirm-submit">Leave</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Bind cancel button
+    modal.querySelector(".leave-confirm-cancel").addEventListener("click", () => {
+      modal.remove();
+    });
+
+    // Bind overlay click
+    modal.querySelector(".leave-confirm-overlay").addEventListener("click", () => {
+      modal.remove();
+    });
+
+    // Bind submit button
+    modal.querySelector(".leave-confirm-submit").addEventListener("click", async () => {
+      const submitBtn = modal.querySelector(".leave-confirm-submit");
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Leaving...";
+
+      try {
+        await classSpacesService.leaveSpace(this.spaceId);
+        modal.remove();
+        notificationManager.show("You have left the class space", "success");
+
+        // Navigate back to groups list
+        try {
+          const { navigateTo } = await import("../app.js");
+          navigateTo("messages");
+        } catch (_) {
+          window.location.hash = "#messages";
+        }
+      } catch (err) {
+        console.error("[GroupDetailPage] Leave space failed", err);
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Leave";
+
+        // Show specific error message if available
+        const errMsg = err?.message || err?.code || "Failed to leave class space";
+        notificationManager.show(errMsg, "error");
+      }
+    });
   }
 
   renderMessages(messagesEl, myUid) {
