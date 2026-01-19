@@ -36,7 +36,11 @@ This file contains all styles for the mobile-friendly schedule redesign:
   min-height: 44px; /* Prevent compression */
   padding: 0;
   border: none;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
   color: var(--text-secondary);
   border-radius: 14px; /* Slightly more rounded for modern look */
   cursor: pointer;
@@ -44,7 +48,7 @@ This file contains all styles for the mobile-friendly schedule redesign:
   backdrop-filter: blur(20px) saturate(1.2);
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
   border: 1.5px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 
+  box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.08),
     inset 0 1px 1px rgba(255, 255, 255, 0.1);
   -webkit-tap-highlight-color: transparent;
@@ -53,10 +57,14 @@ This file contains all styles for the mobile-friendly schedule redesign:
   overflow: hidden;
   /* Subtle inner glow effect */
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
+    background: radial-gradient(
+      circle at 50% 0%,
+      rgba(255, 255, 255, 0.08) 0%,
+      transparent 70%
+    );
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
@@ -75,8 +83,13 @@ This file contains all styles for the mobile-friendly schedule redesign:
 }
 
 @keyframes subtle-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
 }
 
 .schedule-controls-toggle:hover .toggle-icon-wrapper,
@@ -92,7 +105,8 @@ This file contains all styles for the mobile-friendly schedule redesign:
   width: 22px;
   height: 22px;
   opacity: 0;
-  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+  transition:
+    opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
     transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   pointer-events: none;
   stroke-width: 2.5; /* Slightly bolder strokes */
@@ -124,10 +138,14 @@ This file contains all styles for the mobile-friendly schedule redesign:
 }
 
 .schedule-controls-toggle:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.12) 0%, rgba(102, 126, 234, 0.06) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.12) 0%,
+    rgba(102, 126, 234, 0.06) 100%
+  );
   color: var(--accent-primary);
   border-color: rgba(102, 126, 234, 0.3);
-  box-shadow: 
+  box-shadow:
     0 4px 20px rgba(102, 126, 234, 0.25),
     0 2px 8px rgba(0, 0, 0, 0.1),
     inset 0 1px 1px rgba(255, 255, 255, 0.15);
@@ -140,15 +158,19 @@ This file contains all styles for the mobile-friendly schedule redesign:
 
 .schedule-controls-toggle:active {
   transform: translateY(0) scale(0.96);
-  box-shadow: 
+  box-shadow:
     0 2px 8px rgba(102, 126, 234, 0.2),
     inset 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .schedule-controls-toggle[aria-expanded="true"] {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.18) 0%, rgba(102, 126, 234, 0.1) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.18) 0%,
+    rgba(102, 126, 234, 0.1) 100%
+  );
   border-color: rgba(102, 126, 234, 0.4);
-  box-shadow: 
+  box-shadow:
     0 4px 16px rgba(102, 126, 234, 0.3),
     0 2px 8px rgba(0, 0, 0, 0.1),
     inset 0 1px 1px rgba(255, 255, 255, 0.15);
@@ -161,7 +183,7 @@ This file contains all styles for the mobile-friendly schedule redesign:
 
 /* Ensure closed state returns to base shadow (no lingering glow) */
 .schedule-controls-toggle[aria-expanded="false"] {
-  box-shadow: 
+  box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.08),
     inset 0 1px 1px rgba(255, 255, 255, 0.1);
 }
@@ -174,7 +196,7 @@ This file contains all styles for the mobile-friendly schedule redesign:
 .schedule-controls-toggle:focus-visible {
   outline: none;
   border-color: var(--accent-primary);
-  box-shadow: 
+  box-shadow:
     0 4px 24px rgba(102, 126, 234, 0.5),
     0 0 0 3px rgba(102, 126, 234, 0.25),
     inset 0 1px 1px rgba(255, 255, 255, 0.2);
@@ -182,28 +204,40 @@ This file contains all styles for the mobile-friendly schedule redesign:
 
 /* Ripple effect on click */
 .schedule-controls-toggle::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(circle, rgba(102, 126, 234, 0.3) 0%, transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(102, 126, 234, 0.3) 0%,
+    transparent 70%
+  );
   opacity: 0;
   transform: scale(0);
-  transition: opacity 0.6s ease, transform 0.6s ease;
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s ease;
   pointer-events: none;
 }
 
 .schedule-controls-toggle:active::after {
   opacity: 1;
   transform: scale(1);
-  transition: opacity 0s, transform 0s;
+  transition:
+    opacity 0s,
+    transform 0s;
 }
 
 /* Light mode specific styles */
 body:not(.dark-mode) .schedule-controls-toggle {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.85) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(248, 250, 252, 0.85) 100%
+  );
   border-color: rgba(102, 126, 234, 0.15);
-  box-shadow: 
+  box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.06),
     0 1px 3px rgba(0, 0, 0, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
@@ -211,22 +245,34 @@ body:not(.dark-mode) .schedule-controls-toggle {
 }
 
 body:not(.dark-mode) .schedule-controls-toggle::before {
-  background: radial-gradient(circle at 50% 0%, rgba(102, 126, 234, 0.06) 0%, transparent 70%);
+  background: radial-gradient(
+    circle at 50% 0%,
+    rgba(102, 126, 234, 0.06) 0%,
+    transparent 70%
+  );
 }
 
 body:not(.dark-mode) .schedule-controls-toggle:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(102, 126, 234, 0.04) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.08) 0%,
+    rgba(102, 126, 234, 0.04) 100%
+  );
   border-color: rgba(102, 126, 234, 0.3);
-  box-shadow: 
+  box-shadow:
     0 4px 16px rgba(102, 126, 234, 0.2),
     0 2px 8px rgba(0, 0, 0, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 body:not(.dark-mode) .schedule-controls-toggle[aria-expanded="true"] {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.12) 0%, rgba(102, 126, 234, 0.08) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.12) 0%,
+    rgba(102, 126, 234, 0.08) 100%
+  );
   border-color: rgba(102, 126, 234, 0.35);
-  box-shadow: 
+  box-shadow:
     0 4px 16px rgba(102, 126, 234, 0.25),
     0 2px 8px rgba(0, 0, 0, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.7);
@@ -239,7 +285,7 @@ body:not(.dark-mode) .schedule-controls-toggle .icon-state {
 /* ===== UNIFIED SCHEDULE CONTROLS BAR ===== */
 .schedule-controls-bar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   margin-bottom: 1rem;
   padding: 0.75rem;
@@ -247,20 +293,30 @@ body:not(.dark-mode) .schedule-controls-toggle .icon-state {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   backdrop-filter: blur(10px);
-  gap: 1rem;
+  gap: 0.5rem;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06),
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   overflow: hidden;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   transform-origin: top;
+  flex-wrap: nowrap;
 }
 
-/* Control button groups */
+/* Control button groups - matching pill containers */
 .view-mode-toggle,
 .schedule-actions-group {
   display: flex;
   gap: 0.375rem;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 0.25rem;
+  backdrop-filter: blur(15px);
 }
 
 .view-mode-toggle {
@@ -272,15 +328,11 @@ body:not(.dark-mode) .schedule-controls-toggle .icon-state {
   margin-left: auto;
 }
 
-.view-mode-toggle {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  padding: 0.25rem;
-  backdrop-filter: blur(15px);
+/* Ensure buttons don't have extra spacing */
+.view-mode-toggle .control-btn,
+.schedule-actions-group .control-btn {
+  margin: 0;
 }
-
-/* .schedule-actions-group intentionally has no special container background */
 
 /* Unified control button styling */
 .control-btn {
@@ -293,7 +345,6 @@ body:not(.dark-mode) .schedule-controls-toggle .icon-state {
   min-height: var(--_btn-height);
   line-height: 1; /* ensure vertical centering */
   /* Visual */
-  /* removed overridden: border: none; */
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);
   font-size: 0.8rem;
@@ -307,7 +358,8 @@ body:not(.dark-mode) .schedule-controls-toggle .icon-state {
   justify-content: center;
   gap: 0.375rem;
   white-space: nowrap;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
   /* Interaction */
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -355,124 +407,99 @@ body:not(.dark-mode) .schedule-controls-toggle .icon-state {
     max-height: 200px;
     opacity: 1;
     margin-bottom: 1rem;
-    padding: 0.75rem;
+    padding: 0.5rem 0.75rem;
     transform: scaleY(1);
     visibility: visible;
     pointer-events: auto;
+    gap: 0.5rem;
   }
 
   /* Smooth animation for dropdown */
   .schedule-controls-bar {
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-      max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease,
+    transition:
+      all 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+      max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 0.3s ease,
       transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   }
+}
 
-  /* Stack controls vertically on very small screens */
-  @media (max-width: 26em) {
-    /* Maintain single horizontal row with horizontal scroll instead of wrapping */
-    .schedule-controls-bar.expanded {
-      flex-direction: row;
-      flex-wrap: nowrap;
-      gap: 0.5rem;
-      max-height: 140px; /* ample for one row */
-      overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: thin;
-    }
+/* Narrow screens - compress controls to fit on one line */
+@media (max-width: 26em) {
+  .schedule-controls-bar.expanded {
+    gap: 0.35rem;
+    padding: 0.4rem 0.5rem;
+  }
 
-    .schedule-controls-bar.expanded::-webkit-scrollbar {
-      height: 4px;
-    }
-    .schedule-controls-bar.expanded::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    .schedule-controls-bar.expanded::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.25);
-      border-radius: 4px;
-    }
+  .schedule-controls-bar:not(.expanded) {
+    max-height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    border-width: 0 !important;
+  }
 
-    /* Preserve zero-height collapse with stronger specificity */
-    .schedule-controls-bar:not(.expanded) {
-      max-height: 0 !important;
-      padding-top: 0 !important;
-      padding-bottom: 0 !important;
-      border-width: 0 !important; /* eliminate thin residual line/gap */
-    }
+  .view-mode-toggle,
+  .schedule-actions-group {
+    gap: 0.2rem;
+    padding: 0.2rem;
+  }
 
-    /* Allow groups to size to content and stay in one line */
-    .view-mode-toggle,
-    .schedule-actions-group {
-      flex: 0 0 auto;
-      width: auto;
-    }
+  .schedule-controls-bar.expanded {
+    --schedule-btn-height: 38px;
+  }
 
-    /* Ensure actions never wrap; enable slight compression */
-    .schedule-actions-group {
-      flex-wrap: nowrap !important;
-    }
-    .schedule-actions-group .control-btn,
-    .view-mode-toggle .control-btn {
-      flex: 0 0 auto;
-    }
+  .schedule-controls-bar.expanded .control-btn {
+    padding: 0.35rem 0.45rem;
+    font-size: 0.7rem;
+    gap: 0.2rem;
+  }
 
-    /* Compress button padding & text for ultra-narrow screens */
-    /* Maintain full 44px touch height; only compress horizontal padding */
-    .schedule-controls-bar.expanded {
-      --schedule-btn-height: 44px;
-    }
-    .schedule-controls-bar.expanded .control-btn {
-      padding: 0.5rem 0.55rem;
-    }
-    .schedule-controls-bar.expanded .control-btn .btn-text-mobile {
-      font-size: 0.7rem;
-    }
+  .schedule-controls-bar.expanded .control-btn i {
+    font-size: 0.75rem;
+  }
+
+  .schedule-controls-bar.expanded .control-btn .btn-text-mobile {
+    font-size: 0.65rem;
   }
 }
 
-/* Extra tiny devices: allow slight reduction while staying near 44px target */
+/* Extra tiny devices (330px and below) */
 @media (max-width: 20.625em) {
-  /* 330px */
-  /* Keep 44px; only slightly reduce horizontal padding & font size */
   .schedule-controls-bar.expanded {
-    --schedule-btn-height: 44px;
+    --schedule-btn-height: 34px;
+    gap: 0.2rem;
+    padding: 0.35rem;
   }
   .schedule-controls-bar.expanded .control-btn {
-    --_btn-h-pad: 0.5rem;
-    font-size: 0.7rem;
+    padding: 0.3rem 0.35rem;
+    font-size: 0.6rem;
+  }
+  .view-mode-toggle,
+  .schedule-actions-group {
+    padding: 0.15rem;
+    gap: 0.15rem;
   }
 }
 
-/* Reduce horizontal padding of Add Row button from 20px (1.25rem) to 16px (1rem) */
-.schedule-controls-bar #addNewTimeSlotBtn.control-btn,
+/* Add Row button styling */
 .schedule-controls-bar .control-btn.add-slot-btn {
-  --_btn-h-pad: 1rem; /* 16px */
-  padding: var(--_btn-v-pad) var(--_btn-h-pad) !important;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  color: #fff;
+  border: none;
+  min-width: 44px;
 }
 
-/* === PIN BUTTON HEIGHT NORMALIZATION (NARROW + GENERAL) === */
-/* Ensure the pin button never renders visually shorter due to icon-only content */
-.schedule-controls-bar .control-btn,
-.schedule-controls-bar .control-btn.pin-btn,
-.schedule-controls-bar .control-btn.add-slot-btn {
-  box-sizing: border-box;
-  align-items: center;
-  display: inline-flex;
-}
-
+/* === PIN BUTTON STYLING === */
 .schedule-controls-bar .control-btn.pin-btn {
-  padding: var(--_btn-v-pad) var(--_btn-h-pad) !important;
-  height: var(--_btn-height) !important;
-  min-height: var(--_btn-height) !important;
-  line-height: 1 !important;
-}
-
-/* On ultra narrow widths while compressed keep visual parity */
-@media (max-width: 26em) {
-  .schedule-controls-bar.expanded .control-btn.pin-btn {
-    height: var(--_btn-height) !important;
-  }
+  box-sizing: border-box;
+  height: var(--_btn-height);
+  min-height: var(--_btn-height);
+  min-width: 44px;
+  padding: var(--_btn-v-pad) var(--_btn-h-pad);
 }
 
 /* Mobile text optimization */
@@ -511,7 +538,8 @@ body:not(.dark-mode) .schedule-controls-toggle .icon-state {
 
   /* Collapsible behavior on desktop (mirrors mobile) */
   .schedule-controls-bar {
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    transition:
+      all 0.4s cubic-bezier(0.4, 0, 0.2, 1),
       max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     transform-origin: top;
   }
@@ -524,20 +552,6 @@ body:not(.dark-mode) .schedule-controls-toggle .icon-state {
     padding-bottom: 0;
     margin-bottom: 0;
     pointer-events: none;
-  }
-}
-
-/* Desktop ordering & right alignment: view-mode group right, actions left per request? (User described Day/Grid -> Add Slot, Pin) */
-@media (min-width: 64em) {
-  .schedule-controls-bar {
-    display: flex;
-  }
-  .schedule-actions-group {
-    order: 1;
-  }
-  .view-mode-toggle {
-    order: 2;
-    margin-right: auto;
   }
 }
 
@@ -662,7 +676,10 @@ body:not(.dark-mode) .schedule-controls-toggle .icon-state {
   --day-btn-radius: 10px;
   border-radius: var(--day-btn-radius);
   cursor: pointer;
-  transition: background 0.25s ease, color 0.25s ease, transform 0.25s ease,
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    transform 0.25s ease,
     border-color 0.25s ease;
   display: flex;
   flex-direction: column;
@@ -672,7 +689,8 @@ body:not(.dark-mode) .schedule-controls-toggle .icon-state {
   font-weight: 500;
   position: relative;
   backdrop-filter: blur(10px);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25),
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   opacity: 0.65; /* lower contrast when inactive */
 }
@@ -681,7 +699,8 @@ body:not(.dark-mode) .schedule-controls-toggle .icon-state {
   background: var(--accent-primary);
   color: #fff;
   transform: translateY(-2px) scale(1.04);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35),
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.35),
     0 0 0 1px rgba(255, 255, 255, 0.08) inset;
   border-color: var(--accent-primary);
   opacity: 1;
@@ -779,7 +798,10 @@ body:not(.dark-mode) .schedule-controls-toggle .icon-state {
 }
 
 /* Hide native scrollbar in WebKit while preserving scroll */
-.day-view-container::-webkit-scrollbar { width: 0px; height: 0px; }
+.day-view-container::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+}
 
 /* ===== DAY VIEW TIME SLOTS - ULTRA COMPACT ===== */
 .day-time-slot {
@@ -791,8 +813,11 @@ body:not(.dark-mode) .schedule-controls-toggle .icon-state {
   border-radius: 14px; /* consistent 12-16 range */
   padding: 0.75rem 1rem; /* 12px vertical / 16px horizontal target */
   cursor: pointer;
-  transition: background 0.25s ease, border-color 0.25s ease,
-    box-shadow 0.25s ease, transform 0.25s ease;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
   backdrop-filter: blur(18px);
   position: relative;
   overflow: hidden;
@@ -844,9 +869,13 @@ body.dark-mode .day-time-slot.busy {
   text-align: center;
   border: 1px solid rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(22px);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25),
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease;
   /* Center vertically within day-time-slot */
   align-self: center;
   white-space: nowrap; /* Prevent time from wrapping */
@@ -857,7 +886,8 @@ body.dark-mode .day-time-slot.busy {
   color: rgba(255, 255, 255, 0.95);
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15),
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
@@ -906,7 +936,9 @@ body.dark-mode .day-time-slot.busy {
   line-height: 1;
   padding: 0;
   cursor: pointer;
-  transition: background 0.25s ease, transform 0.25s ease,
+  transition:
+    background 0.25s ease,
+    transform 0.25s ease,
     border-color 0.25s ease;
 }
 
@@ -1030,11 +1062,14 @@ body.dark-mode .day-time-slot.busy {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-radius: 9999px; /* pill */
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18),
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
   overflow-y: hidden; /* constrain vertical overflow */
   animation: pill-enter 120ms ease-out;
-  transition: background 160ms ease, border-color 160ms ease,
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
     box-shadow 160ms ease;
   will-change: transform, opacity;
 }
@@ -1078,8 +1113,12 @@ body.dark-mode .day-time-slot.busy {
   border: var(--avatar-border-width) solid var(--accent-primary);
   position: relative;
   cursor: pointer;
-  transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease,
-    border-color 140ms ease, filter 140ms ease;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    opacity 140ms ease,
+    border-color 140ms ease,
+    filter 140ms ease;
   animation: avatar-fade-in 140ms ease-out;
 }
 
@@ -1200,7 +1239,8 @@ body.dark-mode .day-time-slot.busy {
     rgba(34, 197, 94, 0.08)
   );
   border-color: rgba(74, 222, 128, 0.3);
-  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.1),
+  box-shadow:
+    0 4px 12px rgba(74, 222, 128, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(15px);
 }
@@ -1212,7 +1252,8 @@ body.dark-mode .day-time-slot.busy {
     rgba(220, 38, 38, 0.08)
   );
   border-color: rgba(239, 68, 68, 0.3);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1),
+  box-shadow:
+    0 4px 12px rgba(239, 68, 68, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(15px);
 }
@@ -1224,7 +1265,8 @@ body.dark-mode .day-time-slot.busy {
     rgba(249, 115, 22, 0.08)
   );
   border-color: rgba(251, 146, 60, 0.3);
-  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.1),
+  box-shadow:
+    0 4px 12px rgba(251, 146, 60, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(15px);
 }
@@ -1382,8 +1424,13 @@ body.dark-mode .day-time-slot.busy {
     display: block;
   }
 
+  /* Keep view-mode-toggle on the left */
   .view-mode-toggle {
-    order: 2;
+    order: 0;
+  }
+
+  .schedule-actions-group {
+    order: 1;
   }
 
   .day-selector-container {
@@ -1472,7 +1519,9 @@ body.dark-mode .day-time-slot.busy {
   .day-time-slot {
     min-height: calc(var(--day-slot-height) + 10px); /* Larger touch targets */
     /* Enhanced touch feedback */
-    transition: transform 0.1s ease, box-shadow 0.2s ease;
+    transition:
+      transform 0.1s ease,
+      box-shadow 0.2s ease;
   }
 
   .day-time-slot:active {

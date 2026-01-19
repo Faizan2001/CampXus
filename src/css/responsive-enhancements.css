@@ -199,24 +199,31 @@ button[id*="compare"].active:hover {
 /* Pin Mode Button Styling */
 #togglePinModeBtn,
 .pin-mode-button,
-button[id*="pin"] {
+button[id*="pin"]:not(.control-btn) {
   /* Default "off" state - Dark Red */
   background: var(--button-off-red) !important;
   border-color: var(--button-off-red) !important;
   color: white !important;
   transition: all 0.3s var(--animation-smooth, ease) !important;
   font-weight: 600 !important;
-  font-size: var(--text-fluid-sm) !important;
-  padding: var(--touch-padding) calc(var(--touch-padding) * 1.5) !important;
   border-radius: var(--radius-md, 8px) !important;
   border: 2px solid transparent !important;
   position: relative !important;
   overflow: hidden !important;
 }
 
+/* Schedule controls bar pin button - use control-btn sizing */
+.schedule-controls-bar #togglePinModeBtn.control-btn.pin-btn {
+  font-size: inherit;
+  padding: var(--_btn-v-pad) var(--_btn-h-pad);
+  height: var(--_btn-height);
+  min-height: var(--_btn-height);
+  min-width: 44px;
+}
+
 #togglePinModeBtn:hover,
 .pin-mode-button:hover,
-button[id*="pin"]:hover {
+button[id*="pin"]:not(.control-btn):hover {
   background: var(--button-off-red-hover) !important;
   border-color: var(--button-off-red-hover) !important;
   transform: translateY(-1px);
@@ -226,7 +233,7 @@ button[id*="pin"]:hover {
 /* Pin Mode Button "ON" state - Dark Green */
 #togglePinModeBtn.pin-mode-active,
 .pin-mode-button.pin-mode-active,
-button[id*="pin"].pin-mode-active {
+button[id*="pin"]:not(.control-btn).pin-mode-active {
   background: var(--button-on-green) !important;
   border-color: var(--button-on-green) !important;
   color: white !important;
@@ -234,7 +241,7 @@ button[id*="pin"].pin-mode-active {
 
 #togglePinModeBtn.pin-mode-active:hover,
 .pin-mode-button.pin-mode-active:hover,
-button[id*="pin"].pin-mode-active:hover {
+button[id*="pin"]:not(.control-btn).pin-mode-active:hover {
   background: var(--button-on-green-hover) !important;
   border-color: var(--button-on-green-hover) !important;
   box-shadow: 0 4px 12px var(--button-on-green-shadow) !important;
