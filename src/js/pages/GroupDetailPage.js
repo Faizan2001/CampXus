@@ -683,11 +683,10 @@ export class GroupDetailPage {
       submitBtn.textContent = "Leaving...";
 
       try {
-        // Validate spaceId format (must match server regex from functions/index.js)
-        // Pattern: alphanumeric/underscore/hyphen, with at least one __ separator
-        const SPACEID_REGEX = /^[a-zA-Z0-9_-]+(__[a-zA-Z0-9_-]+)+$/;
-        if (!this.spaceId || typeof this.spaceId !== "string" || !SPACEID_REGEX.test(this.spaceId)) {
-          throw new Error("Invalid space ID format. Please navigate back and try again.");
+        // Basic spaceId sanity check - server does authoritative format validation
+        if (!this.spaceId || typeof this.spaceId !== "string" || this.spaceId.trim().length === 0) {
+          console.error("[GroupDetailPage] Invalid spaceId:", this.spaceId);
+          throw new Error("Space ID not found. Please navigate back and try again.");
         }
 
         // Stop ALL listeners BEFORE leaving to prevent permission-denied errors

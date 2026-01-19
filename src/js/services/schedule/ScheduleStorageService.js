@@ -62,7 +62,7 @@ export class ScheduleStorageService {
 
     try {
       const revalidatePromise = this._loadFromFirestoreAndMaybeInitDefaults(
-        userId
+        userId,
       ).then((fresh) => {
         if (fresh) this.cacheScheduleData(userId, fresh);
         return fresh;
@@ -126,7 +126,9 @@ export class ScheduleStorageService {
     if (!scheduleData) {
       scheduleData = this.getCachedScheduleData(userId);
       if (scheduleData) {
-        console.log("📱 Schedule loaded from localStorage cache (offline/failed)");
+        console.log(
+          "📱 Schedule loaded from localStorage cache (offline/failed)",
+        );
       }
     }
 
@@ -135,29 +137,43 @@ export class ScheduleStorageService {
       const selfUser = currentUser.user;
       const isCurrent = selfUser && userId === selfUser.uid;
       const email = (selfUser?.email || "").toLowerCase();
-      const profileUni = (currentUser?.profile?.universityInfo?.university || "").toLowerCase();
+      const profileUni = (
+        currentUser?.profile?.universityInfo?.university || ""
+      ).toLowerCase();
       const isIub = email.endsWith("@iub.edu.bd") || profileUni === "iub";
 
       if (isCurrent && isIub) {
-        const hasNoTimeSlots = !scheduleData || !Array.isArray(scheduleData.timeSlots) || scheduleData.timeSlots.length === 0;
+        const hasNoTimeSlots =
+          !scheduleData ||
+          !Array.isArray(scheduleData.timeSlots) ||
+          scheduleData.timeSlots.length === 0;
         if (hasNoTimeSlots) {
-          console.log("🧭 Initializing IUB default time slots for current user");
+          console.log(
+            "🧭 Initializing IUB default time slots for current user",
+          );
           const defaultSlots = DEFAULT_TIMESLOTS;
           const slotsLen = defaultSlots.length;
           // Always create fresh matrices sized to default slots
           const buildMatrix = (fillObj = false) =>
             Array.from({ length: 7 }, () =>
               Array.from({ length: slotsLen }, () =>
-                fillObj ? { courseCode: "", classroomNumber: "" } : false
-              )
+                fillObj ? { courseCode: "", classroomNumber: "" } : false,
+              ),
             );
 
           const updated = {
             schedule: buildMatrix(false),
             slotInfo: buildMatrix(true),
             pinnedSlots: buildMatrix(false),
-            timeBasedPins:
-              scheduleData?.timeBasedPins || { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
+            timeBasedPins: scheduleData?.timeBasedPins || {
+              0: [],
+              1: [],
+              2: [],
+              3: [],
+              4: [],
+              5: [],
+              6: [],
+            },
             timeSlots: defaultSlots,
             metadata: scheduleData?.metadata || {},
           };
@@ -185,7 +201,8 @@ export class ScheduleStorageService {
   async saveUserSchedule(userId, scheduleData) {
     try {
       // 1. Prepare payload with preserved metadata and cache for immediate UI response
-      const previous = currentUser?.scheduleData || this.getCachedScheduleData(userId);
+      const previous =
+        currentUser?.scheduleData || this.getCachedScheduleData(userId);
       const existingMetadata = previous?.metadata || null;
       const scheduleForSave = existingMetadata
         ? { ...scheduleData, metadata: existingMetadata }
@@ -197,11 +214,10 @@ export class ScheduleStorageService {
       // 2. Background Firestore sync
       if (this.isOnline) {
         try {
-
           await this.dataManager.saveUserSchedule(
             userId,
             scheduleForSave,
-            currentUser.uid
+            currentUser.uid,
           );
           console.log("☁️ Schedule synced to Firestore");
 
@@ -209,10 +225,12 @@ export class ScheduleStorageService {
           try {
             const hasCoursesField = Object.prototype.hasOwnProperty.call(
               scheduleForSave || {},
-              "courses"
+              "courses",
             );
             if (!hasCoursesField) {
-              console.log("ℹ️ No courses field on schedule save (skipping users.courses)");
+              console.log(
+                "ℹ️ No courses field on schedule save (skipping users.courses)",
+              );
             } else {
               const rawCourses = Array.isArray(scheduleForSave?.courses)
                 ? scheduleForSave.courses
@@ -228,14 +246,14 @@ export class ScheduleStorageService {
                     c.timeSlot &&
                     c.classroom &&
                     c.classroom !== "" &&
-                    !/^(ONLINE|TBA|NA|NONE)$/i.test(c.classroom)
+                    !/^(ONLINE|TBA|NA|NONE)$/i.test(c.classroom),
                 );
 
               // Always write (even empty) to avoid stale class-space memberships based on old courses.
               await this.dataManager.updateUserCourses(userId, normalized);
               console.log(
                 "📘 users.courses updated (normalized)",
-                normalized.length
+                normalized.length,
               );
             }
           } catch (e) {
@@ -246,14 +264,14 @@ export class ScheduleStorageService {
           // Queue for offline sync
           this.pendingSync.add({ userId, scheduleData, timestamp: Date.now() });
           console.warn(
-            "Offline: Schedule changes saved locally and will sync when online."
+            "Offline: Schedule changes saved locally and will sync when online.",
           );
         }
       } else {
         // Queue for when back online
         this.pendingSync.add({ userId, scheduleData, timestamp: Date.now() });
         console.warn(
-          "Offline: Schedule changes saved locally and will sync when online."
+          "Offline: Schedule changes saved locally and will sync when online.",
         );
         console.log("📱 Schedule queued for sync when online");
       }
@@ -293,7 +311,7 @@ export class ScheduleStorageService {
         }
 
         // Real-time schedule update received via RealtimeService
-      }
+      },
     );
 
     // Ensure RealtimeService is listening for this user
@@ -322,6 +340,10 @@ export class ScheduleStorageService {
       return null;
     }
 
+    // Note: courses field intentionally omitted here.
+    // Grid editing doesn't capture section numbers required for class spaces.
+    // Only ProfileSetup/schedule import should update users.courses.
+    // See saveUserSchedule() which checks hasOwnProperty('courses') before updating.
     return {
       schedule: userData.schedule || [],
       slotInfo: userData.slotInfo || [],
@@ -342,16 +364,19 @@ export class ScheduleStorageService {
     const studentId = user?.email?.split("@")[0] || "Unknown";
 
     const email = (user?.email || "").toLowerCase();
-    const profileUni = (currentUser?.profile?.universityInfo?.university || "").toLowerCase();
+    const profileUni = (
+      currentUser?.profile?.universityInfo?.university || ""
+    ).toLowerCase();
     const isCurrent = user && userId === user.uid;
-    const isIub = isCurrent && (email.endsWith("@iub.edu.bd") || profileUni === "iub");
+    const isIub =
+      isCurrent && (email.endsWith("@iub.edu.bd") || profileUni === "iub");
 
     const providedLen =
       firestoreData.timeSlots && firestoreData.timeSlots.length > 0
         ? firestoreData.timeSlots.length
         : isIub
-        ? DEFAULT_TIMESLOTS.length
-        : 0;
+          ? DEFAULT_TIMESLOTS.length
+          : 0;
 
     return {
       users: {
@@ -360,20 +385,20 @@ export class ScheduleStorageService {
           name: userId === currentUser.uid ? "You" : "Friend",
           schedule: this._convertMapToScheduleArray(
             firestoreData.schedule,
-            providedLen
+            providedLen,
           ),
           slotInfo: this._convertMapToSlotInfoArray(
             firestoreData.slotInfo,
-            providedLen
+            providedLen,
           ),
           timeSlots:
             firestoreData.timeSlots && firestoreData.timeSlots.length > 0
               ? firestoreData.timeSlots
               : isIub
-              ? DEFAULT_TIMESLOTS
-              : [],
+                ? DEFAULT_TIMESLOTS
+                : [],
           pinnedSlots: this._convertMapToScheduleArray(
-            firestoreData.pinnedSlots
+            firestoreData.pinnedSlots,
           ),
           timeBasedPins: firestoreData.timeBasedPins || {},
         },
@@ -424,21 +449,29 @@ export class ScheduleStorageService {
   _convertMapToScheduleArray(scheduleMap, desiredSlotsLen = null) {
     if (!scheduleMap || typeof scheduleMap !== "object") {
       const len = typeof desiredSlotsLen === "number" ? desiredSlotsLen : 0;
-      return Array.from({ length: 7 }, () => Array.from({ length: len }, () => false));
+      return Array.from({ length: 7 }, () =>
+        Array.from({ length: len }, () => false),
+      );
     }
     // Determine number of slots by scanning provided map (fallback to provided len or 0)
     let numSlots = 0;
     for (let day = 0; day < 7; day++) {
       const dayMap = scheduleMap[day];
       if (dayMap && typeof dayMap === "object") {
-        const indices = Object.keys(dayMap).map((k) => parseInt(k, 10)).filter((n) => !isNaN(n));
-        if (indices.length > 0) numSlots = Math.max(numSlots, Math.max(...indices) + 1);
+        const indices = Object.keys(dayMap)
+          .map((k) => parseInt(k, 10))
+          .filter((n) => !isNaN(n));
+        if (indices.length > 0)
+          numSlots = Math.max(numSlots, Math.max(...indices) + 1);
       }
     }
-    if (numSlots <= 0) numSlots = typeof desiredSlotsLen === "number" ? desiredSlotsLen : 0;
+    if (numSlots <= 0)
+      numSlots = typeof desiredSlotsLen === "number" ? desiredSlotsLen : 0;
 
     const scheduleArray = Array.from({ length: 7 }, (_, i) =>
-      Array.from({ length: numSlots }, (_, j) => Boolean(scheduleMap?.[i]?.[j] || false))
+      Array.from({ length: numSlots }, (_, j) =>
+        Boolean(scheduleMap?.[i]?.[j] || false),
+      ),
     );
     return scheduleArray;
   }
@@ -448,7 +481,10 @@ export class ScheduleStorageService {
     if (!slotInfoMap || typeof slotInfoMap !== "object") {
       const len = typeof desiredSlotsLen === "number" ? desiredSlotsLen : 0;
       return Array.from({ length: 7 }, () =>
-        Array.from({ length: len }, () => ({ courseCode: "", classroomNumber: "" }))
+        Array.from({ length: len }, () => ({
+          courseCode: "",
+          classroomNumber: "",
+        })),
       );
     }
 
@@ -457,19 +493,26 @@ export class ScheduleStorageService {
     for (let day = 0; day < 7; day++) {
       const dayMap = slotInfoMap[day];
       if (dayMap && typeof dayMap === "object") {
-        const indices = Object.keys(dayMap).map((k) => parseInt(k, 10)).filter((n) => !isNaN(n));
-        if (indices.length > 0) numSlots = Math.max(numSlots, Math.max(...indices) + 1);
+        const indices = Object.keys(dayMap)
+          .map((k) => parseInt(k, 10))
+          .filter((n) => !isNaN(n));
+        if (indices.length > 0)
+          numSlots = Math.max(numSlots, Math.max(...indices) + 1);
       }
     }
-    if (numSlots <= 0) numSlots = typeof desiredSlotsLen === "number" ? desiredSlotsLen : 0;
+    if (numSlots <= 0)
+      numSlots = typeof desiredSlotsLen === "number" ? desiredSlotsLen : 0;
 
     const slotInfoArray = Array.from({ length: 7 }, (_, i) =>
       Array.from({ length: numSlots }, (_, j) => {
         const entry = slotInfoMap?.[i]?.[j];
         return entry && typeof entry === "object"
-          ? { courseCode: entry.courseCode || "", classroomNumber: entry.classroomNumber || "" }
+          ? {
+              courseCode: entry.courseCode || "",
+              classroomNumber: entry.classroomNumber || "",
+            }
           : { courseCode: "", classroomNumber: "" };
-      })
+      }),
     );
     return slotInfoArray;
   }
@@ -504,7 +547,7 @@ export class ScheduleStorageService {
         await this.dataManager.saveUserSchedule(
           operation.userId,
           operation.scheduleData,
-          currentUser.uid
+          currentUser.uid,
         );
 
         // Remove from pending after successful sync
