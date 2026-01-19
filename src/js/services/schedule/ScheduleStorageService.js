@@ -340,17 +340,73 @@ export class ScheduleStorageService {
       return null;
     }
 
-    // Note: courses field intentionally omitted here.
-    // Grid editing doesn't capture section numbers required for class spaces.
-    // Only ProfileSetup/schedule import should update users.courses.
-    // See saveUserSchedule() which checks hasOwnProperty('courses') before updating.
+    // 🔧 Smart cleanup: Remove courses that no longer appear in the grid.
+    // Grid editing doesn't capture section numbers, so we can't ADD courses to class spaces.
+    // But we CAN detect when a course is REMOVED from the grid and clean it up.
+    // This prevents stale courses from keeping users in class spaces they left.
+    const cleanedCourses = this._cleanupStaleCourses(
+      currentUserId,
+      userData.slotInfo
+    );
+
     return {
       schedule: userData.schedule || [],
       slotInfo: userData.slotInfo || [],
       timeSlots: userData.timeSlots || [],
       pinnedSlots: userData.pinnedSlots || [],
       timeBasedPins: userData.timeBasedPins || {},
+      courses: cleanedCourses,
     };
+  }
+
+  /**
+   * Remove courses that no longer have a matching slot in the grid.
+   * Keeps courses where courseCode+classroom still exists in slotInfo.
+   * @param {string} userId - User ID
+   * @param {Array} slotInfo - Current slotInfo matrix from grid
+   * @returns {Array} Filtered courses array
+   * @private
+   */
+  _cleanupStaleCourses(userId, slotInfo) {
+    // Get existing courses from cache or currentUser
+    const cached = this.getCachedScheduleData(userId);
+    const existingCourses =
+      currentUser?.scheduleData?.courses || cached?.courses || [];
+
+    if (!Array.isArray(existingCourses) || existingCourses.length === 0) {
+      return [];
+    }
+
+    // Build a set of current courseCode+classroom pairs from slotInfo
+    const currentSlotPairs = new Set();
+    if (Array.isArray(slotInfo)) {
+      for (const daySlots of slotInfo) {
+        if (!Array.isArray(daySlots)) continue;
+        for (const slot of daySlots) {
+          if (slot?.courseCode && slot?.classroomNumber) {
+            // Normalize to uppercase for matching
+            const key = `${slot.courseCode.toUpperCase()}|${slot.classroomNumber.toUpperCase()}`;
+            currentSlotPairs.add(key);
+          }
+        }
+      }
+    }
+
+    // Filter courses: keep only those that still exist in the grid
+    const cleanedCourses = existingCourses.filter((course) => {
+      if (!course?.courseCode || !course?.classroom) return false;
+      const key = `${course.courseCode.toUpperCase()}|${course.classroom.toUpperCase()}`;
+      return currentSlotPairs.has(key);
+    });
+
+    const removedCount = existingCourses.length - cleanedCourses.length;
+    if (removedCount > 0) {
+      console.log(
+        `🧹 Cleaned up ${removedCount} stale course(s) no longer in grid`
+      );
+    }
+
+    return cleanedCourses;
   }
 
   /**
