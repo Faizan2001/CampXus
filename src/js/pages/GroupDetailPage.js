@@ -683,6 +683,36 @@ export class GroupDetailPage {
       submitBtn.textContent = "Leaving...";
 
       try {
+        // Validate spaceId format (must match server regex from functions/index.js)
+        // Pattern: alphanumeric/underscore/hyphen, with at least one __ separator
+        const SPACEID_REGEX = /^[a-zA-Z0-9_-]+(__[a-zA-Z0-9_-]+)+$/;
+        if (!this.spaceId || typeof this.spaceId !== "string" || !SPACEID_REGEX.test(this.spaceId)) {
+          throw new Error("Invalid space ID format. Please navigate back and try again.");
+        }
+
+        // Stop ALL listeners BEFORE leaving to prevent permission-denied errors
+        // (Once we leave, Firestore rules deny access to non-members)
+
+        // 1. Stop message listener
+        if (this.unsub) {
+          try {
+            this.unsub();
+          } catch (e) {
+            console.warn("[GroupDetailPage] Message listener cleanup failed:", e);
+          }
+          this.unsub = null;
+        }
+
+        // 2. Stop block service listener (also runs on this page)
+        try {
+          const uid = currentUser?.uid;
+          if (uid) {
+            blockService.stopSync(uid);
+          }
+        } catch (e) {
+          console.warn("[GroupDetailPage] Block service cleanup failed:", e);
+        }
+
         await classSpacesService.leaveSpace(this.spaceId);
         modal.remove();
         notificationManager.show("You have left the class space", "success");
