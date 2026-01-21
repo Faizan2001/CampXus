@@ -27,6 +27,7 @@ import {
 } from "../utils/avatar/avatarUtils.js";
 import { friendshipPrivacyService } from "../services/friends/FriendshipPrivacyService.js";
 import { uiCache } from "../services/cache/UiCacheService.js";
+import { pwaCache } from "../services/cache/PWACacheService.js";
 import { FriendOptionsMenu } from "../components/friends/FriendOptionsMenu.js";
 import { performanceDebugger } from "../utils/dev/performanceDebugger.js";
 import { db } from "../lib/firebase/firebase-config.js";
@@ -38,6 +39,10 @@ import {
   hideAllCoachMarks,
 } from "../services/onboarding/CoachMarkManager.js";
 import { logManager } from "../utils/debug/LogManager.js";
+import {
+  applyQuickAccessOptimisticUpdate,
+  buildQuickAccessCacheEntry,
+} from "../utils/friends/quickAccessOptimisticCache.js";
 
 function devLog(message, detail = {}) {
   if (!import.meta.env || !import.meta.env.DEV) {
@@ -301,6 +306,9 @@ class FriendsUI {
 
     // Gate to serialize coachmarks on Friends page
     this.hintsBusy = false;
+
+    // Prevent real-time sync from briefly undoing a user's star click on slow networks
+    this._pendingQuickAccessToggles = new Map(); // friendId -> { desiredStarred, expiresAt }
   }
 
   /**
@@ -4114,56 +4122,90 @@ class FriendsUI {
         return;
       }
 
-      // Disable button while processing
-      starButton.disabled = true;
-      starButton.style.opacity = "0.6";
+      // Instant UI: flip immediately, but do NOT derive the backend operation from DOM state.
+      // The DOM can be stale during slow hydration / real-time delays; FriendsService is the source of truth.
+      const uiWasStarred = starButton.classList.contains("starred");
+      const uiNextStarred = !uiWasStarred;
+
+      // Mark as pending so real-time sync can't momentarily flicker the UI
+      this._pendingQuickAccessToggles.set(friendId, {
+        desiredStarred: uiNextStarred,
+        expiresAt: Date.now() + 2000,
+      });
+
+      // Optimistic UI: flip immediately and show fast "working" feedback
+      this.updateStarButtonState(starButton, uiNextStarred);
+      starButton.classList.add("loading");
+      starButton.disabled = true; // debounce
+      starButton.style.opacity = "0.85";
 
       console.log(`⭐ Toggling Quick Access for: @${friend.handle}`);
 
-      // Check current status and toggle
-      const isCurrentlyStarred = await friendsManager.isInQuickAccess(friendId);
       const friendInfo = {
         handle: friend.handle,
         major: friend.major,
         avatarConfig: friend.avatarConfig,
         profilePhotoUrl: friend.profilePhotoUrl || null,
+        profilePhotoThumbUrl: friend.profilePhotoThumbUrl || null,
         useAvatar:
           typeof friend.useAvatar === "boolean" ? friend.useAvatar : undefined,
         friendshipId: friend.friendshipId, // 🌍 Campus Presence: Required for bilateral location sharing checks
       };
-      // Optimistic UI: flip immediately
-      this.updateStarButtonState(starButton, !isCurrentlyStarred);
+
+      // Optimistic cache: update session/PWA cache so Schedule's friends bar can render instantly
+      this._optimisticallyUpdateQuickAccessCaches(
+        friendId,
+        friend,
+        uiNextStarred
+      );
 
       let result;
       try {
-        if (isCurrentlyStarred) {
-          // Remove from Quick Access
-          result = await friendsManager.removeFromQuickAccess(friendId);
-          console.log(`❌ Removing @${friend.handle} from Quick Access`);
-        } else {
-          // Add to Quick Access
-          result = await friendsManager.addToQuickAccess(friendId, friendInfo);
-          console.log(`⭐ Adding @${friend.handle} to Quick Access`);
-        }
+        // Source of truth toggle (internally checks current Quick Access state from cache/Firestore)
+        result = await friendsManager.toggleQuickAccess(friendId, friendInfo);
       } catch (e) {
         result = { success: false, message: e?.message || String(e) };
       }
 
       if (!result.success) {
         // Revert UI on failure
-        this.updateStarButtonState(starButton, isCurrentlyStarred);
+        this.updateStarButtonState(starButton, uiWasStarred);
+        // Revert optimistic cache as well
+        this._optimisticallyUpdateQuickAccessCaches(friendId, friend, uiWasStarred);
         console.error(result.message || "Failed to update Quick Access");
         console.error(
           `❌ Quick Access toggle failed for @${friend.handle}:`,
           result.message
         );
+
+        // Best-effort reconcile: if the DOM was stale, refresh just this star from cached truth
+        friendsManager
+          .isInQuickAccess(friendId)
+          .then((actualStarred) => {
+            if (!starButton?.isConnected) return;
+            this.updateStarButtonState(starButton, actualStarred);
+            this._optimisticallyUpdateQuickAccessCaches(
+              friendId,
+              friend,
+              actualStarred
+            );
+          })
+          .catch(() => {});
       } else {
-        const action = isCurrentlyStarred ? "removed from" : "added to";
-        console.log(`@${friend.handle} ${action} Quick Access!`);
+        const finalStarred =
+          typeof result.isStarred === "boolean" ? result.isStarred : uiNextStarred;
+
+        // Ensure UI/cache reflect the service-reported truth (handles stale DOM cases safely)
+        this.updateStarButtonState(starButton, finalStarred);
+        this._optimisticallyUpdateQuickAccessCaches(friendId, friend, finalStarred);
+
+        const actionText =
+          result.action === "removed" ? "removed from" : "added to";
+        console.log(`@${friend.handle} ${actionText} Quick Access!`);
         console.log(`✅ Quick Access toggle successful for @${friend.handle}`);
 
         // If we just added and it was the first one, guide user to Schedule
-        if (!isCurrentlyStarred && quickAccessBefore === 0) {
+        if (result.action === "added" && quickAccessBefore === 0) {
           this.applyScheduleNavGlowAfterFirstStar();
         }
       }
@@ -4173,7 +4215,47 @@ class FriendsUI {
     } finally {
       // Re-enable button
       starButton.disabled = false;
+      starButton.classList.remove("loading");
       starButton.style.opacity = "1";
+
+      // Clear pending marker once the toggle attempt completes (success or failure).
+      // Real-time sync will reconcile any residual differences.
+      this._pendingQuickAccessToggles.delete(friendId);
+    }
+  }
+
+  _optimisticallyUpdateQuickAccessCaches(friendId, friend, shouldBeStarred) {
+    try {
+      const uid =
+        currentUser?.uid ||
+        currentUser?.user?.uid ||
+        currentUser?.state?.user?.uid;
+      if (!uid) return;
+
+      const key = uiCache.keys.quickAccessFriends(uid);
+      const sessionList = uiCache.get(key);
+      const persistedList = pwaCache.getQuickAccessFriends(uid);
+      const base = Array.isArray(sessionList)
+        ? sessionList
+        : Array.isArray(persistedList)
+          ? persistedList
+          : [];
+
+      const entry = buildQuickAccessCacheEntry(friendId, friend);
+      if (!entry) return;
+
+      const next = applyQuickAccessOptimisticUpdate(
+        base,
+        entry,
+        shouldBeStarred ? "add" : "remove"
+      );
+
+      // Keep it around long enough for immediate navigation, but not "forever" in session.
+      uiCache.set(key, next, 5 * 60 * 1000);
+      // Persist a minimal snapshot for cold-start instant render
+      pwaCache.saveQuickAccessFriends(uid, next);
+    } catch (_) {
+      // non-fatal
     }
   }
 
@@ -4230,9 +4312,9 @@ class FriendsUI {
         false
       );
       const starredFriendIds = new Set(
-        (quickAccessFriends || []).map(
-          (friend) => friend.friendId || friend.userId
-        )
+        (quickAccessFriends || [])
+          .map((friend) => friend.friendId || friend.userId || friend.uid || friend.id)
+          .filter(Boolean)
       );
 
       friends.forEach((friend) => {
@@ -4244,6 +4326,17 @@ class FriendsUI {
         );
 
         if (starButton) {
+          // If user just clicked this star, don't let background sync flicker it.
+          const pending = this._pendingQuickAccessToggles.get(friendId);
+          if (pending) {
+            if (pending.expiresAt <= Date.now()) {
+              this._pendingQuickAccessToggles.delete(friendId);
+            } else if (pending.desiredStarred !== isStarred) {
+              return;
+            } else {
+              this._pendingQuickAccessToggles.delete(friendId);
+            }
+          }
           this.updateStarButtonState(starButton, isStarred);
           console.log(
             `⭐ Updated star state for @${friend.handle}: ${
@@ -4870,11 +4963,19 @@ class FriendsUI {
         quickAccessData
       );
 
-      const { quickAccessFriends = [] } = quickAccessData;
+      const quickAccessFriends = Array.isArray(quickAccessData)
+        ? quickAccessData
+        : Array.isArray(quickAccessData?.quickAccessFriends)
+          ? quickAccessData.quickAccessFriends
+          : Array.isArray(quickAccessData?.items)
+            ? quickAccessData.items
+            : [];
 
       // Convert quickAccessFriends array to Set for efficient lookup
       const starredFriendIds = new Set(
-        quickAccessFriends.map((qaf) => qaf.friendId)
+        (quickAccessFriends || [])
+          .map((qaf) => qaf.friendId || qaf.userId || qaf.uid || qaf.id)
+          .filter(Boolean)
       );
 
       // Update all star buttons based on the new Quick Access data
@@ -4885,6 +4986,17 @@ class FriendsUI {
         const friendId = starButton.dataset.friendId;
         if (friendId) {
           const isStarred = starredFriendIds.has(friendId);
+          // If the user just clicked this star, prefer the click for a short window.
+          const pending = this._pendingQuickAccessToggles.get(friendId);
+          if (pending) {
+            if (pending.expiresAt <= Date.now()) {
+              this._pendingQuickAccessToggles.delete(friendId);
+            } else if (pending.desiredStarred !== isStarred) {
+              return;
+            } else {
+              this._pendingQuickAccessToggles.delete(friendId);
+            }
+          }
           this.updateStarButtonState(starButton, isStarred);
         }
       });
