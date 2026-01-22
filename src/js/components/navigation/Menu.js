@@ -55,6 +55,7 @@ let messagesSpacesUnsub = null;
 let _messagesHasUnread = false;
 let _messagesSpacesCache = []; // Cache for recalculation on view
 let _messagesUserId = null; // Track which user's spaces are cached
+let _activeRoute = null; // Used to suppress nav dots on active pages
 
 // Clubs notification indicator
 let clubsNotifUnsub = null;
@@ -1516,18 +1517,42 @@ function initializeMessagesEntry() {
         }
       });
     }
+
+    // Suppress the global dot while the user is already on the Messages page,
+    // but restore it when leaving if there are still unread class spaces.
+    const setActiveRoute = (route) => {
+      _activeRoute = route || null;
+      if (_activeRoute === "messages") {
+        setMessagesDot(false);
+      } else {
+        setMessagesDot(_messagesHasUnread);
+      }
+    };
+
+    // Initial route (best-effort before router emits events)
+    try {
+      const raw = String(window.location.hash || "").replace(/^#/, "");
+      const initial = raw.split("?")[0] || null;
+      setActiveRoute(initial);
+    } catch (_) {}
+
+    document.addEventListener("spa:route:changed", (e) => {
+      setActiveRoute(e?.detail?.route);
+    });
   } catch (e) {
     console.warn("⚠️ Failed to initialize Messages entry:", e);
   }
 }
 
 function setMessagesDot(show) {
+  const effectiveShow = !!show && _activeRoute !== "messages";
+
   // Desktop nav button dot
   const btn = document.getElementById("messagesNavBtn");
   if (btn) {
     const dot = btn.querySelector(".nav-dot");
     if (dot) {
-      dot.style.display = show ? "inline-block" : "none";
+      dot.style.display = effectiveShow ? "inline-block" : "none";
     }
   }
   // Mobile nav item dot (add has-alert class like notifications)
@@ -1535,7 +1560,7 @@ function setMessagesDot(show) {
     '.mobile-bottom-nav .mobile-nav-item[data-spa-route="messages"]'
   );
   if (mobileLink) {
-    mobileLink.classList.toggle("has-alert", !!show);
+    mobileLink.classList.toggle("has-alert", effectiveShow);
   }
 }
 

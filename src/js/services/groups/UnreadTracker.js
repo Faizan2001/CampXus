@@ -126,6 +126,14 @@ export class UnreadTracker {
 
     this.ensureUserLoaded(userId);
 
+    // If the most recent message was sent by the current user, treat it as read.
+    // This prevents "unread" badges for the sender immediately after sending.
+    const lastSenderId =
+      space.lastMessagePreview?.senderId ||
+      space.lastMessagePreview?.fromUserId ||
+      null;
+    if (lastSenderId && lastSenderId === userId) return false;
+
     const lastViewed = this.getLastViewedTime(spaceId, userId);
     const lastActivity = space.lastActivity?.toDate?.() || null;
 

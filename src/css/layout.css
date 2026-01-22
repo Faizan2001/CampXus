@@ -718,6 +718,18 @@ body:not(.dark-mode) .nav-link:hover {
   padding-bottom: var(--bottom-offset);
 }
 
+/* Hide scrollbars (keep scrolling) on specific pages */
+body.page-clubs .main-content,
+body.page-messages .main-content {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge legacy */
+}
+body.page-clubs .main-content::-webkit-scrollbar,
+body.page-messages .main-content::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 /* Prevent default focus outline around the main content container */
 .main-content:focus,
 .main-content:focus-visible {

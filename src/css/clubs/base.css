@@ -898,19 +898,15 @@ body:not(.dark-mode) .clubs-search-bar .search-clear-btn {
    responsive layouts for iOS/Android PWAs
 ======================================== */
 
-/* Page container scrolling fix */
+/* Page container scrolling:
+   Use `.main-content` as the single vertical scroller to avoid nested scroll regions
+   that can trap scroll gestures (especially on iOS PWAs). */
 .clubs-page,
 .clubs-section,
 .club-section {
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  /* Fill available space in content-grid */
-  flex: 1 1 auto;
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
 }
 
 /* Ensure clubs content fills the section */

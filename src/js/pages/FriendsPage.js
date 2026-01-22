@@ -4332,6 +4332,9 @@ class FriendsUI {
             if (pending.expiresAt <= Date.now()) {
               this._pendingQuickAccessToggles.delete(friendId);
             } else if (pending.desiredStarred !== isStarred) {
+              // Keep the optimistic UI even if the underlying snapshot is stale.
+              // This also prevents re-renders from resetting the star until Firestore catches up.
+              this.updateStarButtonState(starButton, pending.desiredStarred);
               return;
             } else {
               this._pendingQuickAccessToggles.delete(friendId);
@@ -4992,6 +4995,7 @@ class FriendsUI {
             if (pending.expiresAt <= Date.now()) {
               this._pendingQuickAccessToggles.delete(friendId);
             } else if (pending.desiredStarred !== isStarred) {
+              this.updateStarButtonState(starButton, pending.desiredStarred);
               return;
             } else {
               this._pendingQuickAccessToggles.delete(friendId);
