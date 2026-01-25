@@ -43,11 +43,17 @@ export class FriendOptionsMenu {
     this.currentPrivacyStatus = null; // Cache privacy status
     this.currentLocationStatus = null; // Cache location sharing status
 
+    // Listener bookkeeping (avoid anonymous handlers so we can remove them)
+    this._listenersAttached = false;
+    this._buttonEl = null;
+    this._unfriendOptionEl = null;
+
     // Bind methods to preserve context
     this.handleButtonClick = this.handleButtonClick.bind(this);
     this.handleOutsideClick = this.handleOutsideClick.bind(this);
     this.handleKeyDown = this.handleKeyDown.bind(this);
     this.handleWindowResize = this.handleWindowResize.bind(this);
+    this.handleUnfriendClick = this.handleUnfriendClick.bind(this);
 
     const friendLabel = friend.handle ? `@${friend.handle}` : (friend.name || 'Friend');
     console.log(
@@ -180,8 +186,11 @@ export class FriendOptionsMenu {
    */
   attachEventListeners() {
     if (!this.element) return;
+    if (this._listenersAttached) return;
 
     const button = this.element.querySelector(".options-button");
+    if (!button) return;
+    this._buttonEl = button;
 
     // Main button click
     button.addEventListener("click", this.handleButtonClick);
@@ -189,17 +198,12 @@ export class FriendOptionsMenu {
     // Menu option clicks
     // Removed: privacy toggle option handled by mutual icon in card actions
     const unfriendOption = this.element.querySelector(".unfriend-option");
-
-    
+    this._unfriendOptionEl = unfriendOption || null;
 
     // Removed: location toggle option (handled by mutual-location button)
 
     if (unfriendOption) {
-      unfriendOption.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.handleUnfriend();
-        this.closeDropdown();
-      });
+      unfriendOption.addEventListener("click", this.handleUnfriendClick);
     }
 
     // Keyboard navigation
@@ -212,7 +216,16 @@ export class FriendOptionsMenu {
     window.addEventListener("resize", this.handleWindowResize);
     window.addEventListener("scroll", this.handleWindowResize);
 
+    this._listenersAttached = true;
     console.log("🎯 Event listeners attached to friend options menu");
+  }
+
+  handleUnfriendClick(e) {
+    try {
+      e.stopPropagation();
+    } catch (_) {}
+    this.handleUnfriend();
+    this.closeDropdown();
   }
 
   /**
@@ -579,6 +592,30 @@ export class FriendOptionsMenu {
   destroy() {
     if (!this.element) return;
 
+    // Remove element-scoped listeners (these must be removed explicitly for accurate leak tracking)
+    try {
+      if (this._buttonEl) {
+        this._buttonEl.removeEventListener("click", this.handleButtonClick);
+      }
+    } catch (_) {}
+
+    try {
+      if (this._unfriendOptionEl) {
+        this._unfriendOptionEl.removeEventListener("click", this.handleUnfriendClick);
+      } else {
+        // Dropdown may have been moved to body, so query via helper as fallback
+        const dropdown = this.getDropdownElement();
+        const unfriend = dropdown?.querySelector?.(".unfriend-option");
+        if (unfriend) {
+          unfriend.removeEventListener("click", this.handleUnfriendClick);
+        }
+      }
+    } catch (_) {}
+
+    try {
+      this.element.removeEventListener("keydown", this.handleKeyDown);
+    } catch (_) {}
+
     // Remove document/window event listeners
     document.removeEventListener("click", this.handleOutsideClick);
     window.removeEventListener("resize", this.handleWindowResize);
@@ -587,15 +624,16 @@ export class FriendOptionsMenu {
     // Ensure any moved dropdown is fully cleaned up
     this.closeDropdown(true);
 
-    // 🛡️ LEAK PREVENTION: Remove all event listeners by cloning element
-    // This removes ALL event listeners including anonymous ones
-    if (this.element.parentNode) {
-      const cleanElement = this.element.cloneNode(true);
-      this.element.parentNode.replaceChild(cleanElement, this.element);
-    }
+    // Remove the menu element itself
+    try {
+      this.element.remove();
+    } catch (_) {}
 
     this.element = null;
     this.isDropdownOpen = false;
+    this._listenersAttached = false;
+    this._buttonEl = null;
+    this._unfriendOptionEl = null;
 
     console.log(
       `🧹 FriendOptionsMenu destroyed for ${this.friend.handle ? `@${this.friend.handle}` : (this.friend.name || 'friend')}`

@@ -1350,7 +1350,8 @@ export class FriendsManager {
           connectionStrength: friendship.connectionStrength || "normal",
 
           // UI helpers
-          isOnline: false, // TODO: Add real-time status in Phase 5
+          // Reserved for presence integration (populated by presence services).
+          isOnline: false,
           mutualFriends: friendship.mutualFriends || 0,
         };
       });
@@ -1630,23 +1631,22 @@ export class FriendsManager {
         // ⭐ Trigger UI callback for immediate update (before real-time sync)
         if (this.uiCallbacks.onQuickAccessUpdated) {
           // Get updated Quick Access data and trigger callback
-          this.getQuickAccessFriends(false)
-            .then((quickAccessFriends) => {
-              this.uiCallbacks.onQuickAccessUpdated({
-                userId: currentUser.uid,
-                quickAccessFriends: quickAccessFriends,
-                count: quickAccessFriends.length,
-                timestamp: Date.now(),
-                action: "added",
-                friendId: friendId,
-              });
-            })
-            .catch((error) => {
-              console.warn(
-                "⚠️ Failed to trigger Quick Access UI callback:",
-                error
-              );
+          try {
+            const quickAccessFriends = await this.getQuickAccessFriends(false);
+            this.uiCallbacks.onQuickAccessUpdated({
+              userId: currentUser.uid,
+              quickAccessFriends: quickAccessFriends,
+              count: quickAccessFriends.length,
+              timestamp: Date.now(),
+              action: "added",
+              friendId: friendId,
             });
+          } catch (error) {
+            console.warn(
+              "⚠️ Failed to trigger Quick Access UI callback:",
+              error
+            );
+          }
         }
 
         console.log("✅ Successfully added to Quick Access:", friendName);
@@ -1717,23 +1717,22 @@ export class FriendsManager {
         // ⭐ Trigger UI callback for immediate update (before real-time sync)
         if (this.uiCallbacks.onQuickAccessUpdated) {
           // Get updated Quick Access data and trigger callback
-          this.getQuickAccessFriends(false)
-            .then((quickAccessFriends) => {
-              this.uiCallbacks.onQuickAccessUpdated({
-                userId: currentUser.uid,
-                quickAccessFriends: quickAccessFriends,
-                count: quickAccessFriends.length,
-                timestamp: Date.now(),
-                action: "removed",
-                friendId: friendId,
-              });
-            })
-            .catch((error) => {
-              console.warn(
-                "⚠️ Failed to trigger Quick Access UI callback:",
-                error
-              );
+          try {
+            const quickAccessFriends = await this.getQuickAccessFriends(false);
+            this.uiCallbacks.onQuickAccessUpdated({
+              userId: currentUser.uid,
+              quickAccessFriends: quickAccessFriends,
+              count: quickAccessFriends.length,
+              timestamp: Date.now(),
+              action: "removed",
+              friendId: friendId,
             });
+          } catch (error) {
+            console.warn(
+              "⚠️ Failed to trigger Quick Access UI callback:",
+              error
+            );
+          }
         }
 
         console.log("✅ Successfully removed from Quick Access:", friendId);
@@ -1893,7 +1892,7 @@ export class FriendsManager {
               // Cache the derived ID for downstream consumers
               friend.friendshipId = friendshipId;
               // Reduce noise: log at debug level instead of warning
-              if (process.env.NODE_ENV === "development") {
+              if (import.meta?.env?.DEV) {
                 console.debug(
                   `🔧 Derived friendshipId for @${friend.handle}: ${friendshipId}`
                 );
@@ -2514,13 +2513,7 @@ export class FriendsManager {
       return "offline";
     }
 
-    // TODO: Phase 4 - Implement real presence calculation based on:
-    // - Location sharing status
-    // - Real-time location data
-    // - Campus proximity
-    // - Online status
-
-    // Placeholder logic for Phase 3
+    // Placeholder logic until presence + location sharing are fully integrated:
     if (friend.hasLocationSharing) {
       return "campus"; // Friend has location sharing enabled
     }
@@ -2707,6 +2700,12 @@ export class FriendsManager {
 export const friendsManager = new FriendsManager();
 
 // Only expose globally for development/debugging (like dataManager)
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development"));
+if (__DEV__) {
   window.friendsManager = friendsManager;
 }

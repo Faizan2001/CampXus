@@ -188,9 +188,10 @@ class LogManager {
       "UniversityCampusConfig",
     ]);
 
-    // --- Global console suppression controls ---
-    this._originalConsole = null; // Will store original console methods
+    // --- Global console control (suppression + proxy-to-LogManager) ---
+    this._originalConsole = null; // Stored original console methods (all levels)
     this._suppressionActive = false; // Whether verbose suppression is active
+    this._consoleProxyActive = false; // Whether console.* is proxied into LogManager
     this._initializedEnvControl = false; // Guard so we only init once
     this._suppressedCount = { log: 0, info: 0, debug: 0 };
 
@@ -236,7 +237,7 @@ class LogManager {
     return (
       typeof process !== "undefined" &&
       process.env &&
-      process.env.NODE_ENV === "development"
+      (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test")
     );
   }
 
@@ -282,9 +283,12 @@ class LogManager {
     const forced = this._isForcedVerbose();
 
     if (!isDev && !forced) {
-      this.suppressVerboseConsole();
+      // In production: proxy console.* into LogManager so raw console usage
+      // becomes throttleable/filterable (and can be disabled via log level).
+      this.proxyConsoleToLogManager();
+      this.setLevel("warn");
     } else {
-      this.restoreVerboseConsole();
+      this.restoreConsoleProxy();
     }
 
     // Expose simple runtime toggles ONLY in development
@@ -299,17 +303,7 @@ class LogManager {
    */
   suppressVerboseConsole() {
     if (this._suppressionActive) return;
-    if (!this._originalConsole) {
-      this._originalConsole = {
-        log: console.log.bind(console),
-        info: console.info
-          ? console.info.bind(console)
-          : console.log.bind(console),
-        debug: console.debug
-          ? console.debug.bind(console)
-          : console.log.bind(console),
-      };
-    }
+    this._ensureOriginalConsole();
     const counter = this._suppressedCount;
     const noop = (type) =>
       function () {
@@ -327,29 +321,118 @@ class LogManager {
    * Restore original console methods
    */
   restoreVerboseConsole() {
-    if (!this._originalConsole) return; // Nothing to restore yet
+    this._restoreOriginalConsoleMethods();
+    this._suppressionActive = false;
+  }
+
+  _ensureOriginalConsole() {
+    if (this._originalConsole) return;
+    this._originalConsole = {
+      log: console.log.bind(console),
+      info: console.info ? console.info.bind(console) : console.log.bind(console),
+      debug: console.debug
+        ? console.debug.bind(console)
+        : console.log.bind(console),
+      warn: console.warn ? console.warn.bind(console) : console.log.bind(console),
+      error: console.error
+        ? console.error.bind(console)
+        : console.log.bind(console),
+      group: console.group ? console.group.bind(console) : null,
+      groupCollapsed: console.groupCollapsed
+        ? console.groupCollapsed.bind(console)
+        : null,
+      groupEnd: console.groupEnd ? console.groupEnd.bind(console) : null,
+    };
+  }
+
+  _getRawConsole() {
+    this._ensureOriginalConsole();
+    return this._originalConsole;
+  }
+
+  _restoreOriginalConsoleMethods() {
+    if (!this._originalConsole) return;
     console.log = this._originalConsole.log;
     console.info = this._originalConsole.info;
     console.debug = this._originalConsole.debug;
+    console.warn = this._originalConsole.warn;
+    console.error = this._originalConsole.error;
+  }
+
+  _formatConsoleArgs(type, args) {
+    const safeType = type ? String(type) : "log";
+    if (!args || args.length === 0) {
+      return { message: `console.${safeType}`, data: undefined };
+    }
+
+    const first = args[0];
+    const message =
+      typeof first === "string" ? first : `console.${safeType} (non-string)`;
+    const data = args.length > 1 ? args.slice(1) : typeof first === "string" ? undefined : args;
+    return { message, data };
+  }
+
+  /**
+   * Proxy raw console.* calls into LogManager so production logs are centralized.
+   * This mitigates widespread console usage without requiring large refactors.
+   */
+  proxyConsoleToLogManager() {
+    if (this._consoleProxyActive) return;
+    this._ensureOriginalConsole();
     this._suppressionActive = false;
+
+    console.log = (...args) => {
+      const { message, data } = this._formatConsoleArgs("log", args);
+      this.dev.debug(message, data);
+    };
+    console.info = (...args) => {
+      const { message, data } = this._formatConsoleArgs("info", args);
+      this.system.info(message, data);
+    };
+    console.debug = (...args) => {
+      const { message, data } = this._formatConsoleArgs("debug", args);
+      this.dev.debug(message, data);
+    };
+    console.warn = (...args) => {
+      const { message, data } = this._formatConsoleArgs("warn", args);
+      this.system.warn(message, data);
+    };
+    console.error = (...args) => {
+      const { message, data } = this._formatConsoleArgs("error", args);
+      this.system.error(message, data);
+    };
+
+    this._consoleProxyActive = true;
+  }
+
+  restoreConsoleProxy() {
+    if (!this._consoleProxyActive) {
+      // Still ensure we restore in case only suppression was used
+      this.restoreVerboseConsole();
+      return;
+    }
+    this._restoreOriginalConsoleMethods();
+    this._consoleProxyActive = false;
   }
 
   /** User-friendly API to enable verbose logs at runtime */
   enableVerboseLogs() {
-    this.restoreVerboseConsole();
+    this.restoreConsoleProxy();
     this.setLevel("debug");
     this.enableCategories(["all"]);
     try {
       window.localStorage.setItem("verboseLogs", "true");
     } catch {}
-    console.log("🔓 Verbose logs ENABLED (restored console methods)");
+    this._getRawConsole().log(
+      "🔓 Verbose logs ENABLED (restored console methods)"
+    );
     if (
       this._suppressedCount.log +
         this._suppressedCount.info +
         this._suppressedCount.debug >
       0
     ) {
-      console.log(
+      this._getRawConsole().log(
         `ℹ️ Suppressed earlier: log=${this._suppressedCount.log}, info=${this._suppressedCount.info}, debug=${this._suppressedCount.debug}`
       );
     }
@@ -357,7 +440,9 @@ class LogManager {
 
   /** User-friendly API to disable verbose logs at runtime */
   disableVerboseLogs() {
-    this.suppressVerboseConsole();
+    // Prefer proxying into LogManager to keep behavior consistent and avoid spam.
+    this.proxyConsoleToLogManager();
+    this.setLevel("warn");
     try {
       window.localStorage.setItem("verboseLogs", "false");
     } catch {}
@@ -397,8 +482,15 @@ class LogManager {
     // In production, suppress non-critical info/debug logs UNLESS the category
     // is explicitly enabled (e.g., ?logs=location). This allows targeted
     // debugging like the 3-tier location pipeline without opening the floodgates.
+    const isProd =
+      (typeof import.meta !== "undefined" &&
+        import.meta.env &&
+        import.meta.env.PROD) ||
+      (typeof process !== "undefined" &&
+        process.env &&
+        process.env.NODE_ENV === "production");
     if (
-      process.env.NODE_ENV === "production" &&
+      isProd &&
       level > LOG_LEVELS.WARN &&
       !PRODUCTION_CRITICAL_CATEGORIES.includes(category) &&
       // Allow explicitly enabled categories (like 'location') in production
@@ -680,13 +772,14 @@ class LogManager {
         ? `${logMessage} (${throttleCount} similar)`
         : logMessage;
 
+    const raw = this._getRawConsole();
     if (level === LOG_LEVELS.ERROR) {
-      console.error(finalMessage, data || "");
+      raw.error(finalMessage, data || "");
     } else if (level === LOG_LEVELS.WARN) {
-      console.warn(finalMessage, data || "");
+      raw.warn(finalMessage, data || "");
     } else {
       // For INFO and DEBUG, use console.log but with a prefix to distinguish
-      console.log(finalMessage, data || "");
+      raw.log(finalMessage, data || "");
     }
 
     // Reset throttle after logging
@@ -770,11 +863,13 @@ class LogManager {
   group(groupName, logFunction) {
     if (!this.shouldLog(LOG_LEVELS.INFO, "dev")) return;
 
-    console.group(`📋 ${groupName}`);
+    const raw = this._getRawConsole();
+    if (!raw.group || !raw.groupEnd) return;
+    raw.group(`📋 ${groupName}`);
     try {
       logFunction();
     } finally {
-      console.groupEnd();
+      raw.groupEnd();
     }
   }
 
@@ -786,11 +881,13 @@ class LogManager {
   groupCollapsed(groupName, logFunction) {
     if (!this.shouldLog(LOG_LEVELS.DEBUG, "dev")) return;
 
-    console.groupCollapsed(`📋 ${groupName}`);
+    const raw = this._getRawConsole();
+    if (!raw.groupCollapsed || !raw.groupEnd) return;
+    raw.groupCollapsed(`📋 ${groupName}`);
     try {
       logFunction();
     } finally {
-      console.groupEnd();
+      raw.groupEnd();
     }
   }
 
@@ -803,8 +900,9 @@ class LogManager {
     if (!this.shouldLog(LOG_LEVELS.INFO, "dev")) return;
 
     this.group(`${operation} Summary`, () => {
+      const raw = this._getRawConsole();
       Object.entries(stats).forEach(([key, value]) => {
-        console.log(`  ${key}: ${value}`);
+        raw.log(`  ${key}: ${value}`);
       });
     });
   }
@@ -1039,7 +1137,10 @@ export const logManager = new LogManager();
 // Expose to window ONLY in development
 if (
   typeof window !== "undefined" &&
-  (import.meta?.env?.DEV || process.env.NODE_ENV === "development")
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development"))
 ) {
   window.logManager = logManager; // Dev only
 
@@ -1115,7 +1216,12 @@ if (
     },
   };
 
-  if (process.env.NODE_ENV === "development" || import.meta?.env?.DEV) {
+  if (
+    import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development")
+  ) {
     console.log("💡 Use debugLogs.help() to see logging controls");
   }
 }

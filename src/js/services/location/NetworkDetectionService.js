@@ -413,7 +413,14 @@ export class NetworkDetectionService {
 export const networkDetectionService = new NetworkDetectionService();
 
 // 🧪 TESTING HELPER - Available in browser console for manual testing
-if (typeof window !== "undefined") {
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development") ||
+    (window.ENV && window.ENV.ENVIRONMENT !== "production"));
+if (__DEV__) {
   window.debugNetworkDetection = {
     test: () => networkDetectionService.testService("iub"),
     getIPInfo: () => networkDetectionService.getUserIPInfo(),

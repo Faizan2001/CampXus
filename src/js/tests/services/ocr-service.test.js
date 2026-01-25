@@ -33,7 +33,18 @@ Object.defineProperty(global, "Image", {
   writable: true,
   value: class MockImage {
     constructor() {
-      setTimeout(() => this.onload && this.onload(), 0);
+      this._listeners = {};
+      setTimeout(() => {
+        const listeners = this._listeners.load || [];
+        listeners.forEach((handler) => handler());
+      }, 0);
+    }
+
+    addEventListener(type, handler) {
+      if (!this._listeners[type]) {
+        this._listeners[type] = [];
+      }
+      this._listeners[type].push(handler);
     }
   },
 });

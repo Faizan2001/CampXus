@@ -7,8 +7,9 @@
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "dev": "npm run dev:config && vite --host",
-  "build": "node scripts/generate-sitemap.js && vite build",
+    "build": "node scripts/generate-sitemap.js && vite build",
     "preview": "vite preview",
+    "lint": "node scripts/lint.js",
     "dev:config": "node src/js/core/firestore/dev-tools/generate-env-config.js",
     "dev:check": "node src/js/core/firestore/dev-tools/check-dev-setup.js",
     "dev:serve": "npm run dev:config && firebase serve",
@@ -17,6 +18,7 @@
     "firebase:emulators": "firebase emulators:start",
     "firebase:emulators:export": "firebase emulators:export ./.emulator-data",
     "firebase:emulators:persist": "firebase emulators:start --import=./.emulator-data --export-on-exit=./.emulator-data",
+    "test:emulators": "firebase emulators:exec --only firestore,auth,functions \"npm test\"",
     "security:audit": "npm audit",
     "security:fix": "npm audit fix",
     "security:check": "npx audit-ci",

@@ -419,34 +419,40 @@ class ViewModeManager {
 // Create singleton instance
 const viewModeManager = new ViewModeManager();
 
-// Make available to window for SPA integration
-if (typeof window !== 'undefined') {
+// Make available to window for debugging in development only
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development"));
+if (__DEV__) {
   window.viewModeManager = viewModeManager;
-  
+
   // Add debug helpers for testing
   window.testViewModeManager = {
     info: () => viewModeManager.getDebugInfo(),
     test: () => {
-      console.log('🧪 Testing ViewModeManager event delegation...');
-      
+      console.log("🧪 Testing ViewModeManager event delegation...");
+
       // Test clicking buttons programmatically
-      const dayBtn = document.getElementById('dayViewBtn');
-      const gridBtn = document.getElementById('gridViewBtn');
-      
+      const dayBtn = document.getElementById("dayViewBtn");
+      const gridBtn = document.getElementById("gridViewBtn");
+
       if (dayBtn) {
-        console.log('📍 Found day view button:', dayBtn);
+        console.log("📍 Found day view button:", dayBtn);
         dayBtn.click();
-        console.log('✅ Day button clicked - should see delegation working');
+        console.log("✅ Day button clicked - should see delegation working");
       }
-      
+
       if (gridBtn) {
-        console.log('📍 Found grid view button:', gridBtn);
+        console.log("📍 Found grid view button:", gridBtn);
         gridBtn.click();
-        console.log('✅ Grid button clicked - should see delegation working');
+        console.log("✅ Grid button clicked - should see delegation working");
       }
-      
+
       return viewModeManager.getDebugInfo();
-    }
+    },
   };
 }
 

@@ -68,7 +68,8 @@ export class GroupsPage {
       }
 
       return true;
-    } catch (_) {
+    } catch (err) {
+      logManager.dev.debug("Firebase auth check failed", err);
       return false;
     }
   }
@@ -202,56 +203,22 @@ export class GroupsPage {
         return;
       }
 
-      const { collection, query, where, onSnapshot } = await import(
-        "firebase/firestore"
-      );
-      const { db } = await import("../lib/firebase/firebase-config.js");
-
-      const q = query(
-        collection(db, "classSpaces"),
-        where("memberIds", "array-contains", userId)
-      );
-
-      this.groupsListener = onSnapshot(
-        q,
-        (snapshot) => {
-          const spaces = [];
-          snapshot.forEach((docSnap) => {
-            spaces.push({ spaceId: docSnap.id, ...docSnap.data() });
-          });
-          // Sort newest activity first (desc)
-          spaces.sort((a, b) => {
-            const at = a.lastActivity?.toMillis?.() || 0;
-            const bt = b.lastActivity?.toMillis?.() || 0;
-            return bt - at;
-          });
-
-          // Update cache for next navigation
+      // SECURITY (C15): /classSpaces list is disabled. Use polling via DataService instead.
+      const pollOnce = async () => {
+        try {
+          const spaces = await dataManager.getUserClassSpaces();
           groupsCache.set(spaces, userId);
-
-          // Render immediately
           this.renderGroups(spaces, listEl, emptyEl);
-          console.log(`[GroupsPage] Realtime update: ${spaces.length} groups`);
-        },
-        (error) => {
-          console.error("[GroupsPage] Realtime listener error:", error);
-          // Stop retry spam on permission errors (often happens if auth token isn't ready yet)
-          try {
-            if (error?.code === "permission-denied") {
-              this.detachGroupsListener();
-            }
-          } catch (_) {}
-          listEl.innerHTML = `
-            <div class="error-message">
-              <p>Failed to load groups</p>
-              <button class="btn-retry">Retry</button>
-            </div>
-          `;
-          listEl.querySelector(".btn-retry")?.addEventListener("click", () => {
-            this.loadGroupsHybrid();
-          });
+        } catch (error) {
+          console.error("[GroupsPage] Polling load error:", error);
         }
-      );
+      };
+
+      // Initial refresh (cache may have already painted)
+      await pollOnce();
+
+      // Poll for updates while viewing the page
+      this.groupsListener = setInterval(pollOnce, 20000);
     } catch (e) {
       console.error("[GroupsPage] Failed to attach realtime listener:", e);
       // Fallback to one-shot load if realtime fails
@@ -260,12 +227,12 @@ export class GroupsPage {
   }
 
   detachGroupsListener() {
-    if (typeof this.groupsListener === "function") {
+    if (this.groupsListener) {
       try {
-        this.groupsListener();
-      } catch (_) {}
+        clearInterval(this.groupsListener);
+      } catch (error) { console.debug("Suppressed error", error); }
       this.groupsListener = null;
-      console.log("[GroupsPage] Detached realtime listener");
+      console.log("[GroupsPage] Stopped groups polling");
     }
   }
 
@@ -472,7 +439,7 @@ export class GroupsPage {
   }
 
   renderGroups(spaces, listEl, emptyEl) {
-    listEl.innerHTML = "";
+    const frag = document.createDocumentFragment();
     const descEl = document.getElementById("groups-description");
 
     if (!spaces || spaces.length === 0) {
@@ -547,18 +514,21 @@ export class GroupsPage {
           const { navigateTo } = await import("../app.js");
           try {
             sessionStorage.setItem("group:spaceId", s.spaceId);
-          } catch (_) {}
+          } catch (error) { console.debug("Suppressed error", error); }
           window.location.hash = `#group`;
           navigateTo("group");
         } catch (_) {
           try {
             sessionStorage.setItem("group:spaceId", s.spaceId);
-          } catch (_) {}
+          } catch (error) { console.debug("Suppressed error", error); }
           window.location.hash = `#group`;
         }
       });
-      listEl.appendChild(card);
+      frag.appendChild(card);
     });
+
+    // Single DOM replacement to avoid repeated layout thrash
+    listEl.replaceChildren(frag);
 
     // Load and render left spaces after active spaces
     this.loadLeftSpaces();
@@ -588,7 +558,7 @@ export class GroupsPage {
   }
 
   renderLeftSpaces(leftSpaces, listEl) {
-    listEl.innerHTML = "";
+    const frag = document.createDocumentFragment();
 
     leftSpaces.forEach((item, index) => {
       const { space, canRejoinToday } = item;
@@ -651,8 +621,10 @@ export class GroupsPage {
         });
       }
 
-      listEl.appendChild(card);
+      frag.appendChild(card);
     });
+
+    listEl.replaceChildren(frag);
   }
 
   async handleRejoin(spaceId, button, card) {
@@ -916,7 +888,7 @@ export default GroupsPage;
 // Wire to SPA router lifecycle
 let _groupsPageInstance = null;
 
-document.addEventListener("spa:page:unload", (event) => {
+function handleGroupsPageUnload(event) {
   const route = event?.detail?.route;
   // Only unmount if we're leaving messages page
   if (route !== "messages") return;
@@ -925,9 +897,9 @@ document.addEventListener("spa:page:unload", (event) => {
     _groupsPageInstance.unmount();
     _groupsPageInstance = null;
   }
-});
+}
 
-document.addEventListener("spa:page:load", async (event) => {
+async function handleGroupsPageLoad(event) {
   const route = event?.detail?.route;
   if (route !== "messages") return;
 
@@ -949,4 +921,7 @@ document.addEventListener("spa:page:load", async (event) => {
   } catch (error) {
     console.error("[GroupsPage] Mount failed:", error);
   }
-});
+}
+
+document.addEventListener("spa:page:unload", handleGroupsPageUnload);
+document.addEventListener("spa:page:load", handleGroupsPageLoad);

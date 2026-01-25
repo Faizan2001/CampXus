@@ -171,7 +171,7 @@ class UserProfilePage {
         return null;
       }
     })();
-    backBtn.onclick = async () => {
+    const handleBackClick = async () => {
       try {
         // Set return tab state BEFORE navigation (history or direct)
         if (fromParam?.from === "group" && fromParam?.tab === "members") {
@@ -180,7 +180,7 @@ class UserProfilePage {
             console.log(
               "[UserProfilePage] Set group:returnTab=members for back nav",
             );
-          } catch (_) {}
+          } catch (error) { console.debug("Suppressed error", error); }
         }
 
         if (window.history && window.history.length > 1) {
@@ -223,7 +223,7 @@ class UserProfilePage {
               logManager.dev.debug(
                 "[UserProfilePage] Stored returnTab=members in sessionStorage (fallback before hash)",
               );
-            } catch (_) {}
+            } catch (error) { console.debug("Suppressed error", error); }
           }
           logManager.dev.debug(
             "[UserProfilePage] Fallback: setting hash to #group",
@@ -242,6 +242,8 @@ class UserProfilePage {
         }
       }
     };
+    this._onBackClick = handleBackClick;
+    backBtn.addEventListener("click", handleBackClick);
 
     // Insert back button to profile card for relative positioning
     const profileCard = document.getElementById("profile-card");
@@ -327,7 +329,7 @@ class UserProfilePage {
           card.insertBefore(banner, card.firstChild);
         }
       }
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
 
     // Load myProfile
     let myProfile = null;
@@ -1005,6 +1007,9 @@ class UserProfilePage {
       this.dom.scrollHint.remove();
     }
     if (this.dom.backBtn) {
+      if (this._onBackClick) {
+        this.dom.backBtn.removeEventListener("click", this._onBackClick);
+      }
       this.dom.backBtn.remove();
     }
   }
@@ -1012,7 +1017,7 @@ class UserProfilePage {
 
 let instance = null;
 
-document.addEventListener("spa:page:unload", (event) => {
+function handleUserProfilePageUnload(event) {
   const route = event?.detail?.route;
   // Only unmount if we're leaving user profile page
   if (route !== "user") return;
@@ -1021,9 +1026,9 @@ document.addEventListener("spa:page:unload", (event) => {
     instance.destroy();
     instance = null;
   }
-});
+}
 
-document.addEventListener("spa:page:load", async (event) => {
+async function handleUserProfilePageLoad(event) {
   const route = event?.detail?.route;
   if (route !== "user") return;
 
@@ -1039,7 +1044,10 @@ document.addEventListener("spa:page:load", async (event) => {
   instance = new UserProfilePage();
   instance.fullHash = fullHash; // Store hash before mounting
   await instance.mount();
-});
+}
+
+document.addEventListener("spa:page:unload", handleUserProfilePageUnload);
+document.addEventListener("spa:page:load", handleUserProfilePageLoad);
 
 export { UserProfilePage };
 export default UserProfilePage;

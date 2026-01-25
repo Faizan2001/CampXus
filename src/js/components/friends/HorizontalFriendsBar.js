@@ -69,7 +69,7 @@ let pendingLocationAnimations = [];
  * HorizontalFriendsBar Class
  * Modern Instagram-style horizontal friends bar component
  */
-export class HorizontalFriendsBar {
+  export class HorizontalFriendsBar {
   constructor(containerId) {
     this.containerId = containerId;
     this.container = null;
@@ -99,6 +99,8 @@ export class HorizontalFriendsBar {
     // Event handling
     this.boundHandlers = null;
     this.realTimeUnsubscriber = null;
+    this._freshDataListenersSetup = false;
+    this._freshDataDocumentHandlers = null;
 
     // Touch/scroll optimization
     this.isScrolling = false;
@@ -170,7 +172,9 @@ export class HorizontalFriendsBar {
     if (!this._debugAvatarBar) return;
     try {
       console.debug("[HB Avatar]", ...args);
-    } catch (_) {}
+    } catch (err) {
+      logManager.dev.debug("console.debug failed", err);
+    }
   }
 
   /**
@@ -346,6 +350,16 @@ export class HorizontalFriendsBar {
         scrollStart: () => this.handleScrollStart(),
         scrollEnd: () => this.handleScrollEnd(),
         refreshClick: () => this.handleRefreshClick(),
+        refreshDelegatedClick: (e) => {
+          if (e.target.closest(".btn-refresh-friends")) {
+            this.boundHandlers.refreshClick();
+          }
+        },
+        compareDelegatedClick: (e) => {
+          if (e.target.closest(".btn-compare")) {
+            this.handleToggleCompareMode();
+          }
+        },
         keyboardNav: (e) => this.handleKeyboardNavigation(e),
       };
     }
@@ -362,19 +376,15 @@ export class HorizontalFriendsBar {
       );
     }
 
-    // Refresh button
-    this.container.addEventListener("click", (e) => {
-      if (e.target.closest(".btn-refresh-friends")) {
-        this.boundHandlers.refreshClick();
-      }
-    });
-
-    // Compare button (mobile)
-    this.container.addEventListener("click", (e) => {
-      if (e.target.closest(".btn-compare")) {
-        this.handleToggleCompareMode();
-      }
-    });
+    // Refresh/Compare buttons (delegated)
+    this.container.addEventListener(
+      "click",
+      this.boundHandlers.refreshDelegatedClick
+    );
+    this.container.addEventListener(
+      "click",
+      this.boundHandlers.compareDelegatedClick
+    );
 
     // Keyboard navigation
     this.container.addEventListener("keydown", this.boundHandlers.keyboardNav);
@@ -477,7 +487,9 @@ export class HorizontalFriendsBar {
                 snapshot,
                 120_000
               );
-            } catch (_) {}
+            } catch (err) {
+              logManager.dev.debug("uiCache.set failed for presence snapshot", err);
+            }
           } catch (bgErr) {
             console.warn("⚠️ Background enhancement failed:", bgErr);
           }
@@ -570,20 +582,21 @@ export class HorizontalFriendsBar {
       const presenceBudget = firstLoad ? 10 : 30;
       this.addTrackedTimeout(() => {
         if (!this.container || !this.container.isConnected) return;
-        this.enrichFriendsWithScheduleStatus(new Date(), {
-          maxScheduleFetches: presenceBudget,
-          concurrency: 4,
-        })
-          .then(() => {
+        void (async () => {
+          try {
+            await this.enrichFriendsWithScheduleStatus(new Date(), {
+              maxScheduleFetches: presenceBudget,
+              concurrency: 4,
+            });
             if (!this.container || !this.container.isConnected) return;
             this._updateAvatarPresencePills();
-          })
-          .catch((e) => {
+          } catch (e) {
             console.warn(
               "[HorizontalFriendsBar] Background presence compute failed:",
               e
             );
-          });
+          }
+        })();
       }, 0);
 
       // Set up profile listeners ASAP so avatar/photo changes hydrate on first load.
@@ -1576,11 +1589,16 @@ export class HorizontalFriendsBar {
       requestAnimationFrame(() => mark.update());
     }
 
-    mark.waitForClose.then(() => {
-      onboardingService
-        .markSeen("comparePromptSeen", { allowPending: true })
-        .catch(() => {});
-    });
+    void (async () => {
+      try {
+        await mark.waitForClose;
+        await onboardingService.markSeen("comparePromptSeen", {
+          allowPending: true,
+        });
+      } catch (_) {
+        // best-effort
+      }
+    })();
 
     return true;
   }
@@ -2327,68 +2345,76 @@ export class HorizontalFriendsBar {
     this.loadingState.user =
       sessionStorage.getItem("campusPresence_forceFreshData") === "true";
 
-    // 🎯 NEW: Listen for campus presence loading events (from app.js background init)
-    document.addEventListener("campus-presence:loading", (event) => {
-      // Campus presence loading started
-      const priority = event?.detail?.priority || "fresh_data";
-      if (priority === "presence_poll") {
-        this.loadingState.user = true;
-      } else {
-        this.loadingState.user = true;
-        if (!this.initialFreshComplete) {
-          this.quickAccessFriends.forEach((f) => {
-            const key = f.friendId || f.userId || f.uid;
-            if (key) this.friendLoading.set(key, true);
-          });
-        }
-      }
-      this.showPresencePillsLoading(priority);
-    });
+    if (!this._freshDataDocumentHandlers) {
+      this._freshDataDocumentHandlers = {
+        loading: (event) => {
+          const priority = event?.detail?.priority || "fresh_data";
+          if (priority === "presence_poll") {
+            this.loadingState.user = true;
+          } else {
+            this.loadingState.user = true;
+            if (!this.initialFreshComplete) {
+              this.quickAccessFriends.forEach((f) => {
+                const key = f.friendId || f.userId || f.uid;
+                if (key) this.friendLoading.set(key, true);
+              });
+            }
+          }
+          this.showPresencePillsLoading(priority);
+        },
+        ready: (event) => {
+          this.loadingState.user = false;
 
-    // 🎯 NEW: Listen for campus presence ready events (from app.js background init)
-    document.addEventListener("campus-presence:ready", (event) => {
-      // Campus presence ready
-      this.loadingState.user = false;
+          if (event?.detail?.freshDataLoaded) {
+            if (!this.initialFreshComplete) {
+              this.initialFreshComplete = true;
+              this.friendLoading.clear();
+            }
+            this.refreshPresencePillsWithLatestData();
+          } else {
+            this.hidePresencePillsLoading();
+          }
+        },
+        fetchingFresh: () => {
+          this.loadingState.user = true;
+        },
+        error: (event) => {
+          const sev = event?.detail?.severity || "warning";
+          if (sev === "warning") {
+            if (logManager?.dev) {
+              logManager.dev.debug(
+                "[HorizontalFriendsBar] Campus presence warning:",
+                event?.detail?.error
+              );
+            }
+          } else {
+            console.warn(
+              "⚠️ [HorizontalFriendsBar] Campus presence error:",
+              event?.detail?.error
+            );
+          }
+          this.loadingState.user = false;
+          this.hidePresencePillsLoading();
+        },
+      };
+    }
 
-      if (event.detail.freshDataLoaded) {
-        // Fresh data was loaded - refreshing presence dots
-        if (!this.initialFreshComplete) {
-          this.initialFreshComplete = true;
-          this.friendLoading.clear();
-        }
-        this.refreshPresencePillsWithLatestData();
-      } else {
-        // Using cached data - showing existing presence dots
-        this.hidePresencePillsLoading();
-      }
-    });
-
-    // 🎯 NEW: Listen for priority location fetch events
-    document.addEventListener("campus-presence:fetching-fresh", (event) => {
-      // Priority location fetch started
-      // Keep loading state active during priority fetch
-      this.loadingState.user = true;
-    });
-
-    // 🎯 NEW: Listen for campus presence errors (treat as warnings)
-    document.addEventListener("campus-presence:error", (event) => {
-      const sev = event?.detail?.severity || "warning";
-      if (sev === "warning") {
-        if (logManager?.dev) {
-          logManager.dev.debug(
-            "[HorizontalFriendsBar] Campus presence warning:",
-            event.detail.error
-          );
-        }
-      } else {
-        console.warn(
-          "⚠️ [HorizontalFriendsBar] Campus presence error:",
-          event.detail.error
-        );
-      }
-      this.loadingState.user = false;
-      this.hidePresencePillsLoading();
-    });
+    document.addEventListener(
+      "campus-presence:loading",
+      this._freshDataDocumentHandlers.loading
+    );
+    document.addEventListener(
+      "campus-presence:ready",
+      this._freshDataDocumentHandlers.ready
+    );
+    document.addEventListener(
+      "campus-presence:fetching-fresh",
+      this._freshDataDocumentHandlers.fetchingFresh
+    );
+    document.addEventListener(
+      "campus-presence:error",
+      this._freshDataDocumentHandlers.error
+    );
 
     this._freshDataListenersSetup = true;
     // Remove legacy campus-presence:data-* listeners to avoid duplicate logs
@@ -2416,19 +2442,20 @@ export class HorizontalFriendsBar {
     );
 
     const now = new Date();
-    this.enrichFriendsWithScheduleStatus(now)
-      .then(() => {
+    void (async () => {
+      try {
+        await this.enrichFriendsWithScheduleStatus(now);
         this.sortQuickAccessFriendsForDisplay();
         this._applyFriendsDomUpdates();
-        this.hidePresencePillsLoading();
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error(
           "[HorizontalFriendsBar] Failed to update presence pills with fresh data:",
           error
         );
+      } finally {
         this.hidePresencePillsLoading();
-      });
+      }
+    })();
   }
 
   /**
@@ -2449,17 +2476,18 @@ export class HorizontalFriendsBar {
 
     try {
       const now = new Date();
-      this.enrichFriendsWithScheduleStatus(now)
-        .then(() => {
+      void (async () => {
+        try {
+          await this.enrichFriendsWithScheduleStatus(now);
           this.sortQuickAccessFriendsForDisplay();
           this._applyFriendsDomUpdates();
-        })
-        .catch((error) => {
+        } catch (error) {
           console.warn(
             "[HorizontalFriendsBar] Presence pill timer update failed:",
             error
           );
-        });
+        }
+      })();
     } catch (error) {
       console.error(
         "❌ [HorizontalFriendsBar] Failed to refresh presence pills:",
@@ -2837,17 +2865,18 @@ export class HorizontalFriendsBar {
     this.statusUpdateTimer = setInterval(() => {
       if (!this.isInitialized) return;
       const now = new Date();
-      this.enrichFriendsWithScheduleStatus(now)
-        .then(() => {
+      void (async () => {
+        try {
+          await this.enrichFriendsWithScheduleStatus(now);
           this.sortQuickAccessFriendsForDisplay();
           this._applyFriendsDomUpdates();
-        })
-        .catch((error) => {
+        } catch (error) {
           console.warn(
             "[HorizontalFriendsBar] Presence pill timer update failed:",
             error
           );
-        });
+        }
+      })();
     }, PRESENCE_CONFIG.STATUS_UPDATE_INTERVAL_MS);
   }
 
@@ -4469,7 +4498,9 @@ export class HorizontalFriendsBar {
             this.optimisticRemovals.delete(id);
           }
         }
-      } catch (_) {}
+      } catch (err) {
+        logManager.dev.debug("Data processing error: cleaning optimistic removals", err);
+      }
 
       console
         .log
@@ -4518,7 +4549,9 @@ export class HorizontalFriendsBar {
               const ts = this.optimisticRemovals.get(id);
               return !(ts && now2 - ts < TTL_MS2);
             });
-          } catch (_) {}
+          } catch (err) {
+            logManager.dev.debug("Data processing error: filtering optimistic removals", err);
+          }
 
           // Update internal state with location-enhanced data
           this.quickAccessFriends = friendsWithLocation;
@@ -4689,7 +4722,9 @@ export class HorizontalFriendsBar {
           canSeeLocation: !!friend.canSeeLocation,
         };
         uiCache.set(key, snapshot, 120_000);
-      } catch (_) {}
+      } catch (err) {
+        logManager.dev.debug("uiCache.set failed for friend snapshot", err);
+      }
 
       this._updateAvatarPresencePills();
     } catch (error) {
@@ -5005,7 +5040,9 @@ export class HorizontalFriendsBar {
           );
           pwaCache.saveQuickAccessFriends(uid, this.quickAccessFriends);
         }
-      } catch (_) {}
+      } catch (err) {
+        logManager.dev.debug("Storage access failed: saving quick access friends", err);
+      }
 
       this._debugAvatar("hydration complete", { updatedCount });
     }
@@ -5580,13 +5617,20 @@ export class HorizontalFriendsBar {
           <div class="error-icon">❌</div>
           <h4>Failed to load friends</h4>
           <p>${errorMessage}</p>
-          <button class="btn-retry" onclick="window.location.reload()">
+          <button class="btn-retry">
             <i class="fas fa-redo"></i>
             Retry
           </button>
         </div>
       </div>
     `;
+    const retryBtn = this.container.querySelector(".btn-retry");
+    if (retryBtn) {
+      function handleRetryReloadClick() {
+        window.location.reload();
+      }
+      retryBtn.addEventListener("click", handleRetryReloadClick);
+    }
   }
 
   // =========================
@@ -5695,7 +5739,9 @@ export class HorizontalFriendsBar {
     // Keep a short-lived guard to ignore any late/stale re-add events
     try {
       this.optimisticRemovals.set(friendId, Date.now());
-    } catch (_) {}
+    } catch (err) {
+      logManager.dev.debug("Data processing error: setting optimistic removal timestamp", err);
+    }
   }
 
   /**
@@ -5812,6 +5858,14 @@ export class HorizontalFriendsBar {
       this.container.removeEventListener(
         "click",
         this.boundHandlers.avatarClick
+      );
+      this.container.removeEventListener(
+        "click",
+        this.boundHandlers.refreshDelegatedClick
+      );
+      this.container.removeEventListener(
+        "click",
+        this.boundHandlers.compareDelegatedClick
       );
       this.container.removeEventListener(
         "keydown",
@@ -5960,6 +6014,32 @@ export class HorizontalFriendsBar {
     this.scrollContainer = null;
     this.avatarsContainer = null;
     this.boundHandlers = null;
+
+    // Remove document-level fresh-data presence listeners (prevents instance leaks)
+    if (this._freshDataListenersSetup && this._freshDataDocumentHandlers) {
+      try {
+        document.removeEventListener(
+          "campus-presence:loading",
+          this._freshDataDocumentHandlers.loading
+        );
+        document.removeEventListener(
+          "campus-presence:ready",
+          this._freshDataDocumentHandlers.ready
+        );
+        document.removeEventListener(
+          "campus-presence:fetching-fresh",
+          this._freshDataDocumentHandlers.fetchingFresh
+        );
+        document.removeEventListener(
+          "campus-presence:error",
+          this._freshDataDocumentHandlers.error
+        );
+      } catch (err) {
+        logManager.dev.debug("DOM operation failed: removing event listeners", err);
+      }
+      this._freshDataDocumentHandlers = null;
+      this._freshDataListenersSetup = false;
+    }
 
     // ENHANCED: Clear performance tracking data
     this.lastDatabaseState = null;

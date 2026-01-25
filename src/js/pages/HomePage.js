@@ -26,6 +26,7 @@ import { navigateTo } from "../app.js"; // Import navigateTo for SPA navigation
 import { getAvatarUrl } from "../utils/avatar/avatarUtils.js"; // Import avatar utilities
 import { initScheduleControlsToggle } from "../components/schedule/ScheduleControlsToggle.js";
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js";
+import { escapeHTML, escapeAttr } from "../utils/security/sanitize.js";
 import {
   initLocationPermissionBanner,
   destroyLocationPermissionBanner,
@@ -192,6 +193,18 @@ function debouncedSaveStateToStorage(immediate = false, transactionId = null) {
       }
     }, 300); // 300ms debounce delay
   });
+}
+
+function finalizeLocalUpdate(savePromise) {
+  void (async () => {
+    try {
+      await savePromise;
+    } catch (_) {
+      // Swallow save errors; UI should continue to function.
+    } finally {
+      state.isLocalUpdate = false;
+    }
+  })();
 }
 
 // NOTE: Removed smartLog function - now using LogManager for all throttled logging
@@ -377,18 +390,20 @@ function scheduleOnboardingTimeout(callback, delay = 800) {
 }
 
 // Reset local onboarding hint state when account switches so new users see hints
-document.addEventListener("onboarding:user-switched", () => {
+function handleHomeOnboardingUserSwitched() {
   try {
     hideAllCoachMarks();
-  } catch (_) {}
+  } catch (err) { logManager.dev.debug("hideAllCoachMarks failed", err); }
   try {
     clearOnboardingTimeouts();
-  } catch (_) {}
+  } catch (err) { logManager.dev.debug("clearOnboardingTimeouts failed", err); }
   hintSessionState.clear();
   controlsHintsStarted = false;
   controlsHintsActive = false;
   pendingTapHint = false;
-});
+}
+
+document.addEventListener("onboarding:user-switched", handleHomeOnboardingUserSwitched);
 
 function clearOnboardingTimeouts() {
   onboardingTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
@@ -451,9 +466,7 @@ async function showHintOnce({ key, targetResolver, buildConfig }) {
       inline: "center",
       behavior: "smooth",
     });
-  } catch (_) {
-    /* ignore scroll failures */
-  }
+  } catch (err) { logManager.dev.debug("scrollIntoView failed", err); }
   await waitMs(120);
 
   if (hasActiveCoachMarks()) {
@@ -622,7 +635,9 @@ function startScheduleControlsHints() {
   controlsHintsActive = true;
   devLog("[Onboarding] Control hint queue starting");
 
-  controlsHintQueue = controlsHintQueue.then(async () => {
+  const previousQueue = controlsHintQueue;
+  controlsHintQueue = (async () => {
+    await previousQueue;
     await new Promise((resolve) => requestAnimationFrame(resolve));
     ensureScheduleControlsOpen();
 
@@ -690,7 +705,7 @@ function startScheduleControlsHints() {
       );
       maybeScheduleTapHint(300);
     }
-  });
+  })();
 }
 
 function handleScheduleControlsOpened() {
@@ -701,6 +716,20 @@ function handleScheduleControlsOpened() {
     "[Onboarding] scheduleControls:opened received - starting control hints"
   );
   startScheduleControlsHints();
+}
+
+function handleScheduleControlsClosed() {
+  if (controlsHintsActive) {
+    devLog(
+      "[Onboarding] scheduleControls:closed while hints active, re-opening"
+    );
+    scheduleOnboardingTimeout(() => ensureScheduleControlsOpen(), 120);
+  }
+  if (state.pinModeActive) {
+    state.pinModeActive = false;
+    updateUI();
+    console.log("📌 Pin mode auto-disabled on dropdown close");
+  }
 }
 
 function ensureScheduleControlsOpen() {
@@ -1603,13 +1632,7 @@ function addCustomTimeSlotToActiveUser(startTime, endTime) {
   });
   state.isLocalUpdate = true;
   updateUI();
-  debouncedSaveStateToStorage(false, txId)
-    .then(() => {
-      state.isLocalUpdate = false;
-    })
-    .catch(() => {
-      state.isLocalUpdate = false;
-    });
+  finalizeLocalUpdate(debouncedSaveStateToStorage(false, txId));
   showModal({
     content: `New time slot "${newSlotLabel}" added for ${user.name}.`,
     title: "Time Slot Added",
@@ -1755,7 +1778,7 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
   if (state.activeUserId && state.users[state.activeUserId]) {
     try {
       normalizeUserScheduleMatrices(state.users[state.activeUserId]);
-    } catch (_) {}
+    } catch (err) { logManager.dev.debug("normalizeUserScheduleMatrices failed", err); }
   }
   if (event) {
     event.stopPropagation();
@@ -1922,14 +1945,7 @@ function handlePinSlotClick(dayIndex, slotIndex, event) {
   updateUI();
 
   // Use debounced save to prevent excessive database writes (pass transactionId correctly)
-  debouncedSaveStateToStorage(false, transactionId)
-    .then(() => {
-      state.isLocalUpdate = false;
-    })
-    .catch(() => {
-      // Even if save fails, release the guard to avoid UI lock
-      state.isLocalUpdate = false;
-    });
+  finalizeLocalUpdate(debouncedSaveStateToStorage(false, transactionId));
 }
 
 /**
@@ -2042,13 +2058,7 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
 
         state.isLocalUpdate = true;
         updateUI();
-        debouncedSaveStateToStorage(false, txId)
-          .then(() => {
-            state.isLocalUpdate = false;
-          })
-          .catch(() => {
-            state.isLocalUpdate = false;
-          });
+        finalizeLocalUpdate(debouncedSaveStateToStorage(false, txId));
         return true;
       }
       return false;
@@ -2110,13 +2120,7 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
 
           state.isLocalUpdate = true;
           updateUI();
-          debouncedSaveStateToStorage(false, txId)
-            .then(() => {
-              state.isLocalUpdate = false;
-            })
-            .catch(() => {
-              state.isLocalUpdate = false;
-            });
+          finalizeLocalUpdate(debouncedSaveStateToStorage(false, txId));
           // 📊 Analytics: schedule slot deleted
           try {
             AnalyticsService.trackScheduleEdit("delete_slot", {
@@ -2135,7 +2139,7 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
       if (contentEl.__deleteSlotHandler) {
         try {
           contentEl.removeEventListener("click", contentEl.__deleteSlotHandler);
-        } catch (_) {}
+        } catch (err) { logManager.dev.debug("DOM operation failed: removeEventListener", err); }
       }
       contentEl.__deleteSlotHandler = onContentClick;
       contentEl.addEventListener("click", onContentClick);
@@ -2289,13 +2293,7 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
 
         state.isLocalUpdate = true;
         updateUI();
-        debouncedSaveStateToStorage(false, txId)
-          .then(() => {
-            state.isLocalUpdate = false;
-          })
-          .catch(() => {
-            state.isLocalUpdate = false;
-          });
+        finalizeLocalUpdate(debouncedSaveStateToStorage(false, txId));
         return true; // Allow modal to close
       }
       return false;
@@ -2455,8 +2453,9 @@ async function loadState(retryAttempt = 0) {
 
     // When background revalidation finishes, refresh UI if data changed
     if (revalidatePromise) {
-      revalidatePromise
-        .then((freshData) => {
+      void (async () => {
+        try {
+          const freshData = await revalidatePromise;
           if (!freshData) return;
           // Ensure same user still active
           if (currentUser?.uid && currentUser.uid !== user.uid) return;
@@ -2483,13 +2482,13 @@ async function loadState(retryAttempt = 0) {
           if (currentRoute === "home") {
             updateUI();
           }
-        })
-        .catch((err) => {
+        } catch (err) {
           console.warn(
             "⚠️ Background schedule refresh failed (non-blocking):",
             err
           );
-        });
+        }
+      })();
     }
   } catch (error) {
     console.error("❌ [Phase-1] Failed to load user schedule:", error);
@@ -2574,7 +2573,7 @@ function setupScheduleRealTimeSync(userId) {
             timeBasedPins: updatedScheduleData?.timeBasedPins || null,
             slotInfo: updatedScheduleData?.slotInfo || null,
           });
-        } catch (_) {}
+        } catch (err) { logManager.dev.debug("JSON stringify failed", err); }
 
         // Ignore clearly stale versions ONLY if content is unchanged
         if (
@@ -3064,13 +3063,7 @@ export function processTimeRangeEdit(slotIndex, activeUserObject) {
   });
   state.isLocalUpdate = true;
   updateUI();
-  debouncedSaveStateToStorage(false, txId)
-    .then(() => {
-      state.isLocalUpdate = false;
-    })
-    .catch(() => {
-      state.isLocalUpdate = false;
-    });
+  finalizeLocalUpdate(debouncedSaveStateToStorage(false, txId));
   return true;
 }
 
@@ -3206,13 +3199,7 @@ export function processTimeRangeDelete(slotIndex, activeUserObject) {
     });
     state.isLocalUpdate = true;
     updateUI();
-    debouncedSaveStateToStorage(false, txId)
-      .then(() => {
-        state.isLocalUpdate = false;
-      })
-      .catch(() => {
-        state.isLocalUpdate = false;
-      });
+    finalizeLocalUpdate(debouncedSaveStateToStorage(false, txId));
 
     showModal({
       title: "Time Range Deleted",
@@ -3227,7 +3214,7 @@ export function processTimeRangeDelete(slotIndex, activeUserObject) {
   }
 }
 
-// Backward compatibility alias (old name). TODO: update tests/imports then remove.
+// Backward compatibility alias (old name).
 
 // --- END: Phase 3 - Editable Time Range Header Functions ---
 
@@ -4334,10 +4321,10 @@ function handleShowSlotTooltip(slotElement, dayIndex, timeIndex) {
     lineHeight: "1.4",
   });
 
-  // Force a reflow and get measurements
-  DOM_ELEMENTS.slotTooltip.offsetHeight; // Force reflow
-  const tooltipHeight = DOM_ELEMENTS.slotTooltip.offsetHeight;
-  const tooltipWidth = DOM_ELEMENTS.slotTooltip.offsetWidth;
+  // Measure once (avoid repeated forced reflows)
+  const tooltipRect = DOM_ELEMENTS.slotTooltip.getBoundingClientRect();
+  const tooltipHeight = tooltipRect.height;
+  const tooltipWidth = tooltipRect.width;
 
   // Get slot position
   const rect = slotElement.getBoundingClientRect();
@@ -4516,7 +4503,7 @@ function setupEventListeners() {
   // ===== SCHEDULE TABLE (event delegation) =====
   try {
     logManager?.dev?.debug?.("Setting up schedule table listeners");
-  } catch (_) {}
+  } catch (err) { logManager.dev.debug("logManager.dev.debug failed", err); }
 
   if (DOM_ELEMENTS.scheduleTable) {
     try {
@@ -4524,7 +4511,7 @@ function setupEventListeners() {
         "Adding listeners to schedule table; handler=",
         typeof handleScheduleTableClick
       );
-    } catch (_) {}
+    } catch (err) { logManager.dev.debug("logManager.dev.debug failed", err); }
 
     addUIControlListener(
       DOM_ELEMENTS.scheduleTable,
@@ -4918,6 +4905,19 @@ function scrollToCurrentDay() {
 // ===== CLEAN LIFECYCLE MANAGEMENT =====
 // Using event delegation - no initialization flags needed
 
+let viewModeChangedListenerBound = false;
+
+function handleHomeViewModeChanged(event) {
+  const { previousMode, newMode } = event?.detail || {};
+  console.log(`🔄 ViewMode changed: ${previousMode} → ${newMode}`);
+
+  // Update internal state
+  state.viewMode = newMode;
+
+  // Re-render for new view mode
+  renderScheduleForCurrentView();
+}
+
 /**
  * Set up view mode toggle functionality
  */
@@ -4925,24 +4925,22 @@ async function setupViewModeToggle() {
   console.log("📱 Setting up view mode toggle listeners...");
 
   try {
-    // Make ViewModeManager globally available for debugging
-    window.viewModeManager = viewModeManager;
+    // Expose globally only in development for debugging
+    try {
+      if (import.meta?.env?.DEV) {
+        window.viewModeManager = viewModeManager;
+      }
+    } catch (error) { console.debug("Suppressed error", error); }
 
     // Use ViewModeManager for robust setup
     await viewModeManager.initialize(state.viewMode, true); // Enable debug mode
     console.log("✅ ViewModeManager initialized successfully");
 
     // Listen for view mode changes
-    document.addEventListener("viewModeChanged", (event) => {
-      const { previousMode, newMode } = event.detail;
-      console.log(`🔄 ViewMode changed: ${previousMode} → ${newMode}`);
-
-      // Update internal state
-      state.viewMode = newMode;
-
-      // Re-render for new view mode
-      renderScheduleForCurrentView();
-    });
+    if (!viewModeChangedListenerBound) {
+      document.addEventListener("viewModeChanged", handleHomeViewModeChanged);
+      viewModeChangedListenerBound = true;
+    }
   } catch (error) {
     console.error(
       "❌ Failed to initialize ViewModeManager (no legacy fallback):",
@@ -5723,8 +5721,8 @@ function createNormalSlotContent(
         if (!isBusy) return '<div class="slot-free-text">Free</div>';
         const code = (slotInfo?.courseCode || "").trim();
         const room = (slotInfo?.classroomNumber || "").trim();
-        const primary = code || room || "Busy";
-        const secondary = code && room ? room : "";
+        const primary = escapeHTML(code || room || "Busy");
+        const secondary = escapeHTML(code && room ? room : "");
         return `
           <div class="slot-course-code">${primary}</div>
           <div class="slot-classroom">${secondary}</div>
@@ -6005,14 +6003,13 @@ function generateAvatarsForCompareSlot(dayIndex, timeIndex, options = {}) {
 
     // Avoid verbose per-avatar logs to reduce console noise
 
+    const safeName = escapeAttr(user.name || user.id);
     avatarsHTML += `
-      <div class="friend-avatar ${statusClass}" data-friend-id="${
+      <div class="friend-avatar ${statusClass}" data-friend-id="${escapeAttr(
       user.id
-    }" aria-label="${user.name || user.id} - ${statusTitle}">
-  <img src="${avatarUrl}" alt="${
-      user.name || user.id
-    }" loading="lazy" decoding="async" />
-        <div class="avatar-label">${user.name || user.id}</div>
+    )}" aria-label="${safeName} - ${statusTitle}">
+  <img src="${avatarUrl}" alt="${safeName}" loading="lazy" decoding="async" />
+        <div class="avatar-label">${escapeHTML(user.name || user.id)}</div>
       </div>
     `;
   });
@@ -6592,20 +6589,20 @@ function setupAuthenticationCallbacks() {
         if (window.scheduleRealtimeUnsubscribe) {
           try {
             window.scheduleRealtimeUnsubscribe();
-          } catch (_) {}
+          } catch (err) { logManager.dev.debug("scheduleRealtimeUnsubscribe failed", err); }
           // realtimeUnsubscribe cleared
         }
 
         // Cleanup UI listeners and friends bar
         try {
           await cleanupScheduleEventListeners();
-        } catch (_) {}
+        } catch (err) { logManager.dev.debug("cleanupScheduleEventListeners failed", err); }
         try {
           await cleanupUIControlListeners();
-        } catch (_) {}
+        } catch (err) { logManager.dev.debug("cleanupUIControlListeners failed", err); }
         try {
           cleanupHorizontalFriendsBar();
-        } catch (_) {}
+        } catch (err) { logManager.dev.debug("cleanupHorizontalFriendsBar failed", err); }
 
         // Clear state
         state.activeUserId = null;
@@ -6752,7 +6749,7 @@ async function initializeHorizontalFriendsBar() {
               done = true;
               try {
                 cb();
-              } catch (_) {}
+              } catch (err) { logManager.dev.debug("onAuthStateChanged callback failed", err); }
             }
           };
         };
@@ -6760,14 +6757,16 @@ async function initializeHorizontalFriendsBar() {
           authManager.onAuthStateChanged(
             once(() => initializeHorizontalFriendsBar())
           );
-        } catch (_) {
+        } catch (err) {
+          logManager.dev.debug("authManager.onAuthStateChanged failed", err);
           // Fallback: small timeout retry
           setTimeout(() => initializeHorizontalFriendsBar(), 600);
         }
         state.isFriendsBarInitializing = false;
         return;
       }
-    } catch (_) {
+    } catch (err) {
+      logManager.dev.debug("DataService access failed", err);
       // Non-fatal; proceed – DataService has its own guards
     }
 
@@ -6878,7 +6877,7 @@ async function handleFriendScheduleChange(event) {
     updateScheduleHeadingText(null, false);
     try {
       updateHeaderCompareUI();
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
 
     console.log("📋 Showing empty schedule state");
   } else if (isUserSchedule) {
@@ -6900,7 +6899,7 @@ async function handleFriendScheduleChange(event) {
     updateScheduleHeadingText(null, false);
     try {
       updateHeaderCompareUI();
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
 
     console.log("👤 Switched to user's own schedule");
   } else {
@@ -7082,7 +7081,7 @@ async function displayFriendSchedule(scheduleData, friendName, friendId) {
     // Show Compare action in header when viewing a friend
     try {
       updateHeaderCompareUI();
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
 
     console.log(`🎨 Displaying ${friendName}'s schedule in UI`);
 
@@ -7122,7 +7121,7 @@ function updateScheduleHeadingText(friendName, isFriendSchedule) {
     headingSpan.textContent = label;
     try {
       headingSpan.setAttribute("aria-label", label);
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
     return;
   }
 
@@ -7144,12 +7143,12 @@ function updateScheduleHeadingText(friendName, isFriendSchedule) {
     // Set accessible label so SRs read full phrase regardless of truncation
     try {
       headingSpan.setAttribute("aria-label", `${displayName}'s schedule`);
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
   } else {
     headingSpan.textContent = "Schedule";
     try {
       headingSpan.setAttribute("aria-label", "Schedule");
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
   }
 }
 
@@ -7199,7 +7198,7 @@ function handleHeaderCompareAction() {
   if (state.compareMode) {
     try {
       instance.deactivateCompareMode();
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
     updateHeaderCompareUI();
     return;
   }
@@ -7214,11 +7213,11 @@ function handleHeaderCompareAction() {
   }
   try {
     instance.toggleCompareSelection("user", "You");
-  } catch (_) {}
+  } catch (error) { console.debug("Suppressed error", error); }
   try {
     const friendName = state.users?.[friendId]?.name || friendId;
     instance.toggleCompareSelection(friendId, friendName);
-  } catch (_) {}
+  } catch (error) { console.debug("Suppressed error", error); }
 
   updateHeaderCompareUI();
 }
@@ -7396,10 +7395,10 @@ function handleCompareModeChange(event) {
   // Update header controls/text
   try {
     updateHeaderCompareUI();
-  } catch (_) {}
+  } catch (error) { console.debug("Suppressed error", error); }
   try {
     updateScheduleHeadingText(null, false);
-  } catch (_) {}
+  } catch (error) { console.debug("Suppressed error", error); }
 
   // Sync with desktop compare button if it exists
   const desktopCompareButton = document.getElementById("compare");
@@ -7510,10 +7509,10 @@ function handleCompareSelectionChange(event) {
   updateUI();
   try {
     updateScheduleHeadingText(null, false);
-  } catch (_) {}
+  } catch (error) { console.debug("Suppressed error", error); }
   try {
     updateHeaderCompareUI();
-  } catch (_) {}
+  } catch (error) { console.debug("Suppressed error", error); }
 
   // Force specific rendering based on current view mode
   if (compareMode && userCount >= 2) {
@@ -7869,7 +7868,7 @@ function cleanupHorizontalFriendsBar() {
  * that the home page's content has been loaded into the DOM.
  * This replaces the old, less reliable `DOMContentLoaded` and custom event listeners.
  */
-document.addEventListener("spa:page:load", async (event) => {
+const handleHomePageSpaLoad = async (event) => {
   const { route } = event.detail;
   console.log(`[script.js] Received spa:page:load event for route: ${route}`);
 
@@ -7913,7 +7912,7 @@ document.addEventListener("spa:page:load", async (event) => {
         console.log(
           "🧹 Cleared memoization and matrix caches due to compare state reset"
         );
-      } catch (_) {}
+      } catch (error) { console.debug("Suppressed error", error); }
     }
 
     // Initialize DOM elements for the home page (first pass)
@@ -7922,10 +7921,7 @@ document.addEventListener("spa:page:load", async (event) => {
     // Bind header compare action
     try {
       const headerCompare = document.getElementById("compareActionBtn");
-      if (headerCompare && !headerCompare._bound) {
-        headerCompare.addEventListener("click", handleHeaderCompareAction);
-        headerCompare._bound = true;
-      }
+      addUIControlListener(headerCompare, "click", handleHeaderCompareAction);
       updateHeaderCompareUI();
     } catch (e) {
       console.warn("⚠️ Failed to bind header compare action (non-fatal)", e);
@@ -7939,28 +7935,22 @@ document.addEventListener("spa:page:load", async (event) => {
       console.warn("⚠️ Failed to init schedule controls toggle (non-fatal)", e);
     }
 
+    // Ensure onboarding listeners are idempotent even if the template is replaced in-place
+    document.removeEventListener(
+      "scheduleControls:opened",
+      handleScheduleControlsOpened
+    );
     document.addEventListener(
       "scheduleControls:opened",
       handleScheduleControlsOpened
     );
-
-    // Auto-disable pin mode when dropdown closes
+    document.removeEventListener(
+      "scheduleControls:closed",
+      handleScheduleControlsClosed
+    );
     document.addEventListener(
       "scheduleControls:closed",
-      () => {
-        if (controlsHintsActive) {
-          devLog(
-            "[Onboarding] scheduleControls:closed while hints active, re-opening"
-          );
-          scheduleOnboardingTimeout(() => ensureScheduleControlsOpen(), 120);
-        }
-        if (state.pinModeActive) {
-          state.pinModeActive = false;
-          updateUI();
-          console.log("📌 Pin mode auto-disabled on dropdown close");
-        }
-      },
-      { once: false }
+      handleScheduleControlsClosed
     );
 
     // Create tooltip if it doesn't exist
@@ -7987,11 +7977,8 @@ document.addEventListener("spa:page:load", async (event) => {
     // This ensures view mode buttons work after signin
     console.log("🎛️ Initializing ViewModeManager after template reload...");
     try {
-      if (
-        window.viewModeManager &&
-        typeof window.viewModeManager.reinitializeAfterPageLoad === "function"
-      ) {
-        await window.viewModeManager.reinitializeAfterPageLoad();
+      if (typeof viewModeManager?.reinitializeAfterPageLoad === "function") {
+        await viewModeManager.reinitializeAfterPageLoad();
         console.log("✅ ViewModeManager reinitialized successfully");
       } else {
         console.warn("⚠️ ViewModeManager not available for reinitialization");
@@ -8035,7 +8022,7 @@ document.addEventListener("spa:page:load", async (event) => {
     await updateUI();
     try {
       updateHeaderCompareUI();
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
 
     // If user just starred their first friend and navigated to Schedule, show where stars go
     try {
@@ -8103,7 +8090,7 @@ document.addEventListener("spa:page:load", async (event) => {
         // Also kick off a first attempt in case bar is already there
         setTimeout(poll, 120);
       }
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
 
     devLog("[Onboarding] Scheduling initial toggle hint");
     scheduleOnboardingTimeout(showScheduleToggleHint, 450);
@@ -8120,12 +8107,14 @@ document.addEventListener("spa:page:load", async (event) => {
 
     // Removed global testDayNavigation helper (was debug only)
   }
-});
+};
+
+document.addEventListener("spa:page:load", handleHomePageSpaLoad);
 
 /**
  * 🧹 Clean up resources when leaving the home page
  */
-document.addEventListener("spa:page:unload", (event) => {
+function handleHomePageSpaUnload(event) {
   const { route } = event.detail;
   console.log(`[HomePage] Received spa:page:unload for route: ${route}`);
 
@@ -8171,6 +8160,14 @@ document.addEventListener("spa:page:unload", (event) => {
       "scheduleControls:opened",
       handleScheduleControlsOpened
     );
+    document.removeEventListener(
+      "scheduleControls:closed",
+      handleScheduleControlsClosed
+    );
+    if (viewModeChangedListenerBound) {
+      document.removeEventListener("viewModeChanged", handleHomeViewModeChanged);
+      viewModeChangedListenerBound = false;
+    }
 
     // UX requirement: when leaving Home, exit compare mode and clear selections
     if (state.compareMode || state.selectedUserIds.size > 0) {
@@ -8183,12 +8180,14 @@ document.addEventListener("spa:page:unload", (event) => {
       try {
         memoCache.clear();
         matrixCache.clear();
-      } catch (_) {}
+      } catch (error) { console.debug("Suppressed error", error); }
     }
 
     console.log("🧹 Home page cleanup completed - resources freed");
   }
-});
+}
+
+document.addEventListener("spa:page:unload", handleHomePageSpaUnload);
 
 /**
  * 🎯 SIMPLIFIED: Removed navigation listener to eliminate timing race condition
@@ -8431,8 +8430,8 @@ function initializeScheduleScrollIndicator() {
       }, 120);
     };
 
-    // Attach listener
-    dayViewContainer.addEventListener("scroll", fastHideOnScroll, {
+    // Attach listener (tracked for cleanup)
+    addTrackedEventListener(dayViewContainer, "scroll", fastHideOnScroll, {
       passive: true,
     });
 
@@ -8444,19 +8443,17 @@ function initializeScheduleScrollIndicator() {
         () => updateScrollIndicatorVisibility(dayViewContainer, indicator),
         30
       );
-    if (dayBtn) dayBtn.addEventListener("click", recheckAfterToggle);
-    if (gridBtn)
-      gridBtn.addEventListener("click", () =>
-        indicator.classList.add("hidden")
-      );
+    const hideOnGridToggle = () => indicator.classList.add("hidden");
+    if (dayBtn) addUIControlListener(dayBtn, "click", recheckAfterToggle);
+    if (gridBtn) addUIControlListener(gridBtn, "click", hideOnGridToggle);
 
     // Initial visibility check
     updateScrollIndicatorVisibility(dayViewContainer, indicator);
 
     // Respond to resize
-    window.addEventListener("resize", () =>
-      updateScrollIndicatorVisibility(dayViewContainer, indicator)
-    );
+    const handleResize = () =>
+      updateScrollIndicatorVisibility(dayViewContainer, indicator);
+    addTrackedEventListener(window, "resize", handleResize);
 
     console.log("✅ Schedule scroll indicator initialized (day view only)");
   } catch (error) {

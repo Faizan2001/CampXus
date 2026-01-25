@@ -19,6 +19,7 @@ firebase_dump.json
 ui-debug.log
 .firebase/
 src/js/lib/firebase/env-config.js
+public/env-config.js
 .emulator-data/
 firebase-export-*/
 
@@ -50,5 +51,4 @@ Thumbs.db
 build/
 *.log
 requirements/
-
 

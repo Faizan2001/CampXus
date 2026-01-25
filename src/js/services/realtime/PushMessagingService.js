@@ -84,7 +84,7 @@ class PushMessagingService {
             try {
               const { navigateTo } = await import("../../app.js");
               navigateTo(link.replace(/^.*#/, "").replace(/^#/, ""));
-            } catch (_) {}
+            } catch (err) { logManager.dev.debug("Push messaging failed: navigation after foreground message", err); }
           }
         } catch (e) {
           console.warn("FCM foreground message handling failed", e);
@@ -96,7 +96,7 @@ class PushMessagingService {
       // which makes Cloud Functions unable to deliver pushes.
       try {
         await this._ensureServerHasTokenDoc();
-      } catch (_) {}
+      } catch (err) { logManager.dev.debug("Push messaging failed: ensure server token doc", err); }
     } catch (e) {
       console.warn("PushMessagingService init failed (non-fatal)", e);
     }
@@ -113,7 +113,7 @@ class PushMessagingService {
       try {
         const { pwaInstallService } = await import("../pwa/PWAInstallService.js");
         pwaInstallService.showIOSInstructions();
-      } catch (_) {}
+      } catch (err) { logManager.dev.debug("Push messaging failed: iOS PWA install service import", err); }
       return { permission: (typeof Notification !== 'undefined' && Notification.permission) || "default", gated: true };
     }
     await this._requestPermissionAndRegister();
@@ -126,7 +126,7 @@ class PushMessagingService {
       if (!("Notification" in window)) return;
       if (Notification.permission !== "granted") return;
       await this._getAndSaveTokenIfNeeded();
-    } catch (_) {}
+    } catch (err) { logManager.dev.debug("Push messaging failed: ensure token if granted", err); }
   }
 
   async _requestPermissionAndRegister() {
@@ -166,16 +166,16 @@ class PushMessagingService {
       let registration = null;
       try {
         registration = await navigator.serviceWorker?.ready;
-      } catch (_) {}
+      } catch (err) { logManager.dev.debug("Push messaging failed: service worker ready check", err); }
       if (!registration) {
         try {
           registration = await navigator.serviceWorker?.getRegistration();
-        } catch (_) {}
+        } catch (err) { logManager.dev.debug("Push messaging failed: service worker getRegistration", err); }
       }
       // As a last resort, wait briefly and retry once
       if (!registration) {
         await new Promise((r) => setTimeout(r, 800));
-        try { registration = await navigator.serviceWorker?.ready; } catch (_) {}
+        try { registration = await navigator.serviceWorker?.ready; } catch (err) { logManager.dev.debug("Push messaging failed: service worker ready retry", err); }
       }
       const { getToken } = await import("firebase/messaging");
       const token = await getToken(messaging, {
@@ -211,7 +211,7 @@ class PushMessagingService {
         while (i < deviceKeyBase.length)
           h = (h * 33) ^ deviceKeyBase.charCodeAt(i++);
         deviceKey = `d${(h >>> 0).toString(36)}`;
-      } catch (_) {}
+      } catch (err) { logManager.dev.debug("Push messaging failed: device key hash generation", err); }
 
       // Save the new token
       await dataManager.saveFcmToken(uid, token, {
@@ -320,6 +320,12 @@ class PushMessagingService {
 export const pushMessagingService = new PushMessagingService();
 
 // Dev helper
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development"));
+if (__DEV__) {
   window.pushMessagingService = pushMessagingService;
 }

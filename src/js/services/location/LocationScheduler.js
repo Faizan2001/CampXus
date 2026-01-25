@@ -46,28 +46,34 @@ class LocationScheduler {
     this.started = true;
 
     // Ensure the service's own generic polling doesn't fight with us
-    try { campusLocationService.stopPresencePolling(); } catch (_) {}
+    try { campusLocationService.stopPresencePolling(); } catch (error) { console.debug("Suppressed error", error); }
 
-    document.addEventListener("spa:page:load", (e) => {
+    // Create bound handlers so they can be removed in destroy()
+    this._boundPageLoad = (e) => {
       const route = e?.detail?.route || "home";
       this.onRouteChange(route);
-    });
-    document.addEventListener("spa:page:unload", (e) => {
+    };
+    this._boundPageUnload = (e) => {
       const route = e?.detail?.route;
       this.onPageUnload(route);
-    });
-
-    document.addEventListener("visibilitychange", () => this.onVisibilityChange());
-    window.addEventListener("focus", () => this.onFocus());
-    window.addEventListener("online", () => this.onOnline());
-    window.addEventListener("offline", () => this.onOffline());
-
-    // Login event bridging (service already listens to this for its triggers)
-    window.addEventListener("storage", (e) => {
+    };
+    this._boundVisibility = () => this.onVisibilityChange();
+    this._boundFocus = () => this.onFocus();
+    this._boundOnline = () => this.onOnline();
+    this._boundOffline = () => this.onOffline();
+    this._boundStorage = (e) => {
       if (e.key === "campusLocation_authTime") {
         this.onLogin();
       }
-    });
+    };
+
+    document.addEventListener("spa:page:load", this._boundPageLoad);
+    document.addEventListener("spa:page:unload", this._boundPageUnload);
+    document.addEventListener("visibilitychange", this._boundVisibility);
+    window.addEventListener("focus", this._boundFocus);
+    window.addEventListener("online", this._boundOnline);
+    window.addEventListener("offline", this._boundOffline);
+    window.addEventListener("storage", this._boundStorage);
 
     // Try to sync with current route (in case we start before first page event)
     const initialRoute = (window.location.hash || "#home").replace("#", "") || "home";
@@ -78,6 +84,18 @@ class LocationScheduler {
 
   destroy() {
     this.clearAllTimers();
+
+    // Remove all event listeners added in start()
+    if (this._boundPageLoad) {
+      document.removeEventListener("spa:page:load", this._boundPageLoad);
+      document.removeEventListener("spa:page:unload", this._boundPageUnload);
+      document.removeEventListener("visibilitychange", this._boundVisibility);
+      window.removeEventListener("focus", this._boundFocus);
+      window.removeEventListener("online", this._boundOnline);
+      window.removeEventListener("offline", this._boundOffline);
+      window.removeEventListener("storage", this._boundStorage);
+    }
+
     this.started = false;
   }
 
@@ -88,7 +106,7 @@ class LocationScheduler {
     this.online = navigator.onLine;
 
     // Stop generic polling so scheduler governs
-    try { campusLocationService.stopPresencePolling(); } catch (_) {}
+    try { campusLocationService.stopPresencePolling(); } catch (error) { console.debug("Suppressed error", error); }
 
     this.clearAllTimers();
 
@@ -286,7 +304,7 @@ class LocationScheduler {
           const s = presence?.onCampus ? "on" : "off";
           statuses.push(s);
           this.pushStatus(s);
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
       }
     };
 
@@ -365,7 +383,7 @@ class LocationScheduler {
           logManager.location.info("[Scheduler] Off-campus stabilized (last two GPS results)");
         }
       }
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
   }
 
   async safeGetGps(timeoutMs, highAccuracy, tag) {
@@ -435,6 +453,12 @@ class LocationScheduler {
 export const locationScheduler = new LocationScheduler();
 
 // Dev helpers
-if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname.startsWith("127."))) {
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development"));
+if (__DEV__) {
   window.locationScheduler = locationScheduler;
 }

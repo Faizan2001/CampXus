@@ -6,8 +6,8 @@ import { getStorageInstance } from "../../lib/firebase/firebase-config.js";
 async function fileToImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
+    img.addEventListener("load", () => resolve(img), { once: true });
+    img.addEventListener("error", reject, { once: true });
     const url = URL.createObjectURL(file);
     img.src = url;
   });

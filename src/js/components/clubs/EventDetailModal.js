@@ -724,15 +724,35 @@ export class EventDetailModal {
 
     try {
       const { db } = await import("../../lib/firebase/firebase-config.js");
-      const { doc, updateDoc, serverTimestamp } = await import(
+      const { doc, getDoc, updateDoc, serverTimestamp } = await import(
         "firebase/firestore"
       );
+
+      // Best-effort: resolve caller role from club membership for auditability.
+      let callerRoleLabel = "Official";
+      try {
+        const callerUid = currentUser?.uid;
+        if (callerUid && this.clubData?.id) {
+          const memberSnap = await getDoc(
+            doc(db, "clubs", this.clubData.id, "members", callerUid)
+          );
+          const roleRaw = memberSnap.exists()
+            ? String(memberSnap.data()?.role || "").toLowerCase()
+            : "";
+          if (roleRaw === "president") callerRoleLabel = "President";
+          else if (roleRaw === "official") callerRoleLabel = "Official";
+          else if (roleRaw) {
+            callerRoleLabel =
+              roleRaw.charAt(0).toUpperCase() + roleRaw.slice(1);
+          }
+        }
+      } catch (error) { console.debug("Suppressed error", error); }
 
       // Get current user info for the startedByInfo field
       const startedByInfo = {
         firstName: currentUser?.profile?.profile?.firstName || "Unknown",
         lastName: currentUser?.profile?.profile?.lastName || "",
-        role: "Official", // TODO: Get actual role from club membership
+        role: callerRoleLabel,
       };
 
       await updateDoc(

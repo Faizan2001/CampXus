@@ -830,22 +830,22 @@ export class CreateEventModal {
       const scrollContainer = container.parentElement;
 
       // Touch events
-      scrollContainer.addEventListener(
-        "touchstart",
-        (e) => {
-          handleDragStart(e.touches[0].clientY);
-        },
-        { passive: true }
-      );
+      const handleTouchStart = (e) => {
+        handleDragStart(e.touches[0].clientY);
+      };
 
-      scrollContainer.addEventListener(
-        "touchmove",
-        (e) => {
-          e.preventDefault();
-          handleDragMove(e.touches[0].clientY);
-        },
-        { passive: false }
-      );
+      const handleTouchMove = (e) => {
+        e.preventDefault();
+        handleDragMove(e.touches[0].clientY);
+      };
+
+      scrollContainer.addEventListener("touchstart", handleTouchStart, {
+        passive: true,
+      });
+
+      scrollContainer.addEventListener("touchmove", handleTouchMove, {
+        passive: false,
+      });
 
       scrollContainer.addEventListener("touchend", handleDragEnd);
       scrollContainer.addEventListener("touchcancel", handleDragEnd);
@@ -912,8 +912,8 @@ export class CreateEventModal {
       cleanupFunctions.push(() => {
         if (animationId) cancelAnimationFrame(animationId);
         if (wheelTimeout) clearTimeout(wheelTimeout);
-        scrollContainer.removeEventListener("touchstart", handleDragStart);
-        scrollContainer.removeEventListener("touchmove", handleDragMove);
+        scrollContainer.removeEventListener("touchstart", handleTouchStart);
+        scrollContainer.removeEventListener("touchmove", handleTouchMove);
         scrollContainer.removeEventListener("touchend", handleDragEnd);
         scrollContainer.removeEventListener("touchcancel", handleDragEnd);
         scrollContainer.removeEventListener("mousedown", handleMouseDown);

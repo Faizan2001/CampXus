@@ -19,6 +19,7 @@ import { friendsManager } from "../services/friends/FriendsService.js";
 import { currentUser } from "../store/userStore.js";
 import { getAvatarUrl } from "../utils/avatar/avatarUtils.js";
 import { escapeHTML } from "../utils/security/sanitize.js";
+import { logManager } from "../utils/debug/LogManager.js";
 import { db } from "../lib/firebase/firebase-config.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
 import { renderPushPermissionBanner } from "../components/notifications/PushPermissionBanner.js";
@@ -189,7 +190,7 @@ export class NotificationsPage {
       this.setupEventHandlers();
       try {
         renderPushPermissionBanner();
-      } catch (_) {}
+      } catch (error) { console.debug("Suppressed error", error); }
 
       this.baseRendered = true;
       this.updateListOnly();
@@ -1084,7 +1085,9 @@ export class NotificationsPage {
           } else {
             clearTimeout(this._listUpdateRaf);
           }
-        } catch (_) {}
+        } catch (err) {
+          logManager.dev.debug("Animation frame cancellation failed", err);
+        }
       }
       this._listUpdateRaf = null;
       this._listUpdateScheduled = false;
@@ -1100,9 +1103,9 @@ export class NotificationsPage {
       });
       this.unsubscribers = [];
 
-      console.log("✅ NotificationsPage cleanup complete");
+      logManager.ui?.info?.("✅ NotificationsPage cleanup complete");
     } catch (error) {
-      console.error("❌ Error during NotificationsPage cleanup:", error);
+      logManager.error("❌ Error during NotificationsPage cleanup:", error);
     }
   }
 
@@ -1119,25 +1122,29 @@ export class NotificationsPage {
 export const notificationsPage = new NotificationsPage();
 
 // 🎯 Connect to SPA Router - listen for page load events
-console.log(
+logManager.dev?.debug?.(
   "🔔 NotificationsPage: Registering spa:page:load event listener..."
 );
-document.addEventListener("spa:page:load", (event) => {
-  console.log(
-    `🔔 NotificationsPage: Received spa:page:load event for route: ${event.detail.route}`
-  );
+
+function handleNotificationsPageLoad(event) {
+  logManager.dev?.debug?.("🔔 NotificationsPage: spa:page:load", {
+    route: event?.detail?.route,
+  });
   if (event.detail.route === "notifications") {
-    console.log(
+    logManager.dev?.debug?.(
       "🔔 Notifications page loaded, initializing NotificationsPage..."
     );
     notificationsPage.init();
   }
-});
+}
 
 // Clean up when leaving the notifications page
-document.addEventListener("spa:page:unload", (event) => {
+function handleNotificationsPageUnload(event) {
   if (event.detail.route === "notifications") {
-    console.log("🔔 Notifications page unloading, cleaning up...");
+    logManager.dev?.debug?.("🔔 Notifications page unloading, cleaning up...");
     notificationsPage.cleanup();
   }
-});
+}
+
+document.addEventListener("spa:page:load", handleNotificationsPageLoad);
+document.addEventListener("spa:page:unload", handleNotificationsPageUnload);

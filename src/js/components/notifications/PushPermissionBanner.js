@@ -70,7 +70,7 @@ async function attachHandlers(container) {
     enableBtn.addEventListener("click", async () => {
       try {
         await notificationPermissionService.requestPermissionWithGesture();
-      } catch (_) {}
+      } catch (error) { console.debug("Suppressed error", error); }
       // re-render after outcome
       renderPushPermissionBanner();
     });
@@ -84,7 +84,7 @@ async function attachHandlers(container) {
           "../../services/pwa/PWAInstallService.js"
         );
         pwaInstallService.showIOSInstructions();
-      } catch (_) {}
+      } catch (error) { console.debug("Suppressed error", error); }
     });
   }
 
@@ -109,6 +109,6 @@ export function renderPushPermissionBanner() {
     host.innerHTML = html;
     host.style.display = "block";
     attachHandlers(host);
-  } catch (_) {}
+  } catch (error) { console.debug("Suppressed error", error); }
 }
 

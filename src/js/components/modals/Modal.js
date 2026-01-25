@@ -1,14 +1,85 @@
 // js/modal.js
 
+import { sanitizeHTML } from "../../utils/security/sanitize.js";
+import { logManager } from "../../utils/debug/LogManager.js";
+
 let currentOnConfirm = null;
 let currentOnCancel = null;
 let modalDomElements = null; // To store passed DOM_ELEMENTS
+let modalInitialized = false;
+
+function handleCloseClick() {
+  if (typeof currentOnCancel === "function") {
+    currentOnCancel();
+  }
+  hideModal();
+}
+
+function handleConfirmClick() {
+  let shouldClose = true;
+  if (typeof currentOnConfirm === "function") {
+    const result = currentOnConfirm();
+    if (result === false) shouldClose = false;
+  }
+  if (shouldClose) {
+    hideModal();
+  }
+}
+
+function handleCancelClick() {
+  if (typeof currentOnCancel === "function") {
+    currentOnCancel();
+  }
+  hideModal();
+}
+
+function handleOverlayClick(event) {
+  if (!modalDomElements?.appModal) return;
+  if (event.target === modalDomElements.appModal) {
+    if (typeof currentOnCancel === "function") {
+      currentOnCancel();
+    }
+    hideModal();
+  }
+}
+
+function handleKeydown(event) {
+  if (
+    event.key === "Escape" &&
+    modalDomElements?.appModal?.classList?.contains("active")
+  ) {
+    if (typeof currentOnCancel === "function") {
+      currentOnCancel();
+    }
+    hideModal();
+  }
+}
+
+function removeModalListeners() {
+  if (!modalDomElements) return;
+  modalDomElements.modalCloseBtn?.removeEventListener("click", handleCloseClick);
+  modalDomElements.modalConfirmBtn?.removeEventListener(
+    "click",
+    handleConfirmClick
+  );
+  modalDomElements.modalCancelBtn?.removeEventListener(
+    "click",
+    handleCancelClick
+  );
+  modalDomElements.appModal?.removeEventListener("click", handleOverlayClick);
+  document.removeEventListener("keydown", handleKeydown);
+}
 
 /**
  * Initializes the modal system with necessary DOM elements and event listeners.
  * @param {object} domElements - The main DOM_ELEMENTS object from domElements.js
  */
 export function initModal(domElements) {
+  if (modalInitialized) {
+    // Idempotent: remove prior listeners before reinitializing (prevents accumulation)
+    removeModalListeners();
+  }
+
   modalDomElements = domElements; // Store for use in other modal functions
 
   if (
@@ -18,62 +89,22 @@ export function initModal(domElements) {
     !modalDomElements.modalConfirmBtn ||
     !modalDomElements.modalCancelBtn
   ) {
-    console.error(
+    logManager.error(
       "Critical modal DOM elements not provided to initModal or not found. Modal will not function correctly."
     );
     return;
   }
 
-  modalDomElements.modalCloseBtn.addEventListener("click", () => {
-    if (typeof currentOnCancel === "function") {
-      currentOnCancel(); // Allow cancel callback to run
-    }
-    hideModal();
-  });
-
-  modalDomElements.modalConfirmBtn.addEventListener("click", () => {
-    let shouldClose = true;
-    if (typeof currentOnConfirm === "function") {
-      const result = currentOnConfirm(); // Execute the stored callback
-      if (result === false) {
-        // Callback can prevent closing (e.g., for validation)
-        shouldClose = false;
-      }
-    }
-    if (shouldClose) {
-      hideModal();
-    }
-  });
-
-  modalDomElements.modalCancelBtn.addEventListener("click", () => {
-    if (typeof currentOnCancel === "function") {
-      currentOnCancel();
-    }
-    hideModal();
-  });
+  modalDomElements.modalCloseBtn.addEventListener("click", handleCloseClick);
+  modalDomElements.modalConfirmBtn.addEventListener("click", handleConfirmClick);
+  modalDomElements.modalCancelBtn.addEventListener("click", handleCancelClick);
 
   // Close modal if overlay (outside modal content) is clicked
-  modalDomElements.appModal.addEventListener("click", (event) => {
-    if (event.target === modalDomElements.appModal) {
-      if (typeof currentOnCancel === "function") {
-        currentOnCancel(); // Also trigger cancel if overlay is clicked
-      }
-      hideModal();
-    }
-  });
+  modalDomElements.appModal.addEventListener("click", handleOverlayClick);
 
   // Close modal with Escape key
-  document.addEventListener("keydown", (event) => {
-    if (
-      event.key === "Escape" &&
-      modalDomElements.appModal.classList.contains("active")
-    ) {
-      if (typeof currentOnCancel === "function") {
-        currentOnCancel();
-      }
-      hideModal();
-    }
-  });
+  document.addEventListener("keydown", handleKeydown);
+  modalInitialized = true;
 }
 
 /**
@@ -108,7 +139,7 @@ export function showModal({
     !modalDomElements.modalConfirmBtn ||
     !modalDomElements.modalCancelBtn
   ) {
-    console.error(
+    logManager.error(
       "Modal elements not found in DOM. Falling back to native browser dialogs."
     );
     // Fallback logic (simplified from your original)
@@ -135,7 +166,7 @@ export function showModal({
   if (isHtmlContent) {
     modalDomElements.modalMessage.innerHTML = ""; // Clear previous
     if (typeof content === "string") {
-      modalDomElements.modalMessage.innerHTML = content;
+      modalDomElements.modalMessage.innerHTML = sanitizeHTML(content);
     } else if (content instanceof HTMLElement) {
       modalDomElements.modalMessage.appendChild(content);
     } else {
@@ -187,7 +218,7 @@ export function showModal({
         "modal-compact"
       );
     }
-  } catch (_) {}
+  } catch (error) { console.debug("Suppressed error", error); }
 
   // If the modal already has the active class, remove it first to trigger a fresh transition
   if (modalDomElements.appModal.classList.contains("active")) {
@@ -222,7 +253,7 @@ function hideModal() {
     if (modalDomElements.modalConfirmBtn) {
       modalDomElements.modalConfirmBtn.classList.remove("single-ok", "success-btn");
     }
-  } catch (_) {}
+  } catch (error) { console.debug("Suppressed error", error); }
 
   modalDomElements.appModal.classList.remove("active");
 

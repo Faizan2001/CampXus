@@ -1,5 +1,4 @@
 // Firebase configuration for browser environment
-import "./env-config.js";
 import { initializeApp } from "firebase/app";
 import {
   initializeAuth,
@@ -16,40 +15,83 @@ import {
 // Browser-compatible configuration loading
 // Load Firebase config from environment variables with security validation
 function loadFirebaseConfig() {
-  // Check if environment configuration is loaded
-  if (!window.ENV) {
-    console.error("❌ Environment configuration not loaded");
+  // Prefer runtime-injected window.ENV (dev) but fall back to Vite env (prod/CI).
+  const runtimeEnv =
+    typeof window !== "undefined" && window.ENV ? window.ENV : null;
+  let viteEnv = null;
+  try {
+    viteEnv =
+      typeof import.meta !== "undefined" && import.meta.env ? import.meta.env : null;
+  } catch (_) {
+    viteEnv = null;
+  }
+
+  const getValue = (runtimeKey, viteKey) => {
+    if (runtimeEnv && runtimeEnv[runtimeKey]) return runtimeEnv[runtimeKey];
+    if (viteEnv && viteEnv[viteKey]) return viteEnv[viteKey];
+    return "";
+  };
+
+  const apiKey = getValue("FIREBASE_API_KEY", "VITE_FIREBASE_API_KEY");
+  const authDomain = getValue("FIREBASE_AUTH_DOMAIN", "VITE_FIREBASE_AUTH_DOMAIN");
+  const projectId = getValue("FIREBASE_PROJECT_ID", "VITE_FIREBASE_PROJECT_ID");
+  const storageBucket = getValue(
+    "FIREBASE_STORAGE_BUCKET",
+    "VITE_FIREBASE_STORAGE_BUCKET"
+  );
+  const messagingSenderId = getValue(
+    "FIREBASE_MESSAGING_SENDER_ID",
+    "VITE_FIREBASE_MESSAGING_SENDER_ID"
+  );
+  const appId = getValue("FIREBASE_APP_ID", "VITE_FIREBASE_APP_ID");
+  const measurementId = getValue(
+    "FIREBASE_MEASUREMENT_ID",
+    "VITE_FIREBASE_MEASUREMENT_ID"
+  );
+
+  // Validate required Firebase configuration
+  const missing = [];
+  if (!apiKey) missing.push("FIREBASE_API_KEY / VITE_FIREBASE_API_KEY");
+  if (!authDomain)
+    missing.push("FIREBASE_AUTH_DOMAIN / VITE_FIREBASE_AUTH_DOMAIN");
+  if (!projectId)
+    missing.push("FIREBASE_PROJECT_ID / VITE_FIREBASE_PROJECT_ID");
+  if (!storageBucket)
+    missing.push("FIREBASE_STORAGE_BUCKET / VITE_FIREBASE_STORAGE_BUCKET");
+  if (!messagingSenderId)
+    missing.push(
+      "FIREBASE_MESSAGING_SENDER_ID / VITE_FIREBASE_MESSAGING_SENDER_ID"
+    );
+  if (!appId) missing.push("FIREBASE_APP_ID / VITE_FIREBASE_APP_ID");
+
+  if (missing.length > 0) {
+    const isDev =
+      (typeof import.meta !== "undefined" &&
+        import.meta.env &&
+        import.meta.env.DEV) ||
+      (typeof window !== "undefined" &&
+        window.ENV &&
+        window.ENV.ENVIRONMENT !== "production");
+    if (isDev) {
+      console.error("❌ Missing Firebase configuration keys:", missing);
+    } else {
+      console.error("❌ Missing Firebase configuration keys");
+    }
     throw new Error(
-      "Missing environment configuration. Please run: npm run dev:serve",
+      "Missing environment configuration. For dev run: npm run dev (or npm run dev:config). For CI/prod set VITE_FIREBASE_* env vars."
     );
   }
 
-  // Validate required Firebase configuration
-  const requiredKeys = [
-    "FIREBASE_API_KEY",
-    "FIREBASE_AUTH_DOMAIN",
-    "FIREBASE_PROJECT_ID",
-    "FIREBASE_STORAGE_BUCKET",
-    "FIREBASE_MESSAGING_SENDER_ID",
-    "FIREBASE_APP_ID",
-  ];
-
-  const missingKeys = requiredKeys.filter((key) => !window.ENV[key]);
-  if (missingKeys.length > 0) {
-    console.error("❌ Missing Firebase configuration keys:", missingKeys);
-    throw new Error(`Missing Firebase config: ${missingKeys.join(", ")}`);
-  }
-
   return {
-    apiKey: window.ENV.FIREBASE_API_KEY,
-    authDomain: window.ENV.FIREBASE_AUTH_DOMAIN,
-    projectId: window.ENV.FIREBASE_PROJECT_ID,
-    storageBucket: window.ENV.FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: window.ENV.FIREBASE_MESSAGING_SENDER_ID,
-    appId: window.ENV.FIREBASE_APP_ID,
+    apiKey,
+    authDomain,
+    projectId,
+    storageBucket,
+    messagingSenderId,
+    appId,
     // Optional but helps analytics initialize faster & provides fallback
-    ...(window.ENV.FIREBASE_MEASUREMENT_ID
-      ? { measurementId: window.ENV.FIREBASE_MEASUREMENT_ID }
+    ...(measurementId
+      ? { measurementId }
       : {}),
   };
 }
@@ -209,24 +251,29 @@ export async function getStorageInstance() {
 
 // TEMPORARY: Expose Firestore helpers globally for manual console testing of handle system
 // Remove after Phase 2 once dedicated admin tooling or test harness is in place.
-if (typeof window !== "undefined") {
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development"));
+if (__DEV__) {
   try {
-    import("firebase/firestore").then((mod) => {
-      window.__fireTest = {
-        db,
-        auth, // expose auth for console-based experiments
-        doc: mod.doc,
-        setDoc: mod.setDoc,
-        getDoc: mod.getDoc,
-        serverTimestamp: mod.serverTimestamp,
-        runTransaction: mod.runTransaction,
-        collection: mod.collection,
-      };
-      console.log(
-        "%cHandle Dev Test API available as window.__fireTest",
-        "color:#4ade80",
-      );
-    });
+    const mod = await import("firebase/firestore");
+    window.__fireTest = {
+      db,
+      auth, // expose auth for console-based experiments
+      doc: mod.doc,
+      setDoc: mod.setDoc,
+      getDoc: mod.getDoc,
+      serverTimestamp: mod.serverTimestamp,
+      runTransaction: mod.runTransaction,
+      collection: mod.collection,
+    };
+    console.log(
+      "%cHandle Dev Test API available as window.__fireTest",
+      "color:#4ade80",
+    );
   } catch (e) {
     console.warn("Could not expose test API", e);
   }

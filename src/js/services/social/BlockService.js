@@ -33,7 +33,8 @@ class BlockService {
       const arr = raw ? JSON.parse(raw) : [];
       if (Array.isArray(arr)) return new Set(arr);
       return new Set();
-    } catch (_) {
+    } catch (err) {
+      logManager.dev.debug("Storage access failed for block list", err);
       return new Set();
     }
   }
@@ -48,7 +49,7 @@ class BlockService {
         this.getKey(userId),
         JSON.stringify(Array.from(set || []))
       );
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
   }
 
   getSet(userId) {
@@ -104,7 +105,7 @@ class BlockService {
     if (typeof unsub === "function") {
       try {
         unsub();
-      } catch (_) {}
+      } catch (error) { console.debug("Suppressed error", error); }
     }
     this._unsub.delete(userId);
   }

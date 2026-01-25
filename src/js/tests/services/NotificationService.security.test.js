@@ -7,7 +7,7 @@ describe("NotificationService security", () => {
     try {
       notificationManager.notifications = [];
       notificationManager.container = null;
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
     document.body.innerHTML = "";
   };
 

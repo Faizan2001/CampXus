@@ -72,16 +72,9 @@ window.ENV = {
 console.log('🔧 Development environment variables loaded');
 `;
 
-    // Write the config file
-    const outputPath = path.join(
-      __dirname,
-      "..",
-      "..",
-      "..",
-      "lib",
-      "firebase",
-      "env-config.js"
-    );
+    // Write the config file to public/ so it is loaded at runtime (not bundled into JS).
+    // NOTE: This file is intentionally gitignored.
+    const outputPath = path.join(process.cwd(), "public", "env-config.js");
 
     // Ensure output directory exists
     const outputDir = path.dirname(outputPath);

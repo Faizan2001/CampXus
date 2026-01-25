@@ -5,6 +5,7 @@
 import { onboardingService } from "../../services/onboarding/OnboardingService.js";
 import { hideAllCoachMarks } from "../../services/onboarding/CoachMarkManager.js";
 import { currentUser } from "../../store/userStore.js";
+import { logManager } from "../debug/LogManager.js";
 
 function isDevEnv() {
   try {
@@ -15,7 +16,9 @@ function isDevEnv() {
     if (typeof window !== "undefined" && window.ENV) {
       return (window.ENV.ENVIRONMENT || "development") !== "production";
     }
-  } catch (_) {}
+  } catch (err) {
+    logManager.dev.debug("Dev environment detection failed", err);
+  }
   return true; // default safe for local dev
 }
 
@@ -29,7 +32,9 @@ async function startFreshOnboarding(options = {}) {
     await onboardingService.resetAll({ persist });
 
     // Close any open coachmarks and clear local in-page hint state
-    try { hideAllCoachMarks("reset"); } catch (_) {}
+    try { hideAllCoachMarks("reset"); } catch (err) {
+      logManager.dev.debug("CoachMarks hide failed during reset", err);
+    }
 
     // Reuse the existing per-user reset listener in pages to clear timers/queues
     try {
@@ -39,7 +44,9 @@ async function startFreshOnboarding(options = {}) {
           detail: { previousUid: uid, nextUid: uid, reason: "dev-reset" },
         })
       );
-    } catch (_) {}
+    } catch (err) {
+      logManager.dev.debug("User-switched event dispatch failed", err);
+    }
 
     // Route selection: default to current page if it supports onboarding; else go to home
     const hash = (location.hash || "").replace(/^#/, "");
@@ -62,7 +69,9 @@ async function startFreshOnboarding(options = {}) {
           window.dispatchEvent(new PopStateEvent("popstate", { state: { route } }));
         }
       }
-    } catch (_) {}
+    } catch (err) {
+      logManager.dev.debug("Navigation dispatch failed", err);
+    }
   } catch (e) {
     // Non-fatal; surface to console for dev
     // eslint-disable-next-line no-console
@@ -80,7 +89,9 @@ export function installOnboardingDevTools() {
     };
     // Short aliases for quick console testing
     window.oTestOnboarding = (opts) => startFreshOnboarding(opts);
-  } catch (_) {}
+  } catch (err) {
+    logManager.dev.debug("Dev tools window registration failed", err);
+  }
 
   /*
    * Dev O-Test button injection (commented out)
@@ -90,34 +101,4 @@ export function installOnboardingDevTools() {
    *
    * To re-enable, remove this block comment.
    */
-  // try {
-  //   const navRight = document.querySelector(".top-nav .nav-right");
-  //   if (!navRight) return;
-  //
-  //   // Avoid duplicates
-  //   if (navRight.querySelector("#devOnboardingTestBtn")) return;
-  //
-  //   const btn = document.createElement("button");
-  //   btn.id = "devOnboardingTestBtn";
-  //   btn.type = "button";
-  //   btn.textContent = "(O-Test)";
-  //   btn.title = "Reset and start onboarding (dev)";
-  //   btn.setAttribute("aria-label", "Reset and start onboarding (dev)");
-  //   // Reuse nav styling; keep it compact
-  //   btn.className = "nav-link nav-cta";
-  //   btn.style.marginRight = "8px";
-  //
-  //   btn.addEventListener("click", () => {
-  //     // Persist true by default so remote flags also reset for this account
-  //     startFreshOnboarding({ persist: true, target: "auto" });
-  //   });
-  //
-  //   // Insert before About link for visibility but low intrusion
-  //   const about = navRight.querySelector("#aboutBtn");
-  //   if (about && about.parentElement === navRight) {
-  //     navRight.insertBefore(btn, about);
-  //   } else {
-  //     navRight.prepend(btn);
-  //   }
-  // } catch (_) {}
 }

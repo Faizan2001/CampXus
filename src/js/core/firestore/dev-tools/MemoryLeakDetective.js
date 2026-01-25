@@ -82,8 +82,9 @@ class MemoryLeakDetective {
       reportInterval: 2 * 60 * 1000, // Report every 2 minutes
       memoryCheckInterval: 30 * 1000, // Check memory every 30 seconds
       alertThresholds: {
-        eventListeners: 200, // Increased due to Firebase Auth creating many listeners during init
-        timers: 20,
+        // APP-level thresholds (Firebase internals are ignored by the tracker)
+        eventListeners: 200,
+        timers: 40,
         memory: 50 * 1024 * 1024, // 50MB
         domNodes: 1000,
       },
@@ -230,6 +231,15 @@ Available Console Commands:
         stack.includes("_addListener") ||
         stack.includes("startPolling");
 
+      // Firebase/Firestore internals create many listeners during normal operation.
+      // Skip tracking these so the detective focuses on APP-level leaks.
+      if (isFirebaseInternal) {
+        try {
+          detective.stats.firebaseListeners.count++;
+        } catch (_) {}
+        return;
+      }
+
       // Create unique identifier for this listener
       const listenerKey = `${type}_${
         this.constructor.name
@@ -269,11 +279,10 @@ Available Console Commands:
         listener,
         options,
         timestamp: Date.now(),
-        isFirebase: isFirebaseInternal,
+        isFirebase: false,
         sourceInfo,
         status: "active",
-        stackTrace:
-          detective.config.verbose && !isFirebaseInternal ? stack : null,
+        stackTrace: detective.config.verbose ? stack : null,
       };
 
       // Store active listener
@@ -298,11 +307,10 @@ Available Console Commands:
         detective.stats.eventListeners.details.shift();
       }
 
-      // 🚨 Alert if threshold exceeded (but not for Firebase internal spam)
+      // 🚨 Alert if threshold exceeded (app listeners only)
       if (
         detective.stats.eventListeners.active >
-          detective.config.alertThresholds.eventListeners &&
-        !isFirebaseInternal
+        detective.config.alertThresholds.eventListeners
       ) {
         console.warn(
           `🚨 MEMORY LEAK ALERT: ${detective.stats.eventListeners.active} active listeners!`
@@ -342,27 +350,30 @@ Available Console Commands:
         }
       }
 
-      detective.stats.eventListeners.removed++;
-      detective.stats.eventListeners.active = Math.max(
-        0,
-        detective.stats.eventListeners.active - 1
-      );
+      // Update stats ONLY when we find a tracked listener match
+      if (removedListener) {
+        detective.stats.eventListeners.removed++;
+        detective.stats.eventListeners.active = Math.max(
+          0,
+          detective.stats.eventListeners.active - 1
+        );
 
-      // Decrease type counter
-      const typeCount = detective.stats.eventListeners.types.get(type) || 0;
-      detective.stats.eventListeners.types.set(
-        type,
-        Math.max(0, typeCount - 1)
-      );
+        // Decrease type counter
+        const typeCount = detective.stats.eventListeners.types.get(type) || 0;
+        detective.stats.eventListeners.types.set(
+          type,
+          Math.max(0, typeCount - 1)
+        );
 
-      // Decrease element counter
-      const elementType = this.constructor.name || "Unknown";
-      const elemCount =
-        detective.stats.eventListeners.elements.get(elementType) || 0;
-      detective.stats.eventListeners.elements.set(
-        elementType,
-        Math.max(0, elemCount - 1)
-      );
+        // Decrease element counter
+        const elementType = this.constructor.name || "Unknown";
+        const elemCount =
+          detective.stats.eventListeners.elements.get(elementType) || 0;
+        detective.stats.eventListeners.elements.set(
+          elementType,
+          Math.max(0, elemCount - 1)
+        );
+      }
 
       // Track removal in history
       if (removedListener) {
@@ -381,31 +392,48 @@ Available Console Commands:
     const detective = this;
 
     window.setTimeout = function (callback, delay, ...args) {
+      const stack = new Error().stack || "";
+      const isFirebaseInternal =
+        stack.includes("firebase_auth.js") ||
+        stack.includes("firebase_firestore.js") ||
+        stack.includes("firebase") ||
+        stack.includes("startPolling");
+
       const id = detective.originals.setTimeout.call(
         this,
         (...args) => {
-          detective.stats.timers.timeouts.delete(id);
-          detective.stats.timers.activeCount--;
+          if (detective.stats.timers.timeouts.delete(id)) {
+            detective.stats.timers.activeCount--;
+          }
           return callback.apply(this, args);
         },
         delay,
         ...args
       );
 
-      detective.stats.timers.timeouts.add(id);
-      detective.stats.timers.activeCount++;
-      detective.stats.timers.details.push({
-        type: "timeout",
-        id,
-        delay,
-        timestamp: Date.now(),
-        stack: detective.config.verbose ? new Error().stack : null,
-      });
+      if (!isFirebaseInternal) {
+        detective.stats.timers.timeouts.add(id);
+        detective.stats.timers.activeCount++;
+        detective.stats.timers.details.push({
+          type: "timeout",
+          id,
+          delay,
+          timestamp: Date.now(),
+          stack: detective.config.verbose ? stack : null,
+        });
+      }
 
       return id;
     };
 
     window.setInterval = function (callback, interval, ...args) {
+      const stack = new Error().stack || "";
+      const isFirebaseInternal =
+        stack.includes("firebase_auth.js") ||
+        stack.includes("firebase_firestore.js") ||
+        stack.includes("firebase") ||
+        stack.includes("startPolling");
+
       const id = detective.originals.setInterval.call(
         this,
         callback,
@@ -413,15 +441,17 @@ Available Console Commands:
         ...args
       );
 
-      detective.stats.timers.intervals.add(id);
-      detective.stats.timers.activeCount++;
-      detective.stats.timers.details.push({
-        type: "interval",
-        id,
-        interval,
-        timestamp: Date.now(),
-        stack: detective.config.verbose ? new Error().stack : null,
-      });
+      if (!isFirebaseInternal) {
+        detective.stats.timers.intervals.add(id);
+        detective.stats.timers.activeCount++;
+        detective.stats.timers.details.push({
+          type: "interval",
+          id,
+          interval,
+          timestamp: Date.now(),
+          stack: detective.config.verbose ? stack : null,
+        });
+      }
 
       return id;
     };
@@ -447,7 +477,7 @@ Available Console Commands:
   patchNetworkRequests() {
     const detective = this;
 
-    window.fetch = function (...args) {
+    window.fetch = async function (...args) {
       const request = {
         url: args[0],
         timestamp: Date.now(),
@@ -456,18 +486,16 @@ Available Console Commands:
 
       detective.stats.networkRequests.pending.add(request);
 
-      return detective.originals.fetch
-        .apply(this, args)
-        .then((response) => {
-          detective.stats.networkRequests.pending.delete(request);
-          detective.stats.networkRequests.completed++;
-          return response;
-        })
-        .catch((error) => {
-          detective.stats.networkRequests.pending.delete(request);
-          detective.stats.networkRequests.failed++;
-          throw error;
-        });
+      try {
+        const response = await detective.originals.fetch.apply(this, args);
+        detective.stats.networkRequests.pending.delete(request);
+        detective.stats.networkRequests.completed++;
+        return response;
+      } catch (error) {
+        detective.stats.networkRequests.pending.delete(request);
+        detective.stats.networkRequests.failed++;
+        throw error;
+      }
     };
   }
 
@@ -544,10 +572,18 @@ Available Console Commands:
    * 🚨 Detect patterns that might indicate memory leaks
    */
   detectLeakyPatterns(listenerDetails) {
-    const { type, elementType, sourceInfo } = listenerDetails;
+    const { type, elementType, sourceInfo, isFirebase } = listenerDetails;
+
+    // Firebase/Firestore internals add/remove lots of listeners as part of normal operation.
+    // These are noisy and not actionable for app-level leak hunting.
+    if (isFirebase) return;
 
     // Pattern 1: Same event type from same source file added repeatedly
-    const patternKey = `${type}_${elementType}_${sourceInfo.fileName}`;
+    const src =
+      sourceInfo && sourceInfo.fileName
+        ? `${sourceInfo.fileName}:${sourceInfo.lineNumber || 0}`
+        : "unknown:0";
+    const patternKey = `${type}_${elementType}_${src}`;
     const count = this.stats.eventListeners.leakyPatterns.get(patternKey) || 0;
     this.stats.eventListeners.leakyPatterns.set(patternKey, count + 1);
 

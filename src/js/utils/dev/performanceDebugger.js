@@ -117,8 +117,7 @@ class PerformanceDebugger {
       };
     };
 
-    if (process.env.NODE_ENV === "development")
-      console.log("🎛️ RealTimeManager monitoring active");
+    if (__DEV__) console.log("🎛️ RealTimeManager monitoring active");
   }
 
   monitorDOMListeners() {
@@ -149,8 +148,7 @@ class PerformanceDebugger {
       return originalRemoveEventListener.call(this, type, listener, options);
     };
 
-    if (process.env.NODE_ENV === "development")
-      console.log("🎛️ DOM listener monitoring active");
+    if (__DEV__) console.log("🎛️ DOM listener monitoring active");
   }
 
   // =========================
@@ -355,8 +353,7 @@ class PerformanceDebugger {
   // =========================
 
   getQuickAccessDebugInfo() {
-    if (process.env.NODE_ENV === "development")
-      console.log("🔍 Quick Access Debug Information:");
+    if (__DEV__) console.log("🔍 Quick Access Debug Information:");
 
     // Check RealTimeManager status
     if (window.realTimeManager) {
@@ -394,8 +391,7 @@ class PerformanceDebugger {
   }
 
   findDuplicateListeners() {
-    if (process.env.NODE_ENV === "development")
-      console.log("🔍 Searching for duplicate listeners...");
+    if (__DEV__) console.log("🔍 Searching for duplicate listeners...");
 
     // Check for multiple instances of the same component
     const friendCards = document.querySelectorAll(".friend-card");
@@ -641,8 +637,7 @@ class PerformanceDebugger {
     this.performanceMarks.clear();
     this.memorySnapshots = [];
     this.debugLog = [];
-    if (process.env.NODE_ENV === "development")
-      console.log("🔄 Performance debugger reset");
+    if (__DEV__) console.log("🔄 Performance debugger reset");
   }
 }
 
@@ -650,7 +645,14 @@ class PerformanceDebugger {
 export const performanceDebugger = new PerformanceDebugger();
 
 // Make available globally for debugging
-if (typeof window !== "undefined") {
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development") ||
+    (window.ENV && window.ENV.ENVIRONMENT !== "production"));
+if (__DEV__) {
   window.performanceDebugger = performanceDebugger;
 
   // Console commands for debugging

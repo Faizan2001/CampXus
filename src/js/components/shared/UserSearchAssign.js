@@ -25,6 +25,7 @@ export function renderUserSearchAssign(container, opts = {}) {
     placeholder = "Search by @handle",
     allowMissingProfile = false,
     bypassSearchable = false, // for admin assignment flows
+    audit = null, // { enabled: true, source: 'admin_*' }
   } = opts;
 
   container.innerHTML = `
@@ -45,6 +46,7 @@ export function renderUserSearchAssign(container, opts = {}) {
   const resultsEl = container.querySelector("#assignSearchResults");
   let timeout = null;
   let seq = 0;
+  let lastAudit = { term: null, ts: 0 };
 
   const filterByUniversity = (user) => {
     if (!scopeUniversityId) return true;
@@ -88,10 +90,48 @@ export function renderUserSearchAssign(container, opts = {}) {
         `🔍 UserSearchAssign: ${filtered.length} results after filtering`
       );
       renderResults(filtered);
+
+      // Optional: admin audit logging (best-effort + throttled)
+      if (audit && audit.enabled === true) {
+        const now = Date.now();
+        const sameTermRecently =
+          lastAudit.term === term && now - lastAudit.ts < 10_000;
+        if (!sameTermRecently && term.length > 1) {
+          lastAudit = { term, ts: now };
+          try {
+            const { logAdminAuditEvent } = await import(
+              "../../services/admin/AdminService.js"
+            );
+            await logAdminAuditEvent("admin_user_search", {
+              term,
+              resultsCount: filtered.length,
+              source: String(audit.source || "unknown"),
+              scopeUniversityId: scopeUniversityId || null,
+              allowAllUniversities: !!allowAllUniversities,
+              bypassSearchable: !!bypassSearchable,
+            });
+          } catch (_) {
+            // audit logging must never affect UX
+          }
+        }
+      }
     } catch (err) {
       if (cur !== seq) return;
       resultsEl.innerHTML = `<div class="search-status error"><i class="fas fa-exclamation-triangle"></i> Error searching. Try again.</div>`;
       console.error("UserSearchAssign search error", err);
+
+      if (audit && audit.enabled === true) {
+        try {
+          const { logAdminAuditEvent } = await import(
+            "../../services/admin/AdminService.js"
+          );
+          await logAdminAuditEvent("admin_user_search_failed", {
+            term,
+            source: String(audit.source || "unknown"),
+            message: String(err?.message || err),
+          });
+        } catch (error) { console.debug("Suppressed error", error); }
+      }
     }
   }
 

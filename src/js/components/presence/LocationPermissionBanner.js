@@ -228,7 +228,7 @@ function attachEventListeners() {
       if (!bannerState.dismissed) {
         try {
           writeDismissedFlag(false);
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
       }
       renderBanner();
     });

@@ -22,10 +22,47 @@ import { locationTierService } from "./LocationTierService.js";
 import { logManager } from "../../utils/debug/LogManager.js";
 import { notificationManager } from "../realtime/NotificationService.js";
 
+// H14: Extract key magic numbers (timings/thresholds) to named constants
+const CAMPUS_LOCATION_DEFAULTS = Object.freeze({
+  PRESENCE_POLL_INTERVAL_MS: 20_000,
+  PRESENCE_POLL_RESUME_DELAY_MS: 1_000,
+  BROWSER_LOCATION_TIMEOUT_MS: 10_000,
+  MIN_LOCATION_UPDATE_INTERVAL_MS: 60_000,
+  MIN_LAST_ACTIVE_WRITE_INTERVAL_MS: 120_000,
+  ACTIVE_HEARTBEAT_INTERVAL_MS: 15_000,
+  IDLE_HEARTBEAT_INTERVAL_MS: 60_000,
+  MAX_INITIALIZATION_ATTEMPTS: 5,
+  MAX_NETWORK_RECONNECTION_ATTEMPTS: 3,
+  BACKGROUND_GRACE_PERIOD_MS: 30_000,
+  MIN_BOUNDARY_DETECTION_INTERVAL_MS: 30_000,
+  MIN_NAVIGATION_PRESENCE_INTERVAL_MS: 5_000,
+  LOCATION_CACHE_EXPIRY_MS: 15 * 60 * 1000,
+});
+
 /**
  * Service class for campus location detection and presence management
  */
 export class CampusLocationService {
+  _onLifecycleVisibilityChange() {
+    if (document.visibilityState === "hidden") {
+      this.wasDocumentHidden = true;
+      localStorage.setItem("campusLocation_lastActive", Date.now().toString());
+      return;
+    }
+
+    if (document.visibilityState === "visible" && this.wasDocumentHidden) {
+      logManager.system.init("Tab return detected - triggering location update");
+      this.handleTriggerEvent("tab_return");
+    }
+  }
+
+  _onLifecycleStorage(e) {
+    if (e.key === "campusLocation_authTime") {
+      logManager.auth.login("Login event detected via storage");
+      this.handleTriggerEvent("login");
+    }
+  }
+
   /**
    * 🎯 PHASE 2 ENHANCEMENT: Sets up document visibility and lifecycle tracking
    * for better trigger scenario detection
@@ -33,33 +70,17 @@ export class CampusLocationService {
   setupLifecycleTracking() {
     this.wasDocumentHidden = false;
 
-    // Track document visibility changes for tab return detection
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") {
-        this.wasDocumentHidden = true;
-        localStorage.setItem(
-          "campusLocation_lastActive",
-          Date.now().toString()
-        );
-      } else if (
-        document.visibilityState === "visible" &&
-        this.wasDocumentHidden
-      ) {
-        // Tab returned - trigger immediate location update
-        logManager.system.init(
-          "Tab return detected - triggering location update"
-        );
-        this.handleTriggerEvent("tab_return");
-      }
-    });
+    // Remove previous listeners if called multiple times (idempotent)
+    if (this._boundLifecycleVisibility) {
+      document.removeEventListener("visibilitychange", this._boundLifecycleVisibility);
+      window.removeEventListener("storage", this._boundLifecycleStorage);
+    }
 
-    // Track authentication events for login detection
-    window.addEventListener("storage", (e) => {
-      if (e.key === "campusLocation_authTime") {
-        logManager.auth.login("Login event detected via storage");
-        this.handleTriggerEvent("login");
-      }
-    });
+    this._boundLifecycleVisibility = this._onLifecycleVisibilityChange.bind(this);
+    this._boundLifecycleStorage = this._onLifecycleStorage.bind(this);
+
+    document.addEventListener("visibilitychange", this._boundLifecycleVisibility);
+    window.addEventListener("storage", this._boundLifecycleStorage);
 
     logManager.system.init("Lifecycle tracking initialized");
   }
@@ -405,7 +426,8 @@ export class CampusLocationService {
     // Debouncing and optimization properties
     this.lastLocationUpdate = null;
     this.locationUpdateDebounceTimeout = null;
-    this.minUpdateInterval = 60000; // Minimum 60 seconds between updates
+    this.minUpdateInterval =
+      CAMPUS_LOCATION_DEFAULTS.MIN_LOCATION_UPDATE_INTERVAL_MS; // Minimum 60 seconds between updates
     this.isUpdatingLocation = false; // Prevent concurrent updates
 
     // 🚀 PHASE 1 FIX: Coordinate change detection
@@ -413,7 +435,8 @@ export class CampusLocationService {
 
     // Initialization and health monitoring properties
     this.initializationAttempts = 0;
-    this.maxInitializationAttempts = 5;
+    this.maxInitializationAttempts =
+      CAMPUS_LOCATION_DEFAULTS.MAX_INITIALIZATION_ATTEMPTS;
     this.initializationRetryTimeout = null;
     this.lastHealthCheck = null;
     this.healthCheckInterval = null;
@@ -427,12 +450,16 @@ export class CampusLocationService {
     this.isUpdatingActivity = false; // Prevent concurrent activity updates
     // 🔒 PRESENCE OPTIMIZATION: Throttle lastActive writes & respect global toggle
     this.lastLastActiveWrite = 0; // epoch ms of last successful updateUserLastActive
-    this.minLastActiveWriteInterval = 120000; // 2 minutes minimum between writes when idle/active
+    this.minLastActiveWriteInterval =
+      CAMPUS_LOCATION_DEFAULTS.MIN_LAST_ACTIVE_WRITE_INTERVAL_MS; // 2 minutes minimum between writes when idle/active
 
     // 🚀 ADAPTIVE HEARTBEAT SYSTEM - Smart cost optimization
-    this.activeHeartbeatInterval = 15000; // 15s when user is actively clicking/scrolling
-    this.idleHeartbeatInterval = 60000; // 60s when user is idle but tab visible
-    this.currentHeartbeatInterval = 60000; // Current interval being used
+    this.activeHeartbeatInterval =
+      CAMPUS_LOCATION_DEFAULTS.ACTIVE_HEARTBEAT_INTERVAL_MS; // 15s when user is actively clicking/scrolling
+    this.idleHeartbeatInterval =
+      CAMPUS_LOCATION_DEFAULTS.IDLE_HEARTBEAT_INTERVAL_MS; // 60s when user is idle but tab visible
+    this.currentHeartbeatInterval =
+      CAMPUS_LOCATION_DEFAULTS.IDLE_HEARTBEAT_INTERVAL_MS; // Current interval being used
     this.activityState = "idle"; // 'active', 'idle', 'background'
     this.lastStateChange = Date.now(); // Track when state changed for cost monitoring
 
@@ -445,10 +472,12 @@ export class CampusLocationService {
     this.foregroundResumeTime = null;
     this.visibilityChangeCount = 0;
     this.networkReconnectionAttempts = 0;
-    this.maxNetworkReconnectionAttempts = 3;
+    this.maxNetworkReconnectionAttempts =
+      CAMPUS_LOCATION_DEFAULTS.MAX_NETWORK_RECONNECTION_ATTEMPTS;
 
     // Mobile-specific intervals and timeouts
-    this.backgroundGracePeriod = 30000; // 30 seconds grace period before pausing
+    this.backgroundGracePeriod =
+      CAMPUS_LOCATION_DEFAULTS.BACKGROUND_GRACE_PERIOD_MS; // 30 seconds grace period before pausing
     this.foregroundResumeTimeout = null;
     this.backgroundPauseTimeout = null;
     this.networkReconnectionTimeout = null;
@@ -461,7 +490,8 @@ export class CampusLocationService {
     // Campus Boundary Detection Debouncing (Enhanced API Call Reduction)
     this.campusBoundaryCache = new Map(); // Cache boundary detection results
     this.boundaryDetectionDebounceTimeout = null;
-    this.minBoundaryDetectionInterval = 30000; // Minimum 30s between boundary detections
+    this.minBoundaryDetectionInterval =
+      CAMPUS_LOCATION_DEFAULTS.MIN_BOUNDARY_DETECTION_INTERVAL_MS; // Minimum 30s between boundary detections
     this.lastBoundaryDetectionTime = null;
     this.activeBoundaryDetections = new Map(); // Track ongoing boundary detections
     this.boundaryDetectionQueue = [];
@@ -471,25 +501,28 @@ export class CampusLocationService {
 
     // Presence polling (explicit interval regardless of page)
     this.presencePollingIntervalId = null;
-    this.presencePollingIntervalMs = 20000;
+    this.presencePollingIntervalMs =
+      CAMPUS_LOCATION_DEFAULTS.PRESENCE_POLL_INTERVAL_MS;
     this._isPresencePollRunning = false;
 
     // 🚦 NAVIGATION DEBOUNCE to avoid rapid duplicate presence updates on quick SPA route switches
     this.lastNavigationPresenceUpdateTime = 0;
-    this.minNavigationPresenceInterval = 5000; // ms
+    this.minNavigationPresenceInterval =
+      CAMPUS_LOCATION_DEFAULTS.MIN_NAVIGATION_PRESENCE_INTERVAL_MS; // ms
 
     // Two-tier system in use: Tier 1 IPinfo Lite, Tier 2 Browser GPS
 
     // Caching for cost optimization
     this.locationCache = new Map();
-    this.cacheExpiry = 15 * 60 * 1000; // 15 minutes cache
+    this.cacheExpiry = CAMPUS_LOCATION_DEFAULTS.LOCATION_CACHE_EXPIRY_MS; // 15 minutes cache
 
     // 🎯 STATUS ARBITRATION: Protect high-confidence GPS on-campus from being
     // downgraded by low-confidence network off-campus when tab is hidden.
     this.lastAuthoritativeCampusStatus = null; // 'on_campus' | 'off_campus' | 'unknown'
     this.lastAuthoritativeSource = null; // 'gps' | 'network' | null
     this.lastAuthoritativeTimestamp = 0; // ms
-    this.authoritativeHoldMs = 15 * 60 * 1000; // 15 minutes hold window (align with cache)
+    this.authoritativeHoldMs =
+      CAMPUS_LOCATION_DEFAULTS.LOCATION_CACHE_EXPIRY_MS; // 15 minutes hold window (align with cache)
 
     logManager.location.info("Service initialized", {
       geolocationSupported: this.isLocationSupported,
@@ -513,16 +546,35 @@ export class CampusLocationService {
 
     // Initialize passive permission monitoring so we can auto-sync when revoked/granted
     try {
-      if (!this._permissionListenerAttached && navigator?.permissions && typeof navigator.permissions.query === "function") {
-        navigator.permissions
-          .query({ name: "geolocation" })
-          .then((permission) => {
+      if (
+        !this._permissionListenerAttached &&
+        navigator?.permissions &&
+        typeof navigator.permissions.query === "function"
+      ) {
+        const attachPermissionListener = async () => {
+          try {
+            const permission = await navigator.permissions.query({
+              name: "geolocation",
+            });
+            // Replace any previous permission change listener (defensive)
+            try {
+              if (this._permissionHandle && this._boundPermissionChange) {
+                this._permissionHandle.removeEventListener(
+                  "change",
+                  this._boundPermissionChange
+                );
+              }
+            } catch (error) {
+              console.debug("Suppressed error", error);
+            }
+
+            this._permissionHandle = permission;
             this.permissionStatus = permission.state;
             this.dispatchPermissionChanged(permission.state);
             if (permission.state === "granted") {
               this.autoEnableAfterPermissionGranted();
             }
-            permission.addEventListener("change", () => {
+            this._boundPermissionChange = () => {
               this.permissionStatus = permission.state;
               this.dispatchPermissionChanged(permission.state);
               if (permission.state !== "granted") {
@@ -531,12 +583,16 @@ export class CampusLocationService {
               if (permission.state === "granted") {
                 this.autoEnableAfterPermissionGranted();
               }
-            });
+            };
+            permission.addEventListener("change", this._boundPermissionChange);
             this._permissionListenerAttached = true;
-          })
-          .catch(() => {});
+          } catch (_) {
+            // Ignore unsupported/denied permissions query.
+          }
+        };
+        void attachPermissionListener();
       }
-    } catch (_) {}
+    } catch (err) { logManager.dev.debug("Location detection failed: permission API query setup", err); }
   }
 
   /**
@@ -645,8 +701,8 @@ export class CampusLocationService {
             this.currentPosition = position;
 
             // Auto-enable when permission is granted
-            try { this.dispatchPermissionChanged("granted"); } catch (_) {}
-            try { this.autoEnableAfterPermissionGranted(); } catch (_) {}
+            try { this.dispatchPermissionChanged("granted"); } catch (err) { logManager.dev.debug("Location detection failed: dispatch permission granted", err); }
+            try { this.autoEnableAfterPermissionGranted(); } catch (err) { logManager.dev.debug("Location detection failed: auto-enable after permission granted", err); }
 
             // Centralized permission monitoring is already attached during initialization.
 
@@ -842,8 +898,8 @@ export class CampusLocationService {
       // Start tracking (polling + immediate poll) if user already enabled sharing
       try {
         await this.startLocationTracking();
-      } catch (_) {}
-    } catch (_) {}
+      } catch (err) { logManager.dev.debug("Location detection failed: start tracking on auto-enable", err); }
+    } catch (err) { logManager.dev.debug("Location detection failed: auto-enable after permission granted", err); }
   }
 
   /**
@@ -899,8 +955,8 @@ export class CampusLocationService {
         // If permission denied mid-session (e.g., Ask Every Time → Deny), auto-sync OFF
         if (error.code === 1) {
           this.permissionStatus = "denied";
-          try { this.dispatchPermissionChanged("denied"); } catch (_) {}
-          try { this.handlePermissionDenied("gps_call_denied"); } catch (_) {}
+          try { this.dispatchPermissionChanged("denied"); } catch (err) { logManager.dev.debug("Location detection failed: dispatch permission denied", err); }
+          try { this.handlePermissionDenied("gps_call_denied"); } catch (err) { logManager.dev.debug("Location detection failed: handle permission denied", err); }
         }
         reject(enhancedError);
       };
@@ -2511,7 +2567,7 @@ export class CampusLocationService {
       `[CampusLocationService] 📱 Setting up resilient connection for: ${listener.name}`
     );
 
-    const connectListener = () => {
+    const connectListener = async () => {
       try {
         // Clear any existing connection
         if (listener.unsubscribe) {
@@ -2526,90 +2582,91 @@ export class CampusLocationService {
         );
 
         // Import Firebase dynamically to handle potential import issues
-        import("firebase/firestore")
-          .then(({ onSnapshot }) => {
-            listener.unsubscribe = onSnapshot(
-              listener.query,
+        let onSnapshot;
+        try {
+          ({ onSnapshot } = await import("firebase/firestore"));
+        } catch (importError) {
+          console.error(
+            `[CampusLocationService] 📱 Failed to import Firebase modules:`,
+            importError
+          );
+          this.scheduleListenerReconnection(listener);
+          return;
+        }
 
-              // Success callback with mobile-specific enhancements
-              (snapshot) => {
-                listener.isConnected = true;
-                listener.lastSuccessfulConnection = Date.now();
-                listener.reconnectionAttempts = 0;
-                listener.connectionTimeouts = 0;
+        listener.unsubscribe = onSnapshot(
+          listener.query,
 
-                console.log(
-                  `[CampusLocationService] 📱 Successful listener update: ${listener.name}`
-                );
+          // Success callback with mobile-specific enhancements
+          (snapshot) => {
+            listener.isConnected = true;
+            listener.lastSuccessfulConnection = Date.now();
+            listener.reconnectionAttempts = 0;
+            listener.connectionTimeouts = 0;
 
-                // Process any queued updates first (offline resilience)
-                if (listener.queuedUpdates.length > 0) {
-                  console.log(
-                    `[CampusLocationService] 📱 Processing ${listener.queuedUpdates.length} queued updates for ${listener.name}`
-                  );
-                  listener.queuedUpdates.forEach((update) => {
-                    try {
-                      listener.callback(update.data, update.metadata);
-                    } catch (callbackError) {
-                      console.error(
-                        `[CampusLocationService] 📱 Error processing queued update:`,
-                        callbackError
-                      );
-                    }
-                  });
-                  listener.queuedUpdates = [];
-                }
+            console.log(
+              `[CampusLocationService] 📱 Successful listener update: ${listener.name}`
+            );
 
-                // Process current update
+            // Process any queued updates first (offline resilience)
+            if (listener.queuedUpdates.length > 0) {
+              console.log(
+                `[CampusLocationService] 📱 Processing ${listener.queuedUpdates.length} queued updates for ${listener.name}`
+              );
+              listener.queuedUpdates.forEach((update) => {
                 try {
-                  const metadata = {
-                    isFromCache: snapshot.metadata?.fromCache || false,
-                    hasPendingWrites:
-                      snapshot.metadata?.hasPendingWrites || false,
-                    connectionAttempts: listener.reconnectionAttempts,
-                    isMobileOptimized: true,
-                  };
-
-                  listener.callback(snapshot, metadata);
+                  listener.callback(update.data, update.metadata);
                 } catch (callbackError) {
                   console.error(
-                    `[CampusLocationService] 📱 Error in listener callback:`,
+                    `[CampusLocationService] 📱 Error processing queued update:`,
                     callbackError
                   );
-                  listener.errorCallback(callbackError, "callback_error");
                 }
-              },
+              });
+              listener.queuedUpdates = [];
+            }
 
-              // Error callback with mobile-specific retry logic
-              (error) => {
-                console.error(
-                  `[CampusLocationService] 📱 Firebase listener error for ${listener.name}:`,
-                  {
-                    code: error.code,
-                    message: error.message,
-                    connectionAttempts: listener.reconnectionAttempts,
-                    isOnline: this.isOnline,
-                    isAppVisible: this.isAppVisible,
-                  }
-                );
+            // Process current update
+            try {
+              const metadata = {
+                isFromCache: snapshot.metadata?.fromCache || false,
+                hasPendingWrites: snapshot.metadata?.hasPendingWrites || false,
+                connectionAttempts: listener.reconnectionAttempts,
+                isMobileOptimized: true,
+              };
 
-                listener.isConnected = false;
+              listener.callback(snapshot, metadata);
+            } catch (callbackError) {
+              console.error(
+                `[CampusLocationService] 📱 Error in listener callback:`,
+                callbackError
+              );
+              listener.errorCallback(callbackError, "callback_error");
+            }
+          },
 
-                // Handle different error types with mobile-specific strategies
-                this.handleMobileListenerError(listener, error);
+          // Error callback with mobile-specific retry logic
+          (error) => {
+            console.error(
+              `[CampusLocationService] 📱 Firebase listener error for ${listener.name}:`,
+              {
+                code: error.code,
+                message: error.message,
+                connectionAttempts: listener.reconnectionAttempts,
+                isOnline: this.isOnline,
+                isAppVisible: this.isAppVisible,
               }
             );
 
-            // Start connection health monitoring
-            this.startListenerHealthMonitoring(listener);
-          })
-          .catch((importError) => {
-            console.error(
-              `[CampusLocationService] 📱 Failed to import Firebase modules:`,
-              importError
-            );
-            this.scheduleListenerReconnection(listener);
-          });
+            listener.isConnected = false;
+
+            // Handle different error types with mobile-specific strategies
+            this.handleMobileListenerError(listener, error);
+          }
+        );
+
+        // Start connection health monitoring
+        this.startListenerHealthMonitoring(listener);
       } catch (connectionError) {
         console.error(
           `[CampusLocationService] 📱 Error setting up listener connection:`,
@@ -2620,7 +2677,7 @@ export class CampusLocationService {
     };
 
     // Initial connection
-    connectListener();
+    void connectListener();
     listener.connect = connectListener;
   }
 
@@ -3045,6 +3102,12 @@ export class CampusLocationService {
       return;
     }
 
+    // Idempotency: prevent duplicate lifecycle handlers on repeated init calls
+    if (this._mobileLifecycleHandlersInitialized) {
+      return;
+    }
+    this._mobileLifecycleHandlersInitialized = true;
+
     console.log(
       "[CampusLocationService] 📱 Initializing mobile app lifecycle handlers"
     );
@@ -3065,15 +3128,15 @@ export class CampusLocationService {
     window.addEventListener("blur", this.handleAppBlur);
 
     // 🎯 SPA NAVIGATION: Listen for single-page app navigation events
-    document.addEventListener("spa:page:load", (event) => {
-      this.handleSPANavigation(event);
-    });
+    this._boundSpaPageLoad = this.handleSPANavigation.bind(this);
+    document.addEventListener("spa:page:load", this._boundSpaPageLoad);
 
     // Battery API if available (experimental but useful for mobile optimization)
     if ("getBattery" in navigator) {
-      navigator
-        .getBattery()
-        .then((battery) => {
+      const attachBatteryHandlers = async () => {
+        try {
+          const battery = await navigator.getBattery();
+          this._battery = battery;
           this.batteryLevel = battery.level;
           this.isCharging = battery.charging;
 
@@ -3083,22 +3146,30 @@ export class CampusLocationService {
             )}% (${battery.charging ? "charging" : "not charging"})`
           );
 
-          battery.addEventListener("levelchange", () => {
+          const handleBatteryLevelChange = () => {
             this.batteryLevel = battery.level;
             this.adjustTrackingForBattery();
-          });
+          };
+          this._boundBatteryLevelChange = handleBatteryLevelChange;
+          battery.addEventListener("levelchange", handleBatteryLevelChange);
 
-          battery.addEventListener("chargingchange", () => {
+          const handleBatteryChargingChange = () => {
             this.isCharging = battery.charging;
             this.adjustTrackingForBattery();
-          });
-        })
-        .catch((error) => {
+          };
+          this._boundBatteryChargingChange = handleBatteryChargingChange;
+          battery.addEventListener(
+            "chargingchange",
+            handleBatteryChargingChange
+          );
+        } catch (error) {
           console.log(
             "[CampusLocationService] Battery API not available:",
             error
           );
-        });
+        }
+      };
+      void attachBatteryHandlers();
     }
 
     // Store initial network status
@@ -3267,10 +3338,13 @@ export class CampusLocationService {
     }
 
     // Restart polling
-    this.startPresencePolling(20000);
+    this.startPresencePolling(CAMPUS_LOCATION_DEFAULTS.PRESENCE_POLL_INTERVAL_MS);
 
     // Immediate location update to refresh presence
-    setTimeout(() => this.runPresencePollNow(), 1000);
+    setTimeout(
+      () => this.runPresencePollNow(),
+      CAMPUS_LOCATION_DEFAULTS.PRESENCE_POLL_RESUME_DELAY_MS
+    );
 
     this.pausedWatchId = null;
     this.pausedPeriodicTimer = null;
@@ -3289,7 +3363,10 @@ export class CampusLocationService {
     this.stopLocationTracking();
 
     // Restart the full initialization process
-    setTimeout(() => this.autoStartLocationTracking(), 1000);
+    setTimeout(
+      () => this.autoStartLocationTracking(),
+      CAMPUS_LOCATION_DEFAULTS.PRESENCE_POLL_RESUME_DELAY_MS
+    );
   }
 
   adjustTrackingForBattery() {
@@ -3325,10 +3402,37 @@ export class CampusLocationService {
       "visibilitychange",
       this.handleVisibilityChange
     );
+    if (this._boundSpaPageLoad) {
+      document.removeEventListener("spa:page:load", this._boundSpaPageLoad);
+      this._boundSpaPageLoad = null;
+    }
     window.removeEventListener("online", this.handleOnlineStatus);
     window.removeEventListener("offline", this.handleOnlineStatus);
     window.removeEventListener("focus", this.handleAppFocus);
     window.removeEventListener("blur", this.handleAppBlur);
+
+    // Battery listeners (if supported/initialized)
+    try {
+      if (this._battery && this._boundBatteryLevelChange) {
+        this._battery.removeEventListener(
+          "levelchange",
+          this._boundBatteryLevelChange
+        );
+      }
+    } catch (error) { console.debug("Suppressed error", error); }
+    try {
+      if (this._battery && this._boundBatteryChargingChange) {
+        this._battery.removeEventListener(
+          "chargingchange",
+          this._boundBatteryChargingChange
+        );
+      }
+    } catch (error) { console.debug("Suppressed error", error); }
+    this._boundBatteryLevelChange = null;
+    this._boundBatteryChargingChange = null;
+    this._battery = null;
+
+    this._mobileLifecycleHandlersInitialized = false;
   }
 
   /**
@@ -3364,7 +3468,7 @@ export class CampusLocationService {
         return;
 
       // Start presence polling and run an immediate poll for fast update
-      await this.startPresencePolling(20000);
+      await this.startPresencePolling(CAMPUS_LOCATION_DEFAULTS.PRESENCE_POLL_INTERVAL_MS);
       await this.runPresencePollNow();
     } catch (error) {
       console.error("[CampusLocationService] Error starting polling:", error);
@@ -3421,7 +3525,7 @@ export class CampusLocationService {
           detail: { status, timestamp: Date.now() },
         })
       );
-    } catch (_) {}
+    } catch (err) { logManager.dev.debug("Location detection failed: dispatch permission changed event", err); }
   }
 
   /**
@@ -3445,7 +3549,7 @@ export class CampusLocationService {
             "Campus presence turned off because location permission is not allowed.",
             { duration: 6000 }
           );
-        } catch (_) {}
+        } catch (err) { logManager.dev.debug("Location detection failed: show permission denied notification", err); }
         this._lastDenialHandledAt = now;
       }
 
@@ -4173,7 +4277,8 @@ export class CampusLocationService {
     this.switchToActiveState();
 
     // 🚀 ADAPTIVE: Page Visibility API - smart state switching
-    document.addEventListener("visibilitychange", () => {
+    if (!this._boundActivityVisibilityChange) {
+      this._boundActivityVisibilityChange = () => {
       if (!document.hidden) {
         // User returned to tab - immediate activity update + switch to active
         this.isUserCurrentlyActive = true;
@@ -4189,28 +4294,62 @@ export class CampusLocationService {
           "[CampusLocationService] 👁️ Tab hidden - BACKGROUND state activated"
         );
       }
-    });
+      };
+      document.addEventListener(
+        "visibilitychange",
+        this._boundActivityVisibilityChange
+      );
+    }
 
     // 🚀 ADAPTIVE: Activity events trigger active state
     const activityEvents = ["mousedown", "keydown", "scroll", "touchstart"];
-    const adaptiveActivityHandler = this.throttle(() => {
+    if (!this._boundAdaptiveActivityHandler) {
+      this._boundAdaptiveActivityHandler = this.throttle(() => {
       this.isUserCurrentlyActive = true;
       this.lastActivityDetected = Date.now();
 
       // 🚀 ADAPTIVE: Switch to active state on user interaction
       this.switchToActiveState();
     }, 2000); // Reduced throttle to 2 seconds for better responsiveness
+    }
 
     activityEvents.forEach((event) => {
-      document.addEventListener(event, adaptiveActivityHandler, {
+      if (!this._activityEventsBound) this._activityEventsBound = new Set();
+      if (this._activityEventsBound.has(event)) return;
+      document.addEventListener(event, this._boundAdaptiveActivityHandler, {
         passive: true,
         capture: false,
       });
+      this._activityEventsBound.add(event);
     });
 
     console.log(
       "[CampusLocationService] ✅ ADAPTIVE activity detection initialized with smart state switching"
     );
+  }
+
+  cleanupActivityDetection() {
+    try {
+      if (this._boundActivityVisibilityChange) {
+        document.removeEventListener(
+          "visibilitychange",
+          this._boundActivityVisibilityChange
+        );
+      }
+    } catch (error) { console.debug("Suppressed error", error); }
+    this._boundActivityVisibilityChange = null;
+
+    try {
+      if (this._boundAdaptiveActivityHandler && this._activityEventsBound) {
+        this._activityEventsBound.forEach((evt) => {
+          try {
+            document.removeEventListener(evt, this._boundAdaptiveActivityHandler);
+          } catch (error) { console.debug("Suppressed error", error); }
+        });
+      }
+    } catch (error) { console.debug("Suppressed error", error); }
+    this._activityEventsBound = null;
+    this._boundAdaptiveActivityHandler = null;
   }
 
   /**
@@ -5377,6 +5516,13 @@ export class CampusLocationService {
 export const campusLocationService = new CampusLocationService();
 
 // 🛠️ DEBUGGING: Make campusLocationService globally available for console access and cost monitoring
-if (typeof window !== "undefined") {
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development") ||
+    (window.ENV && window.ENV.ENVIRONMENT !== "production"));
+if (__DEV__) {
   window.campusLocationService = campusLocationService;
 }

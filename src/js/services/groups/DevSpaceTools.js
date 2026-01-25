@@ -10,6 +10,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { authManager } from "../auth/AuthService.js";
+import { callFunction } from "../../utils/firebase/functionsHelper.js";
 
 function randInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -76,15 +77,20 @@ export async function createDevSpacesForUser(count = 2) {
 export async function clearMyDevSpaces() {
   const uid = authManager?.auth?.currentUser?.uid;
   if (!uid) throw new Error("Not signed in");
-  const q = query(collection(db, "classSpaces"), where("devOwnerUid", "==", uid));
-  const snap = await getDocs(q);
-  const removed = [];
-  for (const d of snap.docs) {
-    await deleteDoc(d.ref);
-    removed.push(d.id);
+  try {
+    const res = await callFunction("clearMyDevClassSpaces", {});
+    return Array.isArray(res?.data?.removed) ? res.data.removed : [];
+  } catch (err) {
+    // Fallback for local/dev if callable fails: best-effort direct delete by query (may be denied when list is disabled).
+    const q = query(collection(db, "classSpaces"), where("devOwnerUid", "==", uid));
+    const snap = await getDocs(q);
+    const removed = [];
+    for (const d of snap.docs) {
+      await deleteDoc(d.ref);
+      removed.push(d.id);
+    }
+    return removed;
   }
-  return removed;
 }
 
 export default { createDevSpacesForUser, clearMyDevSpaces };
-

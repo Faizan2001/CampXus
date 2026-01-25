@@ -92,7 +92,7 @@ export class UnreadTracker {
       document.dispatchEvent(
         new CustomEvent("classspace:viewed", { detail: { spaceId, userId } })
       );
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
   }
 
   /**

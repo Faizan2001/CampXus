@@ -20,14 +20,22 @@ import { logManager } from "../../utils/debug/LogManager.js";
 async function fileToImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(img.src); // Clean up
-      resolve(img);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(img.src);
-      reject(new Error("Failed to load image"));
-    };
+    img.addEventListener(
+      "load",
+      () => {
+        URL.revokeObjectURL(img.src); // Clean up
+        resolve(img);
+      },
+      { once: true }
+    );
+    img.addEventListener(
+      "error",
+      () => {
+        URL.revokeObjectURL(img.src);
+        reject(new Error("Failed to load image"));
+      },
+      { once: true }
+    );
     img.src = URL.createObjectURL(file);
   });
 }

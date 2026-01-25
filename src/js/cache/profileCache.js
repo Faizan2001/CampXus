@@ -93,7 +93,9 @@ export const profileCache = {
       logManager.dev.debug("Profile cache saved", { uid });
       return true;
     } catch (e) {
-      console.warn("profileCache.save failed", e);
+      logManager.system.warn("profileCache.save failed", {
+        message: e?.message,
+      });
       return false;
     }
   },
@@ -159,13 +161,22 @@ export const profileCache = {
       }
       return false;
     } catch (e) {
-      console.warn("profileCache.tryHydrate failed", e);
+      logManager.system.warn("profileCache.tryHydrate failed", {
+        message: e?.message,
+      });
       return false;
     }
   },
 };
 
 // Expose in dev for inspection
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development") ||
+    (window.ENV && window.ENV.ENVIRONMENT !== "production"));
+if (__DEV__) {
   window.__profileCache = profileCache;
 }

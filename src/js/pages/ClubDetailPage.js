@@ -62,7 +62,7 @@ export default class ClubDetailPage {
 
     try {
       await currentUser.waitForProfile();
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
 
     // Check if user follows this club (from profile.followedClubs)
     const followedFromProfile = currentUser?.profile?.followedClubs || [];
@@ -881,7 +881,7 @@ function escapeAttr(value) {
 // Wire to SPA lifecycle
 let currentClubInstance = null;
 
-document.addEventListener("spa:page:unload", (event) => {
+function handleClubDetailPageUnload(event) {
   const route = event?.detail?.route;
   // Only unmount if we're leaving club detail page
   if (route !== "club") return;
@@ -890,9 +890,9 @@ document.addEventListener("spa:page:unload", (event) => {
     currentClubInstance.destroy();
     currentClubInstance = null;
   }
-});
+}
 
-document.addEventListener("spa:page:load", async (event) => {
+async function handleClubDetailPageLoad(event) {
   const route = event?.detail?.route;
   if (route !== "club") return;
 
@@ -903,6 +903,9 @@ document.addEventListener("spa:page:load", async (event) => {
     currentClubInstance = new ClubDetailPage();
     await currentClubInstance.mount();
   } catch (error) {
-    console.error("[ClubDetailPage] Mount failed:", error);
+    logManager.error("[ClubDetailPage] Mount failed", error);
   }
-});
+}
+
+document.addEventListener("spa:page:unload", handleClubDetailPageUnload);
+document.addEventListener("spa:page:load", handleClubDetailPageLoad);

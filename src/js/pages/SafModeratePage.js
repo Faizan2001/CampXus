@@ -44,6 +44,12 @@ export class SafModeratePage {
     this.clubs = [];
     this.activeTab = "events";
     this._isMounted = false;
+    this._tabsEl = null;
+    this._contentEl = null;
+
+    this._handleTabsClick = this._handleTabsClick.bind(this);
+    this._handleContentClick = this._handleContentClick.bind(this);
+    this._handleContentInput = this._handleContentInput.bind(this);
   }
 
   async mount(root) {
@@ -100,6 +106,15 @@ export class SafModeratePage {
 
   unmount() {
     this._isMounted = false;
+    if (this._tabsEl) {
+      this._tabsEl.removeEventListener("click", this._handleTabsClick);
+      this._tabsEl = null;
+    }
+    if (this._contentEl) {
+      this._contentEl.removeEventListener("click", this._handleContentClick);
+      this._contentEl.removeEventListener("input", this._handleContentInput);
+      this._contentEl = null;
+    }
     if (this.rootEl) {
       this.rootEl.innerHTML = "";
     }
@@ -286,24 +301,101 @@ export class SafModeratePage {
       </div>
     `;
 
-    // Setup tab handlers
-    this.rootEl.querySelectorAll(".admin-tab").forEach((tab) => {
-      tab.addEventListener("click", () => {
-        const tabName = tab.dataset.tab;
-        if (tabName && tabName !== this.activeTab) {
-          this.activeTab = tabName;
-          // Update data attribute for CSS sliding pill
-          const tabsContainer = this.rootEl.querySelector(".admin-tabs");
-          if (tabsContainer) {
-            tabsContainer.dataset.activeTab = tabName;
-          }
-          this.rootEl.querySelectorAll(".admin-tab").forEach((t) => {
-            t.classList.toggle("active", t.dataset.tab === tabName);
-          });
-          this.loadTabContent(tabName);
-        }
-      });
+    this._tabsEl = this.rootEl.querySelector(".admin-tabs");
+    this._contentEl = this.rootEl.querySelector("#saf-tab-content");
+    this._tabsEl?.addEventListener("click", this._handleTabsClick);
+    this._contentEl?.addEventListener("click", this._handleContentClick);
+    this._contentEl?.addEventListener("input", this._handleContentInput);
+  }
+
+  _handleTabsClick(e) {
+    const tabsEl = this._tabsEl;
+    if (!tabsEl) return;
+    const tab = e.target?.closest?.(".admin-tab");
+    if (!tab || !tabsEl.contains(tab)) return;
+    const tabName = tab.dataset.tab;
+    if (!tabName || tabName === this.activeTab) return;
+
+    this.activeTab = tabName;
+    // Update data attribute for CSS sliding pill
+    tabsEl.dataset.activeTab = tabName;
+    this.rootEl?.querySelectorAll(".admin-tab")?.forEach((t) => {
+      t.classList.toggle("active", t.dataset.tab === tabName);
     });
+    void this.loadTabContent(tabName);
+  }
+
+  _handleContentClick(e) {
+    const contentEl = this._contentEl;
+    if (!contentEl) return;
+
+    const retryBtn = e.target?.closest?.(".btn-retry");
+    if (retryBtn && contentEl.contains(retryBtn)) {
+      location.reload();
+      return;
+    }
+
+    const approveBtn = e.target?.closest?.(".saf-approve-btn");
+    if (approveBtn && contentEl.contains(approveBtn)) {
+      const card = approveBtn.closest(".saf-event-card");
+      if (!card) return;
+      const clubId = card.getAttribute("data-club-id");
+      const eventId = card.getAttribute("data-event-id");
+      if (clubId && eventId) {
+        void this.handleApproveEvent(card, clubId, eventId);
+      }
+      return;
+    }
+
+    const rejectBtn = e.target?.closest?.(".saf-reject-btn");
+    if (rejectBtn && contentEl.contains(rejectBtn)) {
+      const card = rejectBtn.closest(".saf-event-card");
+      if (!card) return;
+      const clubId = card.getAttribute("data-club-id");
+      const eventId = card.getAttribute("data-event-id");
+      if (clubId && eventId) {
+        void this.handleRejectEvent(card, clubId, eventId);
+      }
+      return;
+    }
+
+    const createClubBtn = e.target?.closest?.(".btn-create-club");
+    if (createClubBtn && contentEl.contains(createClubBtn)) {
+      this.openCreateClubModal();
+      return;
+    }
+
+    const rowActionBtn = e.target?.closest?.(
+      ".btn-edit, .btn-president, .btn-delete"
+    );
+    if (!rowActionBtn || !contentEl.contains(rowActionBtn)) return;
+
+    const row = rowActionBtn.closest("tr[data-id]");
+    const clubId = row?.dataset?.id;
+    const clubName = row?.dataset?.clubName;
+    if (!clubId) return;
+
+    if (rowActionBtn.classList.contains("btn-edit")) {
+      this.openEditClubModal(clubId);
+      return;
+    }
+    if (rowActionBtn.classList.contains("btn-president")) {
+      this.openAssignPresidentModal(clubId, clubName);
+      return;
+    }
+    if (rowActionBtn.classList.contains("btn-delete")) {
+      this.confirmDeleteClub(clubId, clubName);
+    }
+  }
+
+  _handleContentInput(e) {
+    const contentEl = this._contentEl;
+    if (!contentEl) return;
+    const target = e?.target;
+    if (!target || !contentEl.contains(target)) return;
+    if (target.id === "club-search") {
+      this.filterClubs(target.value);
+    }
   }
 
   async loadTabContent(tabName) {
@@ -334,7 +426,7 @@ export class SafModeratePage {
         <div class="admin-error">
           <i class="fas fa-exclamation-circle"></i>
           <p>Failed to load content. Please try again.</p>
-          <button class="btn-retry" onclick="location.reload()">Retry</button>
+          <button class="btn-retry">Retry</button>
         </div>
       `;
     }
@@ -397,8 +489,6 @@ export class SafModeratePage {
         ${events.map((e) => this.renderEventCard(e)).join("")}
       </div>
     `;
-
-    this.bindEventHandlers(contentEl);
   }
 
   renderEventCard(event) {
@@ -482,34 +572,6 @@ export class SafModeratePage {
     `;
   }
 
-  bindEventHandlers(contentEl) {
-    // Approve buttons
-    contentEl.querySelectorAll(".saf-approve-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const card = e.currentTarget.closest(".saf-event-card");
-        if (!card) return;
-        const clubId = card.getAttribute("data-club-id");
-        const eventId = card.getAttribute("data-event-id");
-        if (clubId && eventId) {
-          this.handleApproveEvent(card, clubId, eventId);
-        }
-      });
-    });
-
-    // Reject buttons
-    contentEl.querySelectorAll(".saf-reject-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const card = e.currentTarget.closest(".saf-event-card");
-        if (!card) return;
-        const clubId = card.getAttribute("data-club-id");
-        const eventId = card.getAttribute("data-event-id");
-        if (clubId && eventId) {
-          this.handleRejectEvent(card, clubId, eventId);
-        }
-      });
-    });
-  }
-
   async handleApproveEvent(cardEl, clubId, eventId) {
     const btn = cardEl.querySelector(".saf-approve-btn");
     if (!btn) return;
@@ -530,7 +592,9 @@ export class SafModeratePage {
       if (isLocal) {
         try {
           connectFunctionsEmulator(functions, "localhost", 5001);
-        } catch (_) {}
+        } catch (err) {
+          logManager.dev.debug("Functions emulator already connected", err);
+        }
       }
 
       const callable = httpsCallable(functions, "approveClubEventSaf");
@@ -588,7 +652,9 @@ export class SafModeratePage {
         if (isLocal) {
           try {
             connectFunctionsEmulator(functions, "localhost", 5001);
-          } catch (_) {}
+          } catch (err) {
+            logManager.dev.debug("Functions emulator already connected", err);
+          }
         }
 
         const callable = httpsCallable(functions, "rejectClubEventSaf");
@@ -696,28 +762,7 @@ export class SafModeratePage {
       </div>
     `;
 
-    // Setup handlers
-    contentEl
-      .querySelector(".btn-create-club")
-      ?.addEventListener("click", () => {
-        this.openCreateClubModal();
-      });
-
-    contentEl.querySelector("#club-search")?.addEventListener("input", (e) => {
-      this.filterClubs(e.target.value);
-    });
-
-    contentEl.querySelectorAll(".clubs-table tbody tr").forEach((row) => {
-      row.querySelector(".btn-edit")?.addEventListener("click", () => {
-        this.openEditClubModal(row.dataset.id);
-      });
-      row.querySelector(".btn-president")?.addEventListener("click", () => {
-        this.openAssignPresidentModal(row.dataset.id, row.dataset.clubName);
-      });
-      row.querySelector(".btn-delete")?.addEventListener("click", () => {
-        this.confirmDeleteClub(row.dataset.id, row.dataset.clubName);
-      });
-    });
+    // Handlers are delegated via this._contentEl (click/input)
   }
 
   getPresidentName(club) {
@@ -992,7 +1037,7 @@ export class SafModeratePage {
                 if (isLocal) {
                   try {
                     connectFunctionsEmulator(functions, "localhost", 5001);
-                  } catch (_) {}
+                  } catch (error) { console.debug("Suppressed error", error); }
                 }
 
                 const callable = httpsCallable(
@@ -1080,7 +1125,7 @@ export class SafModeratePage {
         confirmBtn.disabled = true;
         confirmBtn.classList.add("btn-disabled");
 
-        input.addEventListener("input", () => {
+        function handleConfirmNameInput() {
           const typedName = input.value.trim();
           const matches = typedName === clubName;
 
@@ -1090,7 +1135,9 @@ export class SafModeratePage {
 
           confirmBtn.disabled = !matches;
           confirmBtn.classList.toggle("btn-disabled", !matches);
-        });
+        }
+
+        input.addEventListener("input", handleConfirmNameInput);
       }
     }, 100);
   }
@@ -1129,20 +1176,21 @@ export class SafModeratePage {
 
     document.body.appendChild(modal);
 
-    const close = () => modal.remove();
-    modal.querySelector(".modal-close").addEventListener("click", close);
-    modal.querySelector(".btn-cancel").addEventListener("click", close);
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) close();
-    });
+    function closeModal() {
+      modal.remove();
+    }
 
-    modal.querySelector(".btn-confirm").addEventListener("click", async () => {
+    function handleOverlayClick(e) {
+      if (e.target === modal) closeModal();
+    }
+
+    async function handleConfirmClick() {
       try {
         const btn = modal.querySelector(".btn-confirm");
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
         await onConfirm();
-        close();
+        closeModal();
       } catch (error) {
         logManager.error("Modal action error", error);
         notificationManager.show(error.message || "An error occurred", "error");
@@ -1150,7 +1198,12 @@ export class SafModeratePage {
         btn.disabled = false;
         btn.innerHTML = confirmText;
       }
-    });
+    }
+
+    modal.querySelector(".modal-close").addEventListener("click", closeModal);
+    modal.querySelector(".btn-cancel").addEventListener("click", closeModal);
+    modal.addEventListener("click", handleOverlayClick);
+    modal.querySelector(".btn-confirm").addEventListener("click", handleConfirmClick);
   }
 }
 
@@ -1186,15 +1239,15 @@ export default SafModeratePage;
 // Wire SafModeratePage to SPA router lifecycle
 let _safPageInstance = null;
 
-document.addEventListener("spa:page:unload", (event) => {
+function handleSafPageUnload(event) {
   const route = event?.detail?.route;
   if (route === "saf" && _safPageInstance) {
     _safPageInstance.unmount();
     _safPageInstance = null;
   }
-});
+}
 
-document.addEventListener("spa:page:load", async (event) => {
+async function handleSafPageLoad(event) {
   const route = event?.detail?.route;
   if (route !== "saf") return;
 
@@ -1208,4 +1261,7 @@ document.addEventListener("spa:page:load", async (event) => {
 
   _safPageInstance = new SafModeratePage();
   await _safPageInstance.mount(root);
-});
+}
+
+document.addEventListener("spa:page:unload", handleSafPageUnload);
+document.addEventListener("spa:page:load", handleSafPageLoad);

@@ -19,6 +19,25 @@ export class GroupDetailPage {
     this.isLoadingMore = false;
     this._initialRenderDone = false; // track first paint for auto-scroll
     this._lastSendAtBySpace = {}; // client-side rate limit (per space)
+    this._dom = null;
+    this._space = null;
+    this._memberInfo = null;
+    this._myUid = null;
+    this._myFriendIds = new Set();
+    this._backBtn = null;
+    this._leaveBtn = null;
+
+    this._handleMembersListClick = this._handleMembersListClick.bind(this);
+    this._handleMessagesClick = this._handleMessagesClick.bind(this);
+    this._handleTabChatClick = this._handleTabChatClick.bind(this);
+    this._handleTabMembersClick = this._handleTabMembersClick.bind(this);
+    this._handleLoadOlderMessagesClick =
+      this._handleLoadOlderMessagesClick.bind(this);
+    this._handleSendMessageClick = this._handleSendMessageClick.bind(this);
+    this._handleMessageInputKeydown =
+      this._handleMessageInputKeydown.bind(this);
+    this._handleBackClick = this._handleBackClick.bind(this);
+    this._handleLeaveClick = this._handleLeaveClick.bind(this);
   }
 
   // Re-render members list state (blocked badges/buttons) without full reload
@@ -48,14 +67,6 @@ export class GroupDetailPage {
             unblockBtn.setAttribute("aria-label", "Unblock user");
             unblockBtn.innerHTML = '<i class="fas fa-user-check"></i>';
             actions.insertBefore(unblockBtn, reportBtn);
-            unblockBtn.addEventListener("click", (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              blockService.unblock(myUid, uid);
-              this.refreshMembersList(space, myUid);
-              const messagesEl = document.getElementById("messages");
-              this.renderMessages(messagesEl, myUid);
-            });
           }
         } else {
           if (unblockBtn) unblockBtn.remove();
@@ -67,18 +78,12 @@ export class GroupDetailPage {
             blockBtn.setAttribute("aria-label", "Block user");
             blockBtn.innerHTML = '<i class="fas fa-user-slash"></i>';
             actions.insertBefore(blockBtn, reportBtn);
-            blockBtn.addEventListener("click", (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              blockService.block(myUid, uid);
-              this.refreshMembersList(space, myUid);
-              const messagesEl = document.getElementById("messages");
-              this.renderMessages(messagesEl, myUid);
-            });
           }
         }
       });
-    } catch (_) {}
+    } catch (e) {
+      logManager?.dev?.debug?.("[GroupDetailPage] refreshMembersList failed", e);
+    }
   }
   parseSpaceIdFromHash() {
     try {
@@ -91,9 +96,12 @@ export class GroupDetailPage {
       try {
         const fromStore = sessionStorage.getItem("group:spaceId");
         if (fromStore) return fromStore;
-      } catch (_) {}
+      } catch (err) {
+        logManager.dev.debug("Storage access failed: reading group:spaceId", err);
+      }
       return null;
-    } catch (_) {
+    } catch (err) {
+      logManager.dev.debug("parseSpaceIdFromHash failed", err);
       return null;
     }
   }
@@ -111,7 +119,9 @@ export class GroupDetailPage {
       if (currentUser?.uid) {
         await blockService.startSync(currentUser.uid);
       }
-    } catch (_) {}
+    } catch (err) {
+      logManager.dev.debug("blockService.startSync failed", err);
+    }
 
     // PRD Requirement: Gate Groups until profile setup is complete
     if (!currentUser.isProfileComplete()) {
@@ -149,6 +159,20 @@ export class GroupDetailPage {
     const membersPane = document.getElementById("group-members");
     const membersList = document.getElementById("membersList");
     const loadOlderBtn = document.getElementById("loadOlderBtn");
+
+    this._dom = {
+      titleEl,
+      subEl,
+      messagesEl,
+      sendBtn,
+      input,
+      tabChat,
+      tabMembers,
+      chatPane,
+      membersPane,
+      membersList,
+      loadOlderBtn,
+    };
 
     console.log("[GroupDetailPage] Mount called with spaceId:", this.spaceId);
 
@@ -197,14 +221,8 @@ export class GroupDetailPage {
     const backBtn = document.createElement("button");
     backBtn.className = "group-back-btn";
     backBtn.innerHTML = '<i class="fas fa-arrow-left"></i>';
-    backBtn.onclick = async () => {
-      try {
-        const { navigateTo } = await import("../app.js");
-        navigateTo("messages");
-      } catch (_) {
-        window.location.hash = "#messages";
-      }
-    };
+    backBtn.addEventListener("click", this._handleBackClick);
+    this._backBtn = backBtn;
 
     // Insert back button before title
     if (titleEl && titleEl.parentNode) {
@@ -216,7 +234,8 @@ export class GroupDetailPage {
     leaveBtn.className = "group-leave-btn";
     leaveBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i>';
     leaveBtn.title = "Leave this class space";
-    leaveBtn.onclick = () => this.showLeaveConfirmModal();
+    leaveBtn.addEventListener("click", this._handleLeaveClick);
+    this._leaveBtn = leaveBtn;
 
     // Insert leave button after title
     if (titleEl && titleEl.parentNode) {
@@ -242,6 +261,7 @@ export class GroupDetailPage {
     const { getAuth } = await import("firebase/auth");
     const auth = getAuth();
     const myUid = auth?.currentUser?.uid || null;
+    this._myUid = myUid;
 
     // Mark this space as viewed (for unread badge tracking)
     if (myUid) {
@@ -255,12 +275,15 @@ export class GroupDetailPage {
     // Members list (with avatar chips + block/unblock actions)
     const memberIds = Array.isArray(space.memberIds) ? space.memberIds : [];
     const memberInfo = space.memberInfo || {};
+    this._space = space;
+    this._memberInfo = memberInfo;
     // Quick check to avoid showing Add button for existing friends (uses denormalized friendIds)
     const myFriendIds = Array.isArray(
       currentUser?.profile?.socialInfo?.friendIds
     )
       ? new Set(currentUser.profile.socialInfo.friendIds)
       : new Set();
+    this._myFriendIds = myFriendIds;
     membersList.innerHTML = memberIds
       .map((uid) => {
         if (uid === myUid) return ""; // Skip self
@@ -322,122 +345,17 @@ export class GroupDetailPage {
     logManager.dev.debug("[GroupDetailPage] Members list HTML rendered", {
       spaceId: this.spaceId,
     });
-    // Bind report buttons for members
-    const reportBtns = membersList.querySelectorAll(".member-report-btn");
-    reportBtns.forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const uid = btn.dataset.uid;
-        if (!uid) return;
-
-        const { ReportModal } = await import(
-          "../components/modals/ReportModal.js"
-        );
-        const modal = new ReportModal();
-        modal.show({
-          type: "user",
-          reportedId: uid,
-          additionalData: { spaceId: this.spaceId },
-        });
-      });
-    });
-
-    // Bind block/unblock buttons
-    const blockBtns = membersList.querySelectorAll(".member-block-btn");
-    blockBtns.forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const uid = btn.dataset.uid;
-        if (!uid || !myUid) return;
-        blockService.block(myUid, uid);
-        this.refreshMembersList(space, myUid);
-        this.renderMessages(messagesEl, myUid);
-      });
-    });
-    const unblockBtns = membersList.querySelectorAll(".member-unblock-btn");
-    unblockBtns.forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const uid = btn.dataset.uid;
-        if (!uid || !myUid) return;
-        blockService.unblock(myUid, uid);
-        this.refreshMembersList(space, myUid);
-        this.renderMessages(messagesEl, myUid);
-      });
-    });
-
-    logManager.dev.debug("[GroupDetailPage] Binding member action buttons", {
-      spaceId: this.spaceId,
-    });
-    // Bind add-friend buttons
-    const addFriendBtns = membersList.querySelectorAll(".member-add-btn");
-    addFriendBtns.forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const uid = btn.dataset.uid;
-        if (!uid) return;
-
-        // Compose minimal target user data using cached memberInfo and space university
-        const info = memberInfo[uid] || {};
-        const targetUserData = {
-          profile: {
-            handle: info.handle || "",
-            major: info.major || "",
-          },
-          avatarConfig: info.avatarConfig || null,
-          universityInfo: { university: space.university || "" },
-        };
-
-        try {
-          btn.disabled = true;
-          const originalHtml = btn.innerHTML;
-          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-          const res = await friendsManager.sendFriendRequest(
-            uid,
-            targetUserData
-          );
-          if (res?.success) {
-            btn.className = "member-friends-btn";
-            btn.innerHTML = '<i class="fas fa-clock"></i>';
-            btn.title = "Pending";
-            btn.setAttribute("aria-label", "Pending");
-            btn.disabled = true;
-          } else {
-            btn.disabled = false;
-            btn.innerHTML = originalHtml;
-            notificationManager.show(
-              res?.message || "Failed to send friend request",
-              "error"
-            );
-          }
-        } catch (err) {
-          btn.disabled = false;
-          btn.innerHTML = '<i class="fas fa-user-plus"></i>';
-          console.error("[GroupDetailPage] Add friend failed", err);
-          notificationManager.show("Failed to send friend request", "error");
-        }
-      });
-    });
+    if (membersList) {
+      membersList.addEventListener("click", this._handleMembersListClick);
+    }
+    if (messagesEl) {
+      messagesEl.addEventListener("click", this._handleMessagesClick);
+    }
 
     // Tabs
-    tabChat.addEventListener("click", () => {
-      tabChat.classList.add("active");
-      tabMembers.classList.remove("active");
-      chatPane.classList.remove("hidden");
-      membersPane.classList.add("hidden");
-      console.log("[GroupDetailPage] Tab switched to chat");
-    });
-    tabMembers.addEventListener("click", () => {
-      tabMembers.classList.add("active");
-      tabChat.classList.remove("active");
-      membersPane.classList.remove("hidden");
-      chatPane.classList.add("hidden");
-      console.log("[GroupDetailPage] Tab switched to members");
-    });
+    if (tabChat) tabChat.addEventListener("click", this._handleTabChatClick);
+    if (tabMembers)
+      tabMembers.addEventListener("click", this._handleTabMembersClick);
 
     // Messages listener
     this.unsub = classSpacesService.listenToMessages(
@@ -517,108 +435,302 @@ export class GroupDetailPage {
 
     // Load older messages handler
     if (loadOlderBtn) {
-      loadOlderBtn.addEventListener("click", async () => {
-        if (this.isLoadingMore || !this.hasMoreMessages) return;
-
-        this.isLoadingMore = true;
-        loadOlderBtn.disabled = true;
-        loadOlderBtn.textContent = "Loading...";
-
-        try {
-          // Save scroll position to restore after loading
-          const oldScrollHeight = messagesEl.scrollHeight;
-
-          // Use preserved pagination cursor (never affected by realtime updates)
-          const firstDoc = this.earliestDoc;
-          if (!firstDoc) {
-            this.hasMoreMessages = false;
-            loadOlderBtn.classList.add("hidden");
-            return;
-          }
-
-          // Load older messages (docs returned oldest→newest)
-          const { items, docs } = await classSpacesService.loadMore(
-            this.spaceId,
-            firstDoc,
-            { pageSize: 50 }
-          );
-
-          if (items.length === 0) {
-            this.hasMoreMessages = false;
-            loadOlderBtn.classList.add("hidden");
-            return;
-          }
-
-          // Update pagination cursor to the oldest doc from this batch
-          this.earliestDoc = docs[0];
-
-          // Update latest window docs (prepend older docs)
-          this.lastDocs = [...docs, ...this.lastDocs];
-
-          // Add older messages to the beginning
-          const existingIds = new Set(this.allMessages.map((m) => m.id));
-          const olderMessages = items.filter((m) => !existingIds.has(m.id));
-          this.allMessages = [...olderMessages, ...this.allMessages];
-
-          // Re-render
-          this.renderMessages(messagesEl, myUid);
-
-          // Restore scroll position (scroll anchoring)
-          const newScrollHeight = messagesEl.scrollHeight;
-          messagesEl.scrollTop = newScrollHeight - oldScrollHeight;
-
-          // Hide button if we loaded less than page size
-          if (items.length < 50) {
-            this.hasMoreMessages = false;
-            loadOlderBtn.classList.add("hidden");
-          }
-        } catch (e) {
-          logManager?.system?.error?.("Failed to load older messages", e);
-          notificationManager.show("Failed to load older messages", "error");
-        } finally {
-          this.isLoadingMore = false;
-          loadOlderBtn.disabled = false;
-          loadOlderBtn.textContent = "Load Older Messages";
-        }
-      });
+      loadOlderBtn.addEventListener("click", this._handleLoadOlderMessagesClick);
     }
 
     // Send handler
-    sendBtn.addEventListener("click", async () => {
-      const text = (input.value || "").trim();
-      if (!text) return;
-      // Client-side 3s throttle per space (additional to server checks)
+    if (sendBtn) sendBtn.addEventListener("click", this._handleSendMessageClick);
+    if (input)
+      input.addEventListener("keydown", this._handleMessageInputKeydown);
+  }
+
+  async _handleMembersListClick(e) {
+    const membersList = this._dom?.membersList;
+    if (!membersList) return;
+
+    const reportBtn = e.target?.closest?.(".member-report-btn");
+    if (reportBtn && membersList.contains(reportBtn)) {
+      e.preventDefault();
+      e.stopPropagation();
+      const uid = reportBtn.dataset.uid;
+      if (!uid) return;
       try {
-        const now = Date.now();
-        const lastAt = this._lastSendAtBySpace[this.spaceId] || 0;
-        if (now - lastAt < 3100) {
-          const waitMs = 3100 - (now - lastAt);
-          const secs = Math.ceil(waitMs / 1000);
+        const { ReportModal } = await import(
+          "../components/modals/ReportModal.js"
+        );
+        const modal = new ReportModal();
+        modal.show({
+          type: "user",
+          reportedId: uid,
+          additionalData: { spaceId: this.spaceId },
+        });
+      } catch (err) {
+        logManager?.system?.error?.(
+          "[GroupDetailPage] Failed to open member report modal",
+          err
+        );
+      }
+      return;
+    }
+
+    const blockBtn = e.target?.closest?.(".member-block-btn");
+    if (blockBtn && membersList.contains(blockBtn)) {
+      e.preventDefault();
+      e.stopPropagation();
+      const uid = blockBtn.dataset.uid;
+      if (!uid || !this._myUid) return;
+      blockService.block(this._myUid, uid);
+      this.refreshMembersList(this._space, this._myUid);
+      this.renderMessages(this._dom?.messagesEl, this._myUid);
+      return;
+    }
+
+    const unblockBtn = e.target?.closest?.(".member-unblock-btn");
+    if (unblockBtn && membersList.contains(unblockBtn)) {
+      e.preventDefault();
+      e.stopPropagation();
+      const uid = unblockBtn.dataset.uid;
+      if (!uid || !this._myUid) return;
+      blockService.unblock(this._myUid, uid);
+      this.refreshMembersList(this._space, this._myUid);
+      this.renderMessages(this._dom?.messagesEl, this._myUid);
+      return;
+    }
+
+    const addBtn = e.target?.closest?.(".member-add-btn");
+    if (addBtn && membersList.contains(addBtn)) {
+      e.preventDefault();
+      e.stopPropagation();
+      const uid = addBtn.dataset.uid;
+      if (!uid) return;
+
+      if (this._myFriendIds?.has?.(uid)) return;
+
+      const info = this._memberInfo?.[uid] || {};
+      const targetUserData = {
+        profile: {
+          handle: info.handle || "",
+          major: info.major || "",
+        },
+        avatarConfig: info.avatarConfig || null,
+        universityInfo: { university: this._space?.university || "" },
+      };
+
+      const originalHtml = addBtn.innerHTML;
+      try {
+        addBtn.disabled = true;
+        addBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        const res = await friendsManager.sendFriendRequest(uid, targetUserData);
+        if (res?.success) {
+          try {
+            this._myFriendIds.add(uid);
+          } catch (err) {
+            logManager.dev.debug("Data processing error: adding friend to Set", err);
+          }
+          addBtn.className = "member-friends-btn";
+          addBtn.innerHTML = '<i class="fas fa-clock"></i>';
+          addBtn.title = "Pending";
+          addBtn.setAttribute("aria-label", "Pending");
+          addBtn.disabled = true;
+        } else {
+          addBtn.disabled = false;
+          addBtn.innerHTML = originalHtml;
           notificationManager.show(
-            `Please wait ${secs}s before sending another message.`,
-            "warning"
+            res?.message || "Failed to send friend request",
+            "error"
           );
-          return;
         }
-        this._lastSendAtBySpace[this.spaceId] = now;
-      } catch (_) {}
-      try {
-        sendBtn.disabled = true;
-        await classSpacesService.sendMessage(this.spaceId, text);
-        input.value = "";
-      } catch (e) {
-        logManager?.system?.error?.("sendMessage failed", e);
-        notificationManager.show("Failed to send message", "error");
-      } finally {
-        sendBtn.disabled = false;
+      } catch (err) {
+        addBtn.disabled = false;
+        addBtn.innerHTML = originalHtml;
+        logManager?.system?.error?.(
+          "[GroupDetailPage] Add friend failed",
+          err
+        );
+        notificationManager.show("Failed to send friend request", "error");
       }
-    });
-    input.addEventListener("keydown", async (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendBtn.click();
+      return;
+    }
+  }
+
+  async _handleMessagesClick(e) {
+    const messagesEl = this._dom?.messagesEl;
+    if (!messagesEl) return;
+
+    const reportBtn = e.target?.closest?.(".message-report-btn");
+    if (!reportBtn || !messagesEl.contains(reportBtn)) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    const msgId = reportBtn.dataset.msgid;
+    if (!msgId) return;
+
+    try {
+      const { ReportModal } = await import("../components/modals/ReportModal.js");
+      const modal = new ReportModal();
+      modal.show({
+        type: "message",
+        reportedId: msgId,
+        additionalData: { spaceId: this.spaceId },
+      });
+    } catch (err) {
+      logManager?.system?.error?.(
+        "[GroupDetailPage] Failed to open message report modal",
+        err
+      );
+    }
+  }
+
+  _handleTabChatClick() {
+    const tabChat = this._dom?.tabChat;
+    const tabMembers = this._dom?.tabMembers;
+    const chatPane = this._dom?.chatPane;
+    const membersPane = this._dom?.membersPane;
+    if (!tabChat || !tabMembers || !chatPane || !membersPane) return;
+    tabChat.classList.add("active");
+    tabMembers.classList.remove("active");
+    chatPane.classList.remove("hidden");
+    membersPane.classList.add("hidden");
+    console.log("[GroupDetailPage] Tab switched to chat");
+  }
+
+  _handleTabMembersClick() {
+    const tabChat = this._dom?.tabChat;
+    const tabMembers = this._dom?.tabMembers;
+    const chatPane = this._dom?.chatPane;
+    const membersPane = this._dom?.membersPane;
+    if (!tabChat || !tabMembers || !chatPane || !membersPane) return;
+    tabMembers.classList.add("active");
+    tabChat.classList.remove("active");
+    membersPane.classList.remove("hidden");
+    chatPane.classList.add("hidden");
+    console.log("[GroupDetailPage] Tab switched to members");
+  }
+
+  async _handleLoadOlderMessagesClick() {
+    const loadOlderBtn = this._dom?.loadOlderBtn;
+    const messagesEl = this._dom?.messagesEl;
+    if (!loadOlderBtn || !messagesEl) return;
+    if (this.isLoadingMore || !this.hasMoreMessages) return;
+
+    this.isLoadingMore = true;
+    loadOlderBtn.disabled = true;
+    loadOlderBtn.textContent = "Loading...";
+
+    try {
+      // Save scroll position to restore after loading
+      const oldScrollHeight = messagesEl.scrollHeight;
+
+      // Use preserved pagination cursor (never affected by realtime updates)
+      const firstDoc = this.earliestDoc;
+      if (!firstDoc) {
+        this.hasMoreMessages = false;
+        loadOlderBtn.classList.add("hidden");
+        return;
       }
-    });
+
+      // Load older messages (docs returned oldest→newest)
+      const { items, docs } = await classSpacesService.loadMore(
+        this.spaceId,
+        firstDoc,
+        { pageSize: 50 }
+      );
+
+      if (items.length === 0) {
+        this.hasMoreMessages = false;
+        loadOlderBtn.classList.add("hidden");
+        return;
+      }
+
+      // Update pagination cursor to the oldest doc from this batch
+      this.earliestDoc = docs[0];
+
+      // Update latest window docs (prepend older docs)
+      this.lastDocs = [...docs, ...this.lastDocs];
+
+      // Add older messages to the beginning
+      const existingIds = new Set(this.allMessages.map((m) => m.id));
+      const olderMessages = items.filter((m) => !existingIds.has(m.id));
+      this.allMessages = [...olderMessages, ...this.allMessages];
+
+      // Re-render
+      this.renderMessages(messagesEl, this._myUid);
+
+      // Restore scroll position (scroll anchoring)
+      const newScrollHeight = messagesEl.scrollHeight;
+      messagesEl.scrollTop = newScrollHeight - oldScrollHeight;
+
+      // Hide button if we loaded less than page size
+      if (items.length < 50) {
+        this.hasMoreMessages = false;
+        loadOlderBtn.classList.add("hidden");
+      }
+    } catch (e) {
+      logManager?.system?.error?.("Failed to load older messages", e);
+      notificationManager.show("Failed to load older messages", "error");
+    } finally {
+      this.isLoadingMore = false;
+      loadOlderBtn.disabled = false;
+      loadOlderBtn.textContent = "Load Older Messages";
+    }
+  }
+
+  async _handleSendMessageClick() {
+    const sendBtn = this._dom?.sendBtn;
+    const input = this._dom?.input;
+    if (!sendBtn || !input) return;
+    const text = (input.value || "").trim();
+    if (!text) return;
+    // Client-side 3s throttle per space (additional to server checks)
+    try {
+      const now = Date.now();
+      const lastAt = this._lastSendAtBySpace[this.spaceId] || 0;
+      if (now - lastAt < 3100) {
+        const waitMs = 3100 - (now - lastAt);
+        const secs = Math.ceil(waitMs / 1000);
+        notificationManager.show(
+          `Please wait ${secs}s before sending another message.`,
+          "warning"
+        );
+        return;
+      }
+      this._lastSendAtBySpace[this.spaceId] = now;
+    } catch (e) {
+      logManager?.dev?.debug?.(
+        "[GroupDetailPage] send throttle failed",
+        e
+      );
+    }
+    try {
+      sendBtn.disabled = true;
+      await classSpacesService.sendMessage(this.spaceId, text);
+      input.value = "";
+    } catch (e) {
+      logManager?.system?.error?.("sendMessage failed", e);
+      notificationManager.show("Failed to send message", "error");
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
+  _handleMessageInputKeydown(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void this._handleSendMessageClick();
+    }
+  }
+
+  async _handleBackClick() {
+    try {
+      const { navigateTo } = await import("../app.js");
+      navigateTo("messages");
+    } catch (_) {
+      window.location.hash = "#messages";
+    }
+  }
+
+  _handleLeaveClick() {
+    this.showLeaveConfirmModal();
   }
 
   buildTitle(s) {
@@ -666,18 +778,26 @@ export class GroupDetailPage {
 
     document.body.appendChild(modal);
 
-    // Bind cancel button
-    modal.querySelector(".leave-confirm-cancel").addEventListener("click", () => {
-      modal.remove();
-    });
+    const cancelBtn = modal.querySelector(".leave-confirm-cancel");
+    const overlayEl = modal.querySelector(".leave-confirm-overlay");
+    const submitBtn = modal.querySelector(".leave-confirm-submit");
 
-    // Bind overlay click
-    modal.querySelector(".leave-confirm-overlay").addEventListener("click", () => {
-      modal.remove();
-    });
+    const cleanupModalListeners = () => {
+      try {
+        cancelBtn?.removeEventListener("click", handleCancel);
+        overlayEl?.removeEventListener("click", handleCancel);
+        submitBtn?.removeEventListener("click", handleSubmit);
+      } catch (err) {
+        logManager.dev.debug("DOM operation failed: removing modal listeners", err);
+      }
+    };
 
-    // Bind submit button
-    modal.querySelector(".leave-confirm-submit").addEventListener("click", async () => {
+    const handleCancel = () => {
+      cleanupModalListeners();
+      modal.remove();
+    };
+
+    const handleSubmit = async () => {
       const submitBtn = modal.querySelector(".leave-confirm-submit");
       submitBtn.disabled = true;
       submitBtn.textContent = "Leaving...";
@@ -713,6 +833,7 @@ export class GroupDetailPage {
         }
 
         await classSpacesService.leaveSpace(this.spaceId);
+        cleanupModalListeners();
         modal.remove();
         notificationManager.show("You have left the class space", "success");
 
@@ -732,7 +853,11 @@ export class GroupDetailPage {
         const errMsg = err?.message || err?.code || "Failed to leave class space";
         notificationManager.show(errMsg, "error");
       }
-    });
+    };
+
+    cancelBtn?.addEventListener("click", handleCancel);
+    overlayEl?.addEventListener("click", handleCancel);
+    submitBtn?.addEventListener("click", handleSubmit);
   }
 
   renderMessages(messagesEl, myUid) {
@@ -772,41 +897,76 @@ export class GroupDetailPage {
         )}</div>${reportBtn}</div></div>`;
       })
       .join("");
-
-    // Bind report buttons for messages
-    const reportBtns = messagesEl.querySelectorAll(".message-report-btn");
-    reportBtns.forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const msgId = btn.dataset.msgid;
-        if (!msgId) return;
-
-        const { ReportModal } = await import(
-          "../components/modals/ReportModal.js"
-        );
-        const modal = new ReportModal();
-        modal.show({
-          type: "message",
-          reportedId: msgId,
-          additionalData: { spaceId: this.spaceId },
-        });
-      });
-    });
   }
 
   destroy() {
     document.body.classList.remove("immersive-chat-mode");
     window.dispatchEvent(new Event("layoutChromeChange"));
+    const dom = this._dom;
+    if (dom?.membersList) {
+      dom.membersList.removeEventListener("click", this._handleMembersListClick);
+    }
+    if (dom?.messagesEl) {
+      dom.messagesEl.removeEventListener("click", this._handleMessagesClick);
+    }
+    if (dom?.tabChat) {
+      dom.tabChat.removeEventListener("click", this._handleTabChatClick);
+    }
+    if (dom?.tabMembers) {
+      dom.tabMembers.removeEventListener("click", this._handleTabMembersClick);
+    }
+    if (dom?.loadOlderBtn) {
+      dom.loadOlderBtn.removeEventListener(
+        "click",
+        this._handleLoadOlderMessagesClick
+      );
+    }
+    if (dom?.sendBtn) {
+      dom.sendBtn.removeEventListener("click", this._handleSendMessageClick);
+    }
+    if (dom?.input) {
+      dom.input.removeEventListener("keydown", this._handleMessageInputKeydown);
+    }
+    if (this._backBtn) {
+      this._backBtn.removeEventListener("click", this._handleBackClick);
+      try {
+        this._backBtn.remove();
+      } catch (err) {
+        logManager.dev.debug("DOM operation failed: removing back button", err);
+      }
+      this._backBtn = null;
+    }
+    if (this._leaveBtn) {
+      this._leaveBtn.removeEventListener("click", this._handleLeaveClick);
+      try {
+        this._leaveBtn.remove();
+      } catch (err) {
+        logManager.dev.debug("DOM operation failed: removing leave button", err);
+      }
+      this._leaveBtn = null;
+    }
     if (this.unsub) {
       this.unsub();
       this.unsub = null;
+    }
+    try {
+      const uid = currentUser?.uid;
+      if (uid) blockService.stopSync(uid);
+    } catch (err) {
+      logManager.dev.debug("blockService.stopSync failed", err);
     }
     // Reset state
     this.allMessages = [];
     this.lastDocs = [];
     this.hasMoreMessages = true;
     this.isLoadingMore = false;
+    this._initialRenderDone = false;
+    this.earliestDoc = null;
+    this._space = null;
+    this._memberInfo = null;
+    this._myUid = null;
+    this._myFriendIds = new Set();
+    this._dom = null;
   }
 }
 
@@ -821,7 +981,8 @@ function escapeHtml(str) {
 
 // Wire to SPA lifecycle
 let currentPageInstance = null;
-document.addEventListener("spa:page:unload", (e) => {
+
+function handleGroupDetailPageUnload(e) {
   // Only handle unload for our route
   const route = e?.detail?.route;
   if (route !== "group") return;
@@ -829,13 +990,16 @@ document.addEventListener("spa:page:unload", (e) => {
     currentPageInstance.destroy();
     currentPageInstance = null;
   }
-});
+}
 
-document.addEventListener("spa:page:load", async (event) => {
+async function handleGroupDetailPageLoad(event) {
   const route = event?.detail?.route;
   if (route !== "group") return;
   currentPageInstance = new GroupDetailPage();
   await currentPageInstance.mount();
-});
+}
+
+document.addEventListener("spa:page:unload", handleGroupDetailPageUnload);
+document.addEventListener("spa:page:load", handleGroupDetailPageLoad);
 
 export default GroupDetailPage;

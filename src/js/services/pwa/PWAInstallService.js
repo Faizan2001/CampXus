@@ -3,6 +3,7 @@
 
 import { currentUser } from "../../store/userStore.js";
 import { showModal } from "../../components/modals/Modal.js";
+import { logManager } from "../../utils/debug/LogManager.js";
 
 const STORAGE_KEYS = {
   androidAutoPromptShown: (uid) => `pwa:android:autoPromptShown:${uid || 'anon'}`,
@@ -34,13 +35,16 @@ function isStandalone() {
 function markInstalled() {
   try {
     localStorage.setItem(STORAGE_KEYS.appInstalled, "true");
-  } catch (_) {}
+  } catch (err) {
+    logManager.dev.debug("Storage access failed: mark installed", err);
+  }
 }
 
 function isMarkedInstalled() {
   try {
     return localStorage.getItem(STORAGE_KEYS.appInstalled) === "true";
-  } catch (_) {
+  } catch (err) {
+    logManager.dev.debug("Storage access failed: check installed", err);
     return false;
   }
 }
@@ -48,7 +52,8 @@ function isMarkedInstalled() {
 function getUidSafe() {
   try {
     return currentUser?.uid || null;
-  } catch (_) {
+  } catch (err) {
+    logManager.dev.debug("User store access failed: get UID", err);
     return null;
   }
 }
@@ -58,6 +63,14 @@ class PWAInstallService {
     this.deferredPrompt = null; // BeforeInstallPromptEvent
     this.initialized = false;
     this.buttonEl = null;
+
+    this._globalHooksAttached = false;
+    this._onBeforeInstallPrompt = null;
+    this._onAppInstalled = null;
+    this._onProfileSetupComplete = null;
+    this._onResize = null;
+    this._onButtonClick = null;
+    this._unsubUserStore = null;
   }
 
   // Attach listeners ASAP (module load) to catch the event and prevent auto-prompt
@@ -65,7 +78,7 @@ class PWAInstallService {
     if (this._globalHooksAttached) return;
     this._globalHooksAttached = true;
 
-    window.addEventListener("beforeinstallprompt", (e) => {
+    this._onBeforeInstallPrompt = (e) => {
       // Stop the auto mini-infobar; store for later
       e.preventDefault();
       this.deferredPrompt = e;
@@ -73,13 +86,16 @@ class PWAInstallService {
       this.updateInstallButtonVisibility();
       // If user already completed profile, auto-prompt once now
       this.maybeAutoPromptAfterProfile();
-    });
+    };
 
-    window.addEventListener("appinstalled", () => {
+    this._onAppInstalled = () => {
       markInstalled();
       this.deferredPrompt = null;
       this.updateInstallButtonVisibility();
-    });
+    };
+
+    window.addEventListener("beforeinstallprompt", this._onBeforeInstallPrompt);
+    window.addEventListener("appinstalled", this._onAppInstalled);
   }
 
   initialize() {
@@ -89,28 +105,89 @@ class PWAInstallService {
 
     this.buttonEl = document.getElementById("installPwaBtn");
     if (this.buttonEl) {
-      this.buttonEl.addEventListener("click", () => this.handleInstallClick());
+      this._onButtonClick = () => this.handleInstallClick();
+      this.buttonEl.addEventListener("click", this._onButtonClick);
     }
 
     // React to auth/profile changes to gate prompts and UI
     if (currentUser && typeof currentUser.subscribe === "function") {
-      currentUser.subscribe(() => {
+      this._unsubUserStore = currentUser.subscribe(() => {
         this.updateInstallButtonVisibility();
         this.maybeAutoPromptAfterProfile();
       });
     }
 
     // Also listen to explicit profile setup completion events
-    document.addEventListener("profile:setup:complete", () => {
+    this._onProfileSetupComplete = () => {
       // Delay slightly to let userStore update propagate
       setTimeout(() => this.maybeAutoPromptAfterProfile(), 200);
-    });
+    };
+    document.addEventListener(
+      "profile:setup:complete",
+      this._onProfileSetupComplete
+    );
 
     // Update when viewport changes (mobile-only button)
-    window.addEventListener("resize", () => this.updateInstallButtonVisibility());
+    this._onResize = () => this.updateInstallButtonVisibility();
+    window.addEventListener("resize", this._onResize);
 
     // Set initial state on load
     this.updateInstallButtonVisibility();
+  }
+
+  destroy() {
+    if (this.buttonEl && this._onButtonClick) {
+      try {
+        this.buttonEl.removeEventListener("click", this._onButtonClick);
+      } catch (error) { console.debug("Suppressed error", error); }
+    }
+    this._onButtonClick = null;
+    this.buttonEl = null;
+
+    if (this._unsubUserStore) {
+      try {
+        this._unsubUserStore();
+      } catch (error) { console.debug("Suppressed error", error); }
+    }
+    this._unsubUserStore = null;
+
+    if (this._onProfileSetupComplete) {
+      try {
+        document.removeEventListener(
+          "profile:setup:complete",
+          this._onProfileSetupComplete
+        );
+      } catch (error) { console.debug("Suppressed error", error); }
+    }
+    this._onProfileSetupComplete = null;
+
+    if (this._onResize) {
+      try {
+        window.removeEventListener("resize", this._onResize);
+      } catch (error) { console.debug("Suppressed error", error); }
+    }
+    this._onResize = null;
+
+    if (this._globalHooksAttached) {
+      try {
+        if (this._onBeforeInstallPrompt) {
+          window.removeEventListener(
+            "beforeinstallprompt",
+            this._onBeforeInstallPrompt
+          );
+        }
+      } catch (error) { console.debug("Suppressed error", error); }
+      try {
+        if (this._onAppInstalled) {
+          window.removeEventListener("appinstalled", this._onAppInstalled);
+        }
+      } catch (error) { console.debug("Suppressed error", error); }
+    }
+
+    this._onBeforeInstallPrompt = null;
+    this._onAppInstalled = null;
+    this._globalHooksAttached = false;
+    this.initialized = false;
   }
 
   isEligibleToShowButton() {
@@ -142,8 +219,8 @@ class PWAInstallService {
       try {
         this.deferredPrompt.prompt();
         await this.deferredPrompt.userChoice; // { outcome: 'accepted' | 'dismissed', platform: ... }
-      } catch (_) {
-        // ignore
+      } catch (err) {
+        logManager.dev.debug("PWA operation failed: install prompt", err);
       } finally {
         // Event can only be used once
         this.deferredPrompt = null;
@@ -165,7 +242,9 @@ class PWAInstallService {
       const alreadyShown = localStorage.getItem(key) === "true";
       if (!alreadyShown) {
         // Record immediately so we don't spam even if user cancels
-        try { localStorage.setItem(key, "true"); } catch (_) {}
+        try { localStorage.setItem(key, "true"); } catch (err) {
+          logManager.dev.debug("Storage access failed: set auto-prompt flag", err);
+        }
         if (this.deferredPrompt) {
           // Show an in-app modal with an Install button (user gesture) to trigger prompt
           this.offerAndroidInstallOnce();
@@ -251,8 +330,8 @@ class PWAInstallService {
           if (onCloseCb) onCloseCb();
         },
       });
-    } catch (_) {
-      // graceful no-op
+    } catch (err) {
+      logManager.dev.debug("PWA operation failed: iOS instructions modal", err);
     }
   }
 
@@ -275,7 +354,14 @@ pwaInstallService.attachGlobalEventHooks();
 
 // Developer console helpers for quick manual testing on desktop
 try {
-  if (typeof window !== "undefined") {
+  const __DEV__ =
+    typeof window !== "undefined" &&
+    (import.meta?.env?.DEV ||
+      (typeof process !== "undefined" &&
+        process.env &&
+        process.env.NODE_ENV === "development") ||
+      (window.ENV && window.ENV.ENVIRONMENT !== "production"));
+  if (__DEV__) {
     window.pwaTest = {
       // Show iOS-style modal regardless of platform
       ios: () => pwaInstallService.showIOSInstructions(),
@@ -302,12 +388,16 @@ try {
         try {
           localStorage.removeItem(STORAGE_KEYS.androidAutoPromptShown(uid));
           localStorage.removeItem(STORAGE_KEYS.iosModalShown(uid));
-        } catch (_) {}
+        } catch (err) {
+          logManager.dev.debug("Storage access failed: reset once flags", err);
+        }
       },
       // Mark installed flags for testing, and clear
       markInstalled: () => markInstalled(),
       clearInstalled: () => {
-        try { localStorage.removeItem(STORAGE_KEYS.appInstalled); } catch (_) {}
+        try { localStorage.removeItem(STORAGE_KEYS.appInstalled); } catch (err) {
+          logManager.dev.debug("Storage access failed: clear installed flag", err);
+        }
       },
       // Quick status
       status: () => ({
@@ -318,4 +408,6 @@ try {
       }),
     };
   }
-} catch (_) {}
+} catch (err) {
+  logManager.dev.debug("PWA operation failed: dev tools registration", err);
+}

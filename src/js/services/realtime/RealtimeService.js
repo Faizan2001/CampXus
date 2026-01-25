@@ -49,6 +49,8 @@
 import { dataManager } from "../data/DataService.js";
 import { currentUser } from "../../store/userStore.js";
 
+let routeHooked = false;
+
 /**
  * Debounce utility to prevent excessive updates on low-end devices
  * @param {Function} func - Function to debounce
@@ -112,8 +114,13 @@ class RealTimeManager {
             window.localStorage.getItem("meetchuthere:logProfile") || ""
           ).toLowerCase()
         : "";
+    const __DEV__ =
+      import.meta?.env?.DEV ||
+      (typeof process !== "undefined" &&
+        process.env &&
+        process.env.NODE_ENV === "development");
     this.debugMode =
-      process.env.NODE_ENV === "development" &&
+      __DEV__ &&
       (profile === "debug" || profile === "all");
 
     // Debounced emitters to reduce CPU usage on low-end devices (300ms delay)
@@ -122,9 +129,9 @@ class RealTimeManager {
     this.log("🎛️ RealTimeManager initialized");
 
     // Route-aware schedule listener management (pause schedule listener off home to reduce background churn)
-    if (typeof document !== "undefined" && !window.__realtimeRouteHooked) {
-      window.__realtimeRouteHooked = true;
-      document.addEventListener("spa:page:load", (e) => {
+    if (typeof document !== "undefined" && !routeHooked) {
+      routeHooked = true;
+      this._boundRouteHandler = (e) => {
         try {
           const route = e?.detail?.route;
           if (route && route !== "home") {
@@ -132,7 +139,9 @@ class RealTimeManager {
             if (sched) {
               try {
                 sched();
-              } catch (_) {}
+              } catch (err) {
+            logManager.dev.debug("Route change handling failed", err);
+          }
               this.activeListeners.delete("userSchedule");
               this.log("⏸️ Paused user schedule listener (off home page)");
             }
@@ -146,8 +155,9 @@ class RealTimeManager {
               this.log("▶️ Resumed user schedule listener (home page)");
             }
           }
-        } catch (_) {}
-      });
+        } catch (error) { console.debug("Suppressed error", error); }
+      };
+      document.addEventListener("spa:page:load", this._boundRouteHandler);
     }
   }
 
@@ -627,6 +637,17 @@ class RealTimeManager {
 
     // Stop all listeners
     this.stopListening();
+
+    // Remove route hook (prevents leaked document listener)
+    if (this._boundRouteHandler && typeof document !== "undefined") {
+      try {
+        document.removeEventListener("spa:page:load", this._boundRouteHandler);
+      } catch (err) {
+        logManager.dev.debug("Route handler cleanup failed", err);
+      }
+      this._boundRouteHandler = null;
+      routeHooked = false;
+    }
 
     // Clear all subscribers
     this.subscribers.clear();
@@ -1170,7 +1191,13 @@ class RealTimeManager {
 export const realTimeManager = new RealTimeManager();
 
 // Development helpers
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development"));
+if (__DEV__) {
   window.realTimeManager = realTimeManager;
   window.REALTIME_EVENTS = REALTIME_EVENTS;
 }

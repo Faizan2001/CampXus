@@ -9,12 +9,15 @@ import { getAvatarUrl } from "../../utils/avatar/avatarUtils.js";
 let menuDataManagerPromise = null;
 function getMenuDataManager() {
   if (!menuDataManagerPromise) {
-    menuDataManagerPromise = import("../../services/data/DataService.js")
-      .then((mod) => mod.dataManager)
-      .catch((error) => {
+    menuDataManagerPromise = (async () => {
+      try {
+        const mod = await import("../../services/data/DataService.js");
+        return mod.dataManager;
+      } catch (error) {
         console.warn("Menu: Failed to load DataService:", error);
         return null;
-      });
+      }
+    })();
   }
   return menuDataManagerPromise;
 }
@@ -33,7 +36,7 @@ const dbg = (...args) => {
   if (__DBG__) {
     try {
       console.log(...args);
-    } catch (_) {}
+    } catch (error) { dbg("debug logging failed", error?.message); }
   }
 };
 
@@ -61,6 +64,24 @@ let _activeRoute = null; // Used to suppress nav dots on active pages
 let clubsNotifUnsub = null;
 let activeClubsNotifUid = null;
 let _clubsHasAlert = false; // any unread club notifications
+
+// C6: store handler references / prevent duplicate global listeners
+let _menuDocClickCloseDropdown = null;
+let _menuProfileSetupCompleteHandler = null;
+let _menuProfileSetupSkipHandler = null;
+let _menuAvatarChangedHandler = null;
+let _menuAuthStateUnsub = null;
+let _menuAvatarWatchUnsub = null;
+let _menuMobileResizeHandler = null;
+let _menuMobileTouchEndHandler = null;
+let _menuMobileEscapeKeyHandler = null;
+let _menuIOSViewportResizeHandler = null;
+let _menuIOSViewportOrientationHandler = null;
+let _menuMobileNavRouteChangedHandler = null;
+let _menuMobileNavHashChangeHandler = null;
+let _menuMobileSheetEscapeHandler = null;
+let _menuMessagesRouteChangedHandler = null;
+let __mobileOptimizationsInitialized = false;
 
 // 🎯 CRITICAL FIX: Initialize immediately when module loads (for SPA compatibility)
 // Don't wait for DOMContentLoaded in SPA mode - initialize when script loads
@@ -113,7 +134,7 @@ function initializeInteractiveElements() {
   try {
     const hasFirebaseUser = !!authManager?.auth?.currentUser;
     document.body.classList.toggle("is-auth", hasFirebaseUser);
-  } catch (_) {}
+  } catch (error) { dbg("setting initial auth body class failed", error?.message); }
 
   dbg("✅ Menu system initialized successfully");
 }
@@ -203,7 +224,7 @@ function toggleDarkMode() {
     const lightColor = "#ffffff";
     const color = isDarkMode ? darkColor : lightColor;
     metas.forEach((m) => m.setAttribute("content", color));
-  } catch (_) {}
+  } catch (error) { dbg("updating theme-color meta tags failed", error?.message); }
 
   // Add smooth transition class
   body.classList.add("theme-transition");
@@ -310,33 +331,48 @@ function initializeUserMenu() {
   }
 
   // Toggle dropdown on click
-  userMenuTrigger.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    toggleUserDropdown();
-  });
+  if (userMenuTrigger.getAttribute("data-user-menu-bound") !== "true") {
+    const handleUserMenuTriggerClick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleUserDropdown();
+    };
+    userMenuTrigger.addEventListener("click", handleUserMenuTriggerClick);
+    userMenuTrigger.setAttribute("data-user-menu-bound", "true");
+  }
 
   // Close dropdown when clicking outside
-  document.addEventListener("click", (e) => {
-    if (!userMenu?.contains(e.target)) {
-      closeUserDropdown();
-    }
-  });
+  if (!_menuDocClickCloseDropdown) {
+    _menuDocClickCloseDropdown = (e) => {
+      const menu = document.getElementById("userMenu");
+      if (menu && !menu.contains(e.target)) {
+        closeUserDropdown();
+      }
+    };
+    document.addEventListener("click", _menuDocClickCloseDropdown);
+  }
 
   // Handle keyboard navigation
-  userMenuTrigger.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      toggleUserDropdown();
-    }
-    if (e.key === "Escape") {
-      closeUserDropdown();
-    }
-  });
+  if (userMenuTrigger.getAttribute("data-user-menu-keybound") !== "true") {
+    const handleUserMenuTriggerKeydown = (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleUserDropdown();
+      }
+      if (e.key === "Escape") {
+        closeUserDropdown();
+      }
+    };
+    userMenuTrigger.addEventListener("keydown", handleUserMenuTriggerKeydown);
+    userMenuTrigger.setAttribute("data-user-menu-keybound", "true");
+  }
 
   // Sign out button functionality
   if (signOutBtn) {
-    signOutBtn.addEventListener("click", handleSignOut);
+    if (signOutBtn.getAttribute("data-signout-bound") !== "true") {
+      signOutBtn.addEventListener("click", handleSignOut);
+      signOutBtn.setAttribute("data-signout-bound", "true");
+    }
   }
 
   // Add event listeners to all dropdown items to close dropdown when clicked
@@ -346,7 +382,9 @@ function initializeUserMenu() {
   // This is the new, single source of truth for the menu's auth state.
   if (currentUser && typeof currentUser.subscribe === "function") {
     dbg("📡 Subscribing to currentUser store for auth state changes...");
-    currentUser.subscribe(handleAuthStateChange);
+    if (!_menuAuthStateUnsub) {
+      _menuAuthStateUnsub = currentUser.subscribe(handleAuthStateChange);
+    }
   } else {
     console.error("❌ currentUser store not available or invalid!");
   }
@@ -540,7 +578,7 @@ async function handleSignOut() {
       // Set a one-time flag to skip lastActive update during this navigation
       try {
         sessionStorage.setItem("skipLastActiveOnce", "true");
-      } catch (_) {}
+      } catch (error) { dbg("setting sessionStorage flag failed", error?.message); }
       navigateTo("home");
     } else {
       console.error("AuthManager not available.");
@@ -606,7 +644,7 @@ function handleAuthStateChange({ isLoggedIn, profile }) {
   // Toggle a robust body class for auth-dependent styling (e.g., About button visibility)
   try {
     document.body.classList.toggle("is-auth", !!(isLoggedIn && profile));
-  } catch (_) {}
+  } catch (error) { dbg("toggling auth body class failed", error?.message); }
 }
 
 /**
@@ -742,7 +780,8 @@ function setupProfileCompletionListeners() {
   dbg("🎧 Setting up profile completion listeners...");
 
   // Listen for profile setup completion
-  document.addEventListener("profile:setup:complete", (event) => {
+  if (!_menuProfileSetupCompleteHandler) {
+    _menuProfileSetupCompleteHandler = (event) => {
     dbg("🎉 Profile setup completed, refreshing user data immediately...");
 
     const userData = event.detail.userData;
@@ -759,10 +798,16 @@ function setupProfileCompletionListeners() {
       // Force immediate update of user data in menu via currentUser store
       // The currentUser subscription will automatically update the menu
     }
-  });
+    };
+    document.addEventListener(
+      "profile:setup:complete",
+      _menuProfileSetupCompleteHandler
+    );
+  }
 
   // Listen for profile setup skip (also update data)
-  document.addEventListener("profile:setup:skip", (event) => {
+  if (!_menuProfileSetupSkipHandler) {
+    _menuProfileSetupSkipHandler = (event) => {
     console.log("⏭️ Profile setup skipped, refreshing user data...");
 
     const userData = event.detail.userData;
@@ -781,7 +826,9 @@ function setupProfileCompletionListeners() {
 
       // The currentUser subscription will automatically update the menu
     }
-  });
+    };
+    document.addEventListener("profile:setup:skip", _menuProfileSetupSkipHandler);
+  }
 }
 
 /**
@@ -792,7 +839,8 @@ function setupAvatarChangeListeners() {
   dbg("🎧 Setting up avatar change listeners...");
 
   // Listen for avatar changes from ProfileSetup
-  document.addEventListener("avatar:changed", (event) => {
+  if (!_menuAvatarChangedHandler) {
+    _menuAvatarChangedHandler = (event) => {
     console.log(
       "🎨 Avatar changed event received, clearing cache and refreshing..."
     );
@@ -811,14 +859,17 @@ function setupAvatarChangeListeners() {
     } else {
       console.warn("⚠️ No updated user data available for avatar refresh");
     }
-  });
+    };
+    document.addEventListener("avatar:changed", _menuAvatarChangedHandler);
+  }
 
   // Also listen for currentUser store changes and force avatar refresh
   // This ensures we catch any avatar updates regardless of how they occur
   let lastAvatarConfigString = null;
 
   if (currentUser && typeof currentUser.subscribe === "function") {
-    currentUser.subscribe(({ profile }) => {
+    if (!_menuAvatarWatchUnsub) {
+      _menuAvatarWatchUnsub = currentUser.subscribe(({ profile }) => {
       if (profile?.avatarConfig) {
         const currentAvatarConfigString = JSON.stringify(profile.avatarConfig);
 
@@ -837,7 +888,8 @@ function setupAvatarChangeListeners() {
 
         lastAvatarConfigString = currentAvatarConfigString;
       }
-    });
+      });
+    }
   }
 
   dbg("✅ Avatar change listeners set up successfully");
@@ -871,9 +923,12 @@ export function forceAvatarRefresh(userData = null) {
  * Handles orientation changes, viewport resizing, and touch interactions
  */
 function initializeMobileOptimizations() {
+  if (__mobileOptimizationsInitialized) return;
+  __mobileOptimizationsInitialized = true;
+
   // Handle orientation changes and window resizing
   let resizeTimeout;
-  window.addEventListener("resize", () => {
+  _menuMobileResizeHandler = () => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
       // Close any open dropdowns on orientation change
@@ -883,21 +938,19 @@ function initializeMobileOptimizations() {
       }
       // Avoid forcing body height to 100vh (causes iOS zoom/glitches)
     }, 250);
-  });
+  };
+  window.addEventListener("resize", _menuMobileResizeHandler);
 
   // Prevent zoom on double-tap for better UX
   let lastTouchEnd = 0;
-  document.addEventListener(
-    "touchend",
-    (e) => {
-      const now = new Date().getTime();
-      if (now - lastTouchEnd <= 300) {
-        e.preventDefault();
-      }
-      lastTouchEnd = now;
-    },
-    false
-  );
+  _menuMobileTouchEndHandler = (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) {
+      e.preventDefault();
+    }
+    lastTouchEnd = now;
+  };
+  document.addEventListener("touchend", _menuMobileTouchEndHandler, false);
 
   // Improve touch feedback for all interactive elements
   const touchElements = document.querySelectorAll(
@@ -927,12 +980,13 @@ function initializeMobileOptimizations() {
   });
 
   // Enhanced keyboard navigation for accessibility
-  document.addEventListener("keydown", (e) => {
+  _menuMobileEscapeKeyHandler = (e) => {
     if (e.key === "Escape") {
       // Close any open dropdowns
       closeUserDropdown();
     }
-  });
+  };
+  document.addEventListener("keydown", _menuMobileEscapeKeyHandler);
 
   // iOS Safari viewport fix: expose --vh variable without intrusive layout changes
   if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
@@ -943,10 +997,12 @@ function initializeMobileOptimizations() {
       );
     };
     updateViewport();
-    window.addEventListener("resize", updateViewport);
-    window.addEventListener("orientationchange", () => {
+    _menuIOSViewportResizeHandler = updateViewport;
+    _menuIOSViewportOrientationHandler = () => {
       setTimeout(updateViewport, 120);
-    });
+    };
+    window.addEventListener("resize", _menuIOSViewportResizeHandler);
+    window.addEventListener("orientationchange", _menuIOSViewportOrientationHandler);
   }
 
   // Initialize mobile bottom navigation
@@ -1012,7 +1068,7 @@ function initializeMobileBottomNav() {
     const first = focusables[0];
     const last = focusables[focusables.length - 1];
     first.focus();
-    root.onkeydown = (e) => {
+    const handleFocusTrapKeydown = (e) => {
       if (e.key !== "Tab") return;
       if (e.shiftKey && document.activeElement === first) {
         e.preventDefault();
@@ -1022,6 +1078,13 @@ function initializeMobileBottomNav() {
         first.focus();
       }
     };
+    try {
+      if (root.__focusTrapKeydownHandler) {
+        root.removeEventListener("keydown", root.__focusTrapKeydownHandler);
+      }
+      root.__focusTrapKeydownHandler = handleFocusTrapKeydown;
+      root.addEventListener("keydown", handleFocusTrapKeydown);
+    } catch (error) { console.debug("Suppressed error", error); }
   }
   // Swipe to dismiss
   let startY = null;
@@ -1035,9 +1098,10 @@ function initializeMobileBottomNav() {
     });
   }
   if (scrim) scrim.addEventListener("click", closeMobileSheet);
-  document.addEventListener("keydown", (e) => {
+  _menuMobileSheetEscapeHandler = (e) => {
     if (e.key === "Escape" && sheet && !sheet.hidden) closeMobileSheet();
-  });
+  };
+  document.addEventListener("keydown", _menuMobileSheetEscapeHandler);
   // Trigger click
   mobileProfileTrigger.addEventListener("click", (e) => {
     if (window.innerWidth <= 768) {
@@ -1193,6 +1257,9 @@ function updateMobileUserAvatar(userData) {
  * Updates active states when pages change
  */
 function setupMobileNavActiveStates() {
+  if (_menuMobileNavRouteChangedHandler || _menuMobileNavHashChangeHandler) {
+    return;
+  }
   // Update mobile nav active states on page change
   function updateMobileNavActiveStates(currentRoute) {
     const mobileNavItems = document.querySelectorAll(
@@ -1212,7 +1279,7 @@ function setupMobileNavActiveStates() {
   }
 
   // Listen for SPA navigation events
-  document.addEventListener("spa:route:changed", (event) => {
+  _menuMobileNavRouteChangedHandler = (event) => {
     const currentRoute = event.detail?.route || "home";
     updateMobileNavActiveStates(currentRoute);
     // Update aria-current attributes
@@ -1238,14 +1305,16 @@ function setupMobileNavActiveStates() {
         scrim.hidden = true;
       }
     }
-  });
+  };
+  document.addEventListener("spa:route:changed", _menuMobileNavRouteChangedHandler);
 
   // Also listen for hash changes as fallback
-  window.addEventListener("hashchange", () => {
+  _menuMobileNavHashChangeHandler = () => {
     const hash = window.location.hash.slice(1);
     const route = hash || "home";
     updateMobileNavActiveStates(route);
-  });
+  };
+  window.addEventListener("hashchange", _menuMobileNavHashChangeHandler);
 
   // Set initial active state based on current page
   const initialRoute = window.location.hash.slice(1) || "home";
@@ -1359,13 +1428,13 @@ function teardownNotificationsIndicator() {
   if (notificationsUnsub && typeof notificationsUnsub === "function") {
     try {
       notificationsUnsub();
-    } catch (_) {}
+    } catch (error) { dbg("unsubscribing notifications listener failed", error?.message); }
   }
   notificationsUnsub = null;
   if (friendReqUnsub && typeof friendReqUnsub === "function") {
     try {
       friendReqUnsub();
-    } catch (_) {}
+    } catch (error) { dbg("unsubscribing friend requests listener failed", error?.message); }
   }
   friendReqUnsub = null;
 }
@@ -1446,7 +1515,7 @@ function teardownClubsIndicator() {
   if (clubsNotifUnsub && typeof clubsNotifUnsub === "function") {
     try {
       clubsNotifUnsub();
-    } catch (_) {}
+    } catch (error) { dbg("unsubscribing clubs listener failed", error?.message); }
   }
   clubsNotifUnsub = null;
 }
@@ -1483,7 +1552,7 @@ function initializeMessagesEntry() {
         if (typeof currentUser?.isLoggedIn === "function") {
           btn.style.display = currentUser.isLoggedIn() ? "inline-flex" : "none";
         }
-      } catch (_) {}
+      } catch (error) { dbg("setting initial messages button visibility failed", error?.message); }
 
       btn.addEventListener("click", async (e) => {
         e.preventDefault();
@@ -1496,7 +1565,7 @@ function initializeMessagesEntry() {
           console.warn("⚠️ Failed to navigate to messages:", err);
           try {
             window.location.hash = "#messages";
-          } catch (_) {}
+          } catch (error) { dbg("hash fallback navigation failed", error?.message); }
         }
       });
     }
@@ -1534,11 +1603,15 @@ function initializeMessagesEntry() {
       const raw = String(window.location.hash || "").replace(/^#/, "");
       const initial = raw.split("?")[0] || null;
       setActiveRoute(initial);
-    } catch (_) {}
+    } catch (error) { dbg("getting initial route failed", error?.message); }
 
-    document.addEventListener("spa:route:changed", (e) => {
-      setActiveRoute(e?.detail?.route);
-    });
+    if (!_menuMessagesRouteChangedHandler) {
+      _menuMessagesRouteChangedHandler = (e) => setActiveRoute(e?.detail?.route);
+      document.addEventListener(
+        "spa:route:changed",
+        _menuMessagesRouteChangedHandler
+      );
+    }
   } catch (e) {
     console.warn("⚠️ Failed to initialize Messages entry:", e);
   }
@@ -1583,7 +1656,7 @@ async function setupMessagesIndicator(userId) {
       ) {
         await authManager.authReady.catch(() => {});
       }
-    } catch (_) {}
+    } catch (error) { dbg("awaiting authReady failed", error?.message); }
     if (currentUser?.uid !== requestedUid) return;
     const firebaseUser = authManager?.auth?.currentUser || null;
     const firebaseUid = firebaseUser?.uid || null;
@@ -1624,38 +1697,55 @@ async function setupMessagesIndicator(userId) {
         recalculateUnread();
       }
     };
+    // IMPORTANT: assign an unsub immediately so teardown works even if later steps throw
+    messagesSpacesUnsub = () => {
+      try {
+        document.removeEventListener("classspace:viewed", viewHandler);
+      } catch (error) {
+        dbg("removing classspace:viewed listener failed", error?.message);
+      }
+    };
+    messagesSpacesUnsub._viewHandler = viewHandler;
+
     document.addEventListener("classspace:viewed", viewHandler);
 
-    // Listen to user's class spaces
-    const spacesRef = collection(db, "classSpaces");
-    const q = query(spacesRef, where("memberIds", "array-contains", userId));
-
-    messagesSpacesUnsub = onSnapshot(
-      q,
-      (snapshot) => {
-        // Cache spaces for recalculation
-        _messagesSpacesCache = [];
-        snapshot.forEach((docSnap) => {
-          _messagesSpacesCache.push({ spaceId: docSnap.id, ...docSnap.data() });
-        });
+    // SECURITY (C15): /classSpaces list is disabled. Poll via DataService instead of onSnapshot query.
+    const { dataManager } = await import("../../services/data/DataService.js");
+    const refreshSpaces = async () => {
+      try {
+        const spaces = await dataManager.getUserClassSpaces();
+        _messagesSpacesCache = Array.isArray(spaces) ? spaces : [];
         recalculateUnread();
-      },
-      (error) => {
-        console.warn("⚠️ Messages unread listener error:", error);
-        // Stop retry spam if the client isn't allowed to read classSpaces
-        try {
-          if (error?.code === "permission-denied") {
-            setMessagesDot(false);
-            teardownMessagesIndicator();
-          }
-        } catch (_) {}
+      } catch (error) {
+        console.warn("⚠️ Messages unread polling error:", error);
       }
-    );
+    };
 
-    // Store view handler reference for cleanup
+    // Initial fetch + polling
+    await refreshSpaces();
+    const intervalId = setInterval(refreshSpaces, 30000);
+    // Extend existing unsub to include interval cleanup
+    const prevUnsub = messagesSpacesUnsub;
+    messagesSpacesUnsub = () => {
+      try {
+        if (typeof prevUnsub === "function") prevUnsub();
+      } catch (error) {
+        dbg("unsubscribing messages view handler failed", error?.message);
+      }
+      try {
+        clearInterval(intervalId);
+      } catch (error) {
+        dbg("clearing messages interval failed", error?.message);
+      }
+    };
+    messagesSpacesUnsub._intervalId = intervalId;
     messagesSpacesUnsub._viewHandler = viewHandler;
   } catch (e) {
     console.warn("⚠️ Failed to setup messages indicator:", e);
+    // Ensure we don't leak partially-initialized listeners/intervals
+    try {
+      teardownMessagesIndicator();
+    } catch (_) {}
   }
 }
 
@@ -1668,13 +1758,13 @@ function teardownMessagesIndicator() {
           "classspace:viewed",
           messagesSpacesUnsub._viewHandler
         );
-      } catch (_) {}
+      } catch (error) { dbg("removing classspace:viewed listener failed", error?.message); }
     }
     // Unsubscribe from Firestore
     if (typeof messagesSpacesUnsub === "function") {
       try {
         messagesSpacesUnsub();
-      } catch (_) {}
+      } catch (error) { dbg("unsubscribing messages listener failed", error?.message); }
     }
   }
   messagesSpacesUnsub = null;

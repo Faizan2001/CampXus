@@ -968,6 +968,12 @@ export const avatarManager = avatarManagerInstance;
 export { AvatarManager };
 
 // Only expose on window in development mode for debugging
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development"));
+if (__DEV__) {
   window.avatarManager = avatarManagerInstance;
 }

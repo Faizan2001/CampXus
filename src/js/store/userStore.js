@@ -26,6 +26,7 @@
  */
 
 import { profileCache } from "../cache/profileCache.js"; // hydration cache
+import { logManager } from "../utils/debug/LogManager.js";
 
 class CurrentUserManager {
   constructor() {
@@ -323,15 +324,18 @@ class CurrentUserManager {
       });
     }
     let timedOut = false;
-    return Promise.race([
-      this._uidPromise,
-      new Promise((resolve) =>
-        setTimeout(() => {
-          timedOut = true;
-          resolve(null);
-        }, timeoutMs)
-      ),
-    ]).then((val) => (timedOut ? null : val));
+    return (async () => {
+      const val = await Promise.race([
+        this._uidPromise,
+        new Promise((resolve) =>
+          setTimeout(() => {
+            timedOut = true;
+            resolve(null);
+          }, timeoutMs)
+        ),
+      ]);
+      return timedOut ? null : val;
+    })();
   }
 
   /**
@@ -477,7 +481,7 @@ class CurrentUserManager {
     if (clearCache) {
       try {
         profileCache.clear();
-      } catch (_) {}
+      } catch (err) { logManager.dev.debug("profileCache.clear() failed", err); }
     }
 
     // Notify subscribers of the reset state
@@ -486,8 +490,3 @@ class CurrentUserManager {
 }
 
 export const currentUser = new CurrentUserManager();
-
-// Only expose globally for development/debugging
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-  // Removed global window.currentUser exposure (import where needed)
-}

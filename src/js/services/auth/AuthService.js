@@ -21,12 +21,15 @@ import { logManager } from "../../utils/debug/LogManager.js";
 let authDataManagerPromise = null;
 function loadDataManagerForAuth() {
   if (!authDataManagerPromise) {
-    authDataManagerPromise = import("../data/DataService.js")
-      .then((mod) => mod.dataManager)
-      .catch((error) => {
+    authDataManagerPromise = (async () => {
+      try {
+        const mod = await import("../data/DataService.js");
+        return mod.dataManager;
+      } catch (error) {
         console.warn("AuthService: Failed to load DataService:", error);
         return null;
-      });
+      }
+    })();
   }
   return authDataManagerPromise;
 }
@@ -899,8 +902,8 @@ class AuthManager {
             if (scheduleStorageService?.cleanup) {
               scheduleStorageService.cleanup();
             }
-          } catch (_) {}
-        } catch (_) {}
+          } catch (err) { logManager.dev.debug("Auth operation failed: schedule service cleanup on logout", err); }
+        } catch (err) { logManager.dev.debug("Auth operation failed: clear local caches on logout", err); }
         currentUser.reset();
         this.notifyAuthStateChange(null);
       }
@@ -919,7 +922,7 @@ class AuthManager {
       if (prevUid) {
         try {
           localStorage.removeItem(`schedule_${prevUid}`);
-        } catch (_) {}
+        } catch (err) { logManager.dev.debug("Storage access failed: remove schedule on logout", err); }
       }
       const keysToRemove = [
         "campusLocationService_visited",
@@ -932,7 +935,7 @@ class AuthManager {
       keysToRemove.forEach((k) => {
         try {
           localStorage.removeItem(k);
-        } catch (_) {}
+        } catch (err) { logManager.dev.debug("Storage access failed: remove cache key on logout", err); }
       });
     } catch (e) {
       console.warn("⚠️ Failed clearing local caches on logout:", e);
@@ -980,13 +983,14 @@ class AuthManager {
   async handleDevCreationDisabled() {
     try {
       await signOut(auth);
-    } catch (_) {}
+    } catch (err) { logManager.dev.debug("Auth operation failed: sign out for disabled dev account", err); }
     try {
       notificationManager.showWarningNotification(
         "Dev account creation is disabled. Try again later.",
         { duration: 6000 }
       );
-    } catch (_) {
+    } catch (err) {
+      logManager.dev.debug("Auth operation failed: show dev disabled notification", err);
       console.warn("Notification failed");
     }
     this.showAuthModal();
@@ -1032,7 +1036,14 @@ class AuthManager {
   onAuthStateChanged(callback) {
     this.authStateListeners.push(callback);
     // If auth state is already known, call it immediately
-    this.authReady.then(() => callback(currentUser.user));
+    (async () => {
+      try {
+        await this.authReady;
+        callback(currentUser.user);
+      } catch (_) {
+        // ignore
+      }
+    })();
   }
 
   /**
@@ -1050,15 +1061,31 @@ class AuthManager {
   async handleSignOut() {
     try {
       // Stop friends listeners before signing out to prevent false notifications
-      if (window.friendsManager) {
-        console.log("🛑 Stopping friends listeners before sign out...");
-        window.friendsManager.stopRealTimeListening();
+      try {
+        const { friendsManager } = await import("../friends/FriendsService.js");
+        if (friendsManager) {
+          console.log("🛑 Stopping friends listeners before sign out...");
+          friendsManager.stopRealTimeListening();
+        }
+      } catch (error) {
+        logManager.dev.debug("AuthService: friendsManager unload failed", {
+          error: error?.message,
+        });
       }
 
       // Stop location tracking before signing out
-      if (window.campusLocationService) {
-        console.log("🌍 Stopping location tracking before sign out...");
-        window.campusLocationService.stopLocationTracking();
+      try {
+        const { campusLocationService } = await import(
+          "../location/CampusLocationService.js"
+        );
+        if (campusLocationService?.stopLocationTracking) {
+          console.log("🌍 Stopping location tracking before sign out...");
+          campusLocationService.stopLocationTracking();
+        }
+      } catch (error) {
+        logManager.dev.debug("AuthService: location tracking stop failed", {
+          error: error?.message,
+        });
       }
 
       // Set a flag to indicate this is an intentional logout
@@ -1147,7 +1174,7 @@ class AuthManager {
       // Ensure the intended tab is active when opening
       try {
         this.switchTab(defaultTab);
-      } catch (_) {}
+      } catch (err) { logManager.dev.debug("DOM operation failed: switch auth modal tab", err); }
     }
     document.body.style.overflow = "hidden";
   }
@@ -1435,7 +1462,7 @@ function showFormError(formId, message) {
     const handleOnce = () => {
       try {
         errorDiv.remove();
-      } catch (_) {}
+      } catch (err) { logManager.dev.debug("DOM operation failed: remove auth error div", err); }
       form.removeEventListener("input", handleOnce);
     };
     // Add as a normal listener and ensure removal after first run
@@ -1486,7 +1513,7 @@ function clearAllErrors() {
     .forEach((el) => {
       try {
         el.remove();
-      } catch (_) {}
+      } catch (err) { logManager.dev.debug("DOM operation failed: remove auth message", err); }
     });
   document.querySelectorAll(".form-input").forEach((el) => {
     el.classList.remove("error");
@@ -1504,8 +1531,8 @@ function dismissFormMessages(formId) {
   form.querySelectorAll(".error-message, .success-message").forEach((msg) => {
     try {
       msg.remove();
-    } catch (_) {
-      // no-op
+    } catch (err) {
+      logManager.dev.debug("DOM operation failed: dismiss form message", err);
     }
   });
 }
@@ -1560,17 +1587,3 @@ export const authManager = authManagerInstance;
 authManagerInstance.initialize().catch((error) => {
   console.error("❌ Failed to initialize AuthManager:", error);
 });
-
-// Example: How to use the simple callback system (much easier!)
-// authManager.setSigninSuccessCallback((data) => {
-//   console.log('User signed in:', data.user);
-//   if (data.isDevelopment) {
-//     console.log('This was a development email');
-//   }
-//   // Maybe redirect to dashboard or show welcome message
-// });
-//
-// authManager.setSigninErrorCallback((data) => {
-//   console.log('Sign in failed:', data.error.message);
-//   // Maybe show user-friendly error or send to analytics
-// });

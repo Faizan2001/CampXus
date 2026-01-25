@@ -412,7 +412,13 @@ export class LocationIntegration {
 export const locationIntegration = new LocationIntegration();
 
 // Debug commands for development
-if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development"));
+if (__DEV__) {
   window.locationIntegrationDebug = {
     getStats: (userId = null) => locationIntegration.getIntegrationStats(userId),
     getUserStats: (userId = null) => {
@@ -460,7 +466,7 @@ if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
 }
 
 // Global integration commands (available in development)
-if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1') || window.location.port)) {
+if (__DEV__) {
   window.locationSystemDebug = {
     getFullStats: (userId = null) => {
       const uid = userId || locationIntegration.getCurrentUserId();

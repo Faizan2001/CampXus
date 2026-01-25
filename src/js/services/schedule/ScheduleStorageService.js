@@ -32,6 +32,7 @@ import {
 import { currentUser } from "../../store/userStore.js";
 import { DEFAULT_TIMESLOTS } from "../../utils/constants.js";
 import { normalizeCourseForSave } from "../../utils/schedule/courseNormalization.js";
+import { logManager } from "../../utils/debug/LogManager.js";
 
 /**
  * Phase-1 Schedule Storage Service
@@ -61,12 +62,11 @@ export class ScheduleStorageService {
     this.lastError = null;
 
     try {
-      const revalidatePromise = this._loadFromFirestoreAndMaybeInitDefaults(
-        userId,
-      ).then((fresh) => {
+      const revalidatePromise = (async () => {
+        const fresh = await this._loadFromFirestoreAndMaybeInitDefaults(userId);
         if (fresh) this.cacheScheduleData(userId, fresh);
         return fresh;
-      });
+      })();
 
       if (mode === "cache-first") {
         const cached = this.getCachedScheduleData(userId);
@@ -577,17 +577,24 @@ export class ScheduleStorageService {
    * Setup online/offline detection and sync handling
    */
   setupOfflineDetection() {
-    // Track online status
-    window.addEventListener("online", () => {
-      console.log("🌐 Back online - syncing pending changes");
+    // Remove previous listeners if called multiple times (idempotent)
+    if (this._boundOnline) {
+      window.removeEventListener("online", this._boundOnline);
+      window.removeEventListener("offline", this._boundOffline);
+    }
+
+    // Named handlers for proper cleanup
+    this._boundOnline = () => {
       this.isOnline = true;
       this.syncPendingOperations();
-    });
+    };
 
-    window.addEventListener("offline", () => {
-      console.log("📱 Gone offline - queueing changes");
+    this._boundOffline = () => {
       this.isOnline = false;
-    });
+    };
+
+    window.addEventListener("online", this._boundOnline);
+    window.addEventListener("offline", this._boundOffline);
   }
 
   /**
@@ -642,6 +649,16 @@ export class ScheduleStorageService {
     if (this.realtimeListener) {
       this.realtimeListener();
       this.realtimeListener = null;
+    }
+
+    // Remove online/offline listeners if they were initialized
+    if (this._boundOnline) {
+      try {
+        window.removeEventListener("online", this._boundOnline);
+        window.removeEventListener("offline", this._boundOffline);
+      } catch (err) { logManager.dev.debug("Network listener cleanup failed", err); }
+      this._boundOnline = null;
+      this._boundOffline = null;
     }
 
     this.pendingSync.clear();

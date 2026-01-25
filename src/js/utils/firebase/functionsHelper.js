@@ -6,6 +6,7 @@
  */
 
 import app, { auth } from "../../lib/firebase/firebase-config.js";
+import { logManager } from "../debug/LogManager.js";
 
 // Track if emulator has been connected (only needs to happen once per session)
 let emulatorConnected = false;
@@ -30,7 +31,7 @@ async function waitForAuthUser(timeoutMs = 2000) {
       clearTimeout(timeout);
       try {
         unsub();
-      } catch (_) {}
+      } catch (err) { logManager.dev.debug("Listener unsub failed", err); }
       resolve(user || null);
     });
   });

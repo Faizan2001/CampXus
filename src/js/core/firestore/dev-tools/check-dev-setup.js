@@ -18,7 +18,7 @@ function checkEnvironmentSetup() {
   const checks = [];
 
   // Check .env.local file
-  const envPath = path.join(__dirname, "..", ".env.local");
+  const envPath = path.join(process.cwd(), ".env.local");
   if (fs.existsSync(envPath)) {
     checks.push({ name: ".env.local file", status: "✅", message: "Found" });
 
@@ -50,7 +50,7 @@ function checkEnvironmentSetup() {
   }
 
   // Check generated config
-  const configPath = path.join(__dirname, "firebase", "env-config.js");
+  const configPath = path.join(process.cwd(), "public", "env-config.js");
   if (fs.existsSync(configPath)) {
     checks.push({
       name: "Generated environment config",
@@ -66,7 +66,7 @@ function checkEnvironmentSetup() {
   }
 
   // Check package.json scripts
-  const packagePath = path.join(__dirname, "..", "package.json");
+  const packagePath = path.join(process.cwd(), "package.json");
   if (fs.existsSync(packagePath)) {
     const packageContent = JSON.parse(fs.readFileSync(packagePath, "utf8"));
     if (packageContent.scripts && packageContent.scripts["dev:config"]) {
@@ -85,12 +85,7 @@ function checkEnvironmentSetup() {
   }
 
   // Check Firebase dependencies
-  const nodeModulesPath = path.join(
-    __dirname,
-    "..",
-    "node_modules",
-    "firebase"
-  );
+  const nodeModulesPath = path.join(process.cwd(), "node_modules", "firebase");
   if (fs.existsSync(nodeModulesPath)) {
     checks.push({ name: "Firebase SDK", status: "✅", message: "Installed" });
   } else {

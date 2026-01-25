@@ -41,9 +41,17 @@ import "/src/css/pwa-skeleton.css"; // 📱 PWA skeleton loading states for inst
 import { logManager } from "./utils/debug/LogManager.js";
 import { profileCache } from "./cache/profileCache.js"; // 🚀 Hydration cache
 import { pwaInstallService } from "./services/pwa/PWAInstallService.js";
+import { timerRegistry } from "./utils/timers/TimerRegistry.js";
 
 // 🎯 DEBUG: Log that modules are imported
 logManager.dev.debug("SPA Init: All page-specific modules imported and ready");
+
+// M5: Track timers/intervals and clean up on SPA unload
+try {
+  timerRegistry.patchGlobals();
+} catch (_) {
+  // Non-fatal; timer tracking is best-effort
+}
 
 // 🔧 Logging profile: keep console clean by default, allow opt-in verbosity
 (() => {
@@ -62,7 +70,7 @@ logManager.dev.debug("SPA Init: All page-specific modules imported and ready");
         logManager.enableCategories(["all"]);
         logManager.dev.info("Debug profile: all logs enabled");
         // Lazy-load debug helpers when verbose profiles are enabled
-        import("./utils/dev/debugHelpers.js").catch(() => {});
+        import("./utils/dev/debugHelpers.js").catch((error) => { logManager.dev.debug("Module import failed", { error: error?.message }); });
         break;
       case "info":
         logManager.setLevel("info");
@@ -110,7 +118,24 @@ logManager.dev.debug("SPA Init: All page-specific modules imported and ready");
 // 🎯 NEW: Create module-level variables instead of window globals
 let spaRouter = null;
 // Ensure this is defined before any lazy starter calls to avoid TDZ
+let swUpdateIntervalId = null;
+let swReloadedOnce = false;
 let __presenceStarted = false;
+
+// C6: Store global listener references for cleanup/idempotency
+let __appListenersBound = false;
+let __onBeforeUnloadMarkManualReload = null;
+let __onThemeChangedSyncMeta = null;
+let __onVisibilityChangeSyncMeta = null;
+let __onPageShowSyncMeta = null;
+let __onProfileSetupComplete = null;
+let __onLocationSharingChanged = null;
+let __onSpaNavigation = null;
+let __onSpaRouteChanged = null;
+let __onWindowResizeUpdateChrome = null;
+let __onUnhandledRejection = null;
+let __onWindowError = null;
+let __onResourceErrorCapture = null;
 
 /**
  * Initialize the SPA when DOM is ready
@@ -137,7 +162,7 @@ async function initializeSPA() {
       const newHash = `#${routeFromPath}`;
       history.replaceState({}, "", `/${newHash}`);
     }
-  } catch (_) {}
+  } catch (error) { logManager.dev.debug("Route normalization failed", { error: error?.message }); }
 
   // Double-check that essential DOM elements exist
   const mainContent = document.querySelector(".main-content");
@@ -171,7 +196,7 @@ async function initializeSPA() {
   // Initialize PWA install gating and UI (Android prompt + iOS instructions)
   try {
     pwaInstallService.initialize();
-  } catch (_) {}
+  } catch (error) { logManager.dev.debug("PWA operation failed", { error: error?.message }); }
 
   // 🌍 Initialize Campus Presence services in background (NON-BLOCKING)
   // Defer Campus Presence services until auth is ready and user is logged in
@@ -186,7 +211,7 @@ async function initializeSPA() {
   const syncChrome = () => {
     try {
       spaRouter?.updateLayoutChromeState?.();
-    } catch (_) {}
+    } catch (error) { logManager.dev.debug("Layout sync failed", { error: error?.message }); }
   };
   syncChrome();
   window.addEventListener("resize", syncChrome);
@@ -232,7 +257,7 @@ async function initializeSPA() {
           if (window.location.hash === "#landing") {
             history.replaceState({}, "", "#home");
           }
-        } catch (_) {}
+        } catch (error) { logManager.dev.debug("Route normalization failed", { error: error?.message }); }
         // Extra safety: skip first overlay in case any early navigation
         // path still attempts to show the SPA loader.
         spaRouter._skipNextLoadingOverlay = true;
@@ -255,93 +280,93 @@ async function initializeSPA() {
         authTimeoutMs
       )
     );
-    Promise.race([authManager.authReady, authTimeout])
-      .then(() => {
+    (async () => {
+      try {
+        await Promise.race([authManager.authReady, authTimeout]);
+
         logManager.auth.login("Authentication ready (background)!");
         // Re-run hydration now that true auth user is known (will noop if already set)
         try {
           profileCache.tryHydrate(currentUser, authManager?.auth);
-        } catch (_) {}
+        } catch (error) { logManager.dev.debug("Cache operation failed", { error: error?.message }); }
         // If user is logged in, start Campus Presence services lazily now
         tryStartCampusPresenceAfterLogin();
 
         // Initialize push messaging after login
-        (async () => {
+        try {
+          const { pushMessagingService } = await import(
+            "./services/realtime/PushMessagingService.js"
+          );
+          await pushMessagingService.initAfterLogin();
+          await pushMessagingService.initAndMaybePrompt();
+
+          // Subtle reminder banner only for logged-in users and not on landing
           try {
-            const { pushMessagingService } = await import(
-              "./services/realtime/PushMessagingService.js"
+            const { notificationPermissionService } = await import(
+              "./services/realtime/NotificationPermissionService.js"
             );
-            await pushMessagingService.initAfterLogin();
-            await pushMessagingService.initAndMaybePrompt();
+            const { notificationManager } = await import(
+              "./services/realtime/NotificationService.js"
+            );
+            const isLoggedInNow =
+              currentUser.isLoggedIn() && !!authManager?.auth?.currentUser;
+            const isOnLanding =
+              typeof spaRouter !== "undefined" &&
+              spaRouter &&
+              spaRouter.currentPage === "landing";
 
-            // Subtle reminder banner only for logged-in users and not on landing
-            try {
-              const { notificationPermissionService } = await import(
-                "./services/realtime/NotificationPermissionService.js"
-              );
-              const { notificationManager } = await import(
-                "./services/realtime/NotificationService.js"
-              );
-              const state = notificationPermissionService.getState();
-              const isLoggedInNow =
-                currentUser.isLoggedIn() && !!authManager?.auth?.currentUser;
-              const isOnLanding =
-                typeof spaRouter !== "undefined" &&
-                spaRouter &&
-                spaRouter.currentPage === "landing";
+            if (!isLoggedInNow) {
+              // Only show to logged-in users
+              return;
+            }
 
-              if (!isLoggedInNow) {
-                // Only show to logged-in users
-                return;
+            const showPermissionNotice = () => {
+              const freshState = notificationPermissionService.getState();
+              if (freshState.actionable === "promptable") {
+                notificationManager.showInfoNotification(
+                  "Enable notifications to get instant alerts when friends share their campus location. Visit the Notifications page to enable.",
+                  { duration: 5000 }
+                );
+              } else if (freshState.actionable === "denied") {
+                notificationManager.showWarningNotification(
+                  "Notifications are blocked. Enable them in your browser/app settings to get alerts.",
+                  { duration: 6000 }
+                );
               }
+            };
 
-              const showPermissionNotice = () => {
-                const freshState = notificationPermissionService.getState();
-                if (freshState.actionable === "promptable") {
-                  notificationManager.showInfoNotification(
-                    "Enable notifications to get instant alerts when friends share their campus location. Visit the Notifications page to enable.",
-                    { duration: 5000 }
-                  );
-                } else if (freshState.actionable === "denied") {
-                  notificationManager.showWarningNotification(
-                    "Notifications are blocked. Enable them in your browser/app settings to get alerts.",
-                    { duration: 6000 }
-                  );
+            if (isOnLanding) {
+              // Defer showing until we leave landing page
+              const once = (event) => {
+                try {
+                  const route =
+                    event?.detail?.route ||
+                    (spaRouter && spaRouter.currentPage);
+                  if (route && route !== "landing") {
+                    document.removeEventListener("spa:route:changed", once);
+                    showPermissionNotice();
+                  }
+                } catch (error) {
+                  logManager.dev.debug("Route normalization failed", { error: error?.message });
+                  document.removeEventListener("spa:route:changed", once);
                 }
               };
+              document.addEventListener("spa:route:changed", once);
+              return;
+            }
 
-              if (isOnLanding) {
-                // Defer showing until we leave landing page
-                const once = (event) => {
-                  try {
-                    const route =
-                      event?.detail?.route ||
-                      (spaRouter && spaRouter.currentPage);
-                    if (route && route !== "landing") {
-                      document.removeEventListener("spa:route:changed", once);
-                      showPermissionNotice();
-                    }
-                  } catch (_) {
-                    document.removeEventListener("spa:route:changed", once);
-                  }
-                };
-                document.addEventListener("spa:route:changed", once);
-                return;
-              }
-
-              // Not on landing; show immediately if actionable
-              showPermissionNotice();
-            } catch (_) {}
-          } catch (e) {
-            logManager.system.warn("Push messaging init failed (non-fatal)", e);
-          }
-        })();
-      })
-      .catch((error) => {
+            // Not on landing; show immediately if actionable
+            showPermissionNotice();
+          } catch (error) { logManager.dev.debug("PWA operation failed", { error: error?.message }); }
+        } catch (e) {
+          logManager.system.warn("Push messaging init failed (non-fatal)", e);
+        }
+      } catch (error) {
         logManager.auth.warn(
           `Authentication timeout or error (background), continuing: ${error.message}`
         );
-      });
+      }
+    })();
   } else {
     logManager.auth.warn(
       "AuthManager or authReady promise not found. Proceeding without auth check."
@@ -360,18 +385,91 @@ async function initializeSPA() {
   // Listen for SPA navigation events
   setupSPAEventListeners();
 
-  // Detect manual reloads (used by initialization logic)
-  window.addEventListener("beforeunload", () => {
-    // Mark that a manual reload is happening
-    try {
-      if (
-        typeof window !== "undefined" &&
-        window.campusLocationService?.constructor?.markManualReload
-      ) {
-        window.campusLocationService.constructor.markManualReload();
+  // Global error capture for promise chains and async flows
+  if (!__onUnhandledRejection) {
+    __onUnhandledRejection = (event) => {
+      try {
+        const reason = event?.reason;
+        logManager.system.error("Unhandled promise rejection", {
+          message: reason?.message || String(reason),
+          stack: reason?.stack,
+        });
+      } catch (error) {
+        // If logging itself fails, avoid throwing from the handler
       }
-    } catch (_) {}
-  });
+    };
+    window.addEventListener("unhandledrejection", __onUnhandledRejection);
+  }
+
+  if (!__onWindowError) {
+    __onWindowError = (event) => {
+      try {
+        logManager.system.error("Uncaught error", {
+          message: event?.message,
+          filename: event?.filename,
+          lineno: event?.lineno,
+          colno: event?.colno,
+          stack: event?.error?.stack,
+        });
+      } catch (_) {
+        // Avoid throwing from the handler
+      }
+    };
+    window.addEventListener("error", __onWindowError);
+  }
+
+  // Capture resource load failures (e.g., failed <script type="module"> loads)
+  // so DevTools-only errors like "unsupported MIME type (text/html)" include the URL.
+  if (!__onResourceErrorCapture) {
+    __onResourceErrorCapture = (event) => {
+      try {
+        // Ignore regular JS runtime errors (handled by __onWindowError)
+        if (typeof ErrorEvent !== "undefined" && event instanceof ErrorEvent)
+          return;
+
+        const target = event?.target;
+        if (!target || target === window) return;
+
+        const tagName = target.tagName ? String(target.tagName).toUpperCase() : "";
+        if (!tagName) return;
+
+        const url =
+          target.src ||
+          target.href ||
+          target.currentSrc ||
+          target.getAttribute?.("src") ||
+          target.getAttribute?.("href");
+        if (!url) return;
+
+        // Only log common resource types to avoid noise
+        if (!["SCRIPT", "LINK", "IMG"].includes(tagName)) return;
+
+        logManager.system.warn("Resource failed to load", {
+          tag: tagName,
+          url,
+          rel: target.rel,
+          type: target.type,
+          as: target.as,
+        });
+      } catch (_) {
+        // Avoid throwing from the handler
+      }
+    };
+    window.addEventListener("error", __onResourceErrorCapture, true);
+  }
+
+  // Detect manual reloads (used by initialization logic)
+  if (!__onBeforeUnloadMarkManualReload) {
+    __onBeforeUnloadMarkManualReload = () => {
+      // Mark that a manual reload is happening
+      try {
+        sessionStorage.setItem("campusLocationService_reload", "true");
+      } catch (error) {
+        logManager.dev.debug("Cache operation failed", { error: error?.message });
+      }
+    };
+    window.addEventListener("beforeunload", __onBeforeUnloadMarkManualReload);
+  }
 
   logManager.system.init("SPA Initialization completed");
 
@@ -408,20 +506,25 @@ async function initializeSPA() {
   try {
     syncMetaThemeColorToNav();
     // Keep it in sync when theme toggles
-    window.addEventListener("themeChanged", () => {
-      syncMetaThemeColorToNav();
-    });
+    if (!__onThemeChangedSyncMeta) {
+      __onThemeChangedSyncMeta = () => syncMetaThemeColorToNav();
+      window.addEventListener("themeChanged", __onThemeChangedSyncMeta);
+    }
     // Re-sync when PWA is resumed from background (fixes status bar color mismatch)
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) {
-        syncMetaThemeColorToNav();
-      }
-    });
+    if (!__onVisibilityChangeSyncMeta) {
+      __onVisibilityChangeSyncMeta = () => {
+        if (!document.hidden) {
+          syncMetaThemeColorToNav();
+        }
+      };
+      document.addEventListener("visibilitychange", __onVisibilityChangeSyncMeta);
+    }
     // Also sync on page show (handles back/forward cache)
-    window.addEventListener("pageshow", () => {
-      syncMetaThemeColorToNav();
-    });
-  } catch (_) {}
+    if (!__onPageShowSyncMeta) {
+      __onPageShowSyncMeta = () => syncMetaThemeColorToNav();
+      window.addEventListener("pageshow", __onPageShowSyncMeta);
+    }
+  } catch (error) { logManager.dev.debug("Layout sync failed", { error: error?.message }); }
 
   // Register service worker (PWA install + offline shell)
   tryRegisterServiceWorker();
@@ -434,8 +537,8 @@ async function initializeSPA() {
       );
       installOnboardingDevTools();
     }
-  } catch (_) {
-    // Ignore failures in dev helpers
+  } catch (error) {
+    logManager.dev.debug("Module import failed", { error: error?.message });
   }
 
   // No debug gesture in production
@@ -460,7 +563,8 @@ if (document.readyState === "loading") {
  */
 function setupProfileCompletionFlow() {
   // Listen for profile setup completion
-  document.addEventListener("profile:setup:complete", async (event) => {
+  if (!__onProfileSetupComplete) {
+    __onProfileSetupComplete = async (event) => {
     logManager.auth.user(
       "Profile setup completed, refreshing user data and redirecting..."
     );
@@ -496,7 +600,9 @@ function setupProfileCompletionFlow() {
         );
       }
     }, 500); // Reduced to 0.5 second delay
-  });
+    };
+    document.addEventListener("profile:setup:complete", __onProfileSetupComplete);
+  }
 }
 
 function tryStartCampusPresenceAfterLogin(subscribe = false) {
@@ -557,9 +663,8 @@ function tryStartCampusPresenceAfterLogin(subscribe = false) {
 }
 
 // 🔐 NEW: Listen for global location sharing being enabled to start presence lazily
-document.addEventListener(
-  "location-sharing-changed",
-  (e) => {
+if (!__onLocationSharingChanged) {
+  __onLocationSharingChanged = (e) => {
     try {
       const detail = e.detail;
       if (!detail) return;
@@ -584,7 +689,9 @@ document.addEventListener(
             ) {
               campusLocationService.requestSingleLocationUpdate();
             }
-          } catch (_) {}
+          } catch (error) {
+            logManager.dev.debug("Module import failed", { error: error?.message });
+          }
         })();
       } else if (detail.type === "global" && detail.enabled === false) {
         // Optional: could log that presence will halt (actual stopping handled by toggle component)
@@ -594,18 +701,25 @@ document.addEventListener(
           );
         }
       }
-    } catch (_) {}
-  },
-  { passive: true }
-);
+    } catch (error) {
+      logManager.dev.debug("Route normalization failed", { error: error?.message });
+    }
+  };
+  document.addEventListener("location-sharing-changed", __onLocationSharingChanged, {
+    passive: true,
+  });
+}
 
 /**
  * Set up SPA-specific event listeners
  * 🎯 Learning: SPAs use events to communicate between different parts
  */
 function setupSPAEventListeners() {
+  if (__appListenersBound) return;
+  __appListenersBound = true;
+
   // Listen for navigation events to update UI
-  document.addEventListener("spa:navigation", (event) => {
+  __onSpaNavigation = (event) => {
     const { route } = event.detail;
 
     // Update document title for better UX
@@ -619,20 +733,23 @@ function setupSPAEventListeners() {
 
     // Update any global UI elements based on current page
     updateGlobalUIForPage(route);
-  });
+  };
+  document.addEventListener("spa:navigation", __onSpaNavigation);
 
   // Sync chrome state after navigation and on resize (affects bottom nav visibility)
-  document.addEventListener("spa:route:changed", () => {
+  __onSpaRouteChanged = () => {
     try {
       spaRouter?.updateLayoutChromeState?.();
-    } catch (_) {}
-  });
+    } catch (error) { logManager.dev.debug("Layout sync failed", { error: error?.message }); }
+  };
+  document.addEventListener("spa:route:changed", __onSpaRouteChanged);
 
-  window.addEventListener("resize", () => {
+  __onWindowResizeUpdateChrome = () => {
     try {
       spaRouter?.updateLayoutChromeState?.();
-    } catch (_) {}
-  });
+    } catch (error) { logManager.dev.debug("Layout sync failed", { error: error?.message }); }
+  };
+  window.addEventListener("resize", __onWindowResizeUpdateChrome);
 }
 
 /**
@@ -953,35 +1070,35 @@ function tryRegisterServiceWorker() {
   const isSecure =
     location.protocol === "https:" || location.hostname === "localhost";
   if (!isSecure) return;
-  navigator.serviceWorker
-    .register("/sw.js")
-    .then((reg) => {
+  (async () => {
+    try {
+      const reg = await navigator.serviceWorker.register("/sw.js");
       logManager.system.init("Service worker registered");
       // Proactively check for updates to avoid stale PWA code causing data issues
       try {
         reg.update();
-      } catch (_) {}
-      // Periodically re-check in the background
+      } catch (error) { logManager.dev.debug("PWA operation failed", { error: error?.message }); }
+      // Periodically re-check in the background (store ID for potential cleanup)
       try {
-        setInterval(() => {
+        swUpdateIntervalId = setInterval(() => {
           try {
             reg.update();
-          } catch (_) {}
+          } catch (error) { logManager.dev.debug("PWA operation failed", { error: error?.message }); }
         }, 15 * 60 * 1000);
-      } catch (_) {}
+      } catch (error) { logManager.dev.debug("PWA operation failed", { error: error?.message }); }
       // Optional: auto-reload when a new SW takes control (safe for SPA shell updates)
       try {
         navigator.serviceWorker.addEventListener("controllerchange", () => {
           // Prevent infinite reload loops
-          if (window.__swReloadedOnce) return;
-          window.__swReloadedOnce = true;
+          if (swReloadedOnce) return;
+          swReloadedOnce = true;
           try {
             window.location.reload();
-          } catch (_) {}
+          } catch (error) { logManager.dev.debug("PWA operation failed", { error: error?.message }); }
         });
-      } catch (_) {}
-    })
-    .catch((e) =>
-      logManager.system.warn("SW registration failed (non-fatal):", e)
-    );
+      } catch (error) { logManager.dev.debug("PWA operation failed", { error: error?.message }); }
+    } catch (e) {
+      logManager.system.warn("SW registration failed (non-fatal):", e);
+    }
+  })();
 }

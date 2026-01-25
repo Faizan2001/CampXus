@@ -2,6 +2,7 @@ import { initializeApp as initAdminApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
+import crypto from "crypto";
 import {
   onDocumentCreated,
   onDocumentUpdated,
@@ -3673,6 +3674,128 @@ function getTodayDateString() {
   return dhaka.toISOString().split("T")[0];
 }
 
+// =============================================================================
+// LIST CLASS SPACES (SECURITY: avoid client-side list on /classSpaces)
+// =============================================================================
+
+/**
+ * List active class space IDs for the signed-in user.
+ * Client then fetches each doc via getDoc (rules enforce membership).
+ */
+export const listMyClassSpaces = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be signed in");
+  }
+  const uid = request.auth.uid;
+  const snap = await db
+    .collection("classSpaces")
+    .where("memberIds", "array-contains", uid)
+    .where("active", "==", true)
+    .get();
+  return { spaceIds: snap.docs.map((d) => d.id) };
+});
+
+/**
+ * List left class spaces (still active) for the signed-in user.
+ * Returns minimal space summaries even though the user is no longer a member.
+ */
+export const listMyLeftClassSpaces = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be signed in");
+  }
+  const uid = request.auth.uid;
+  const userRef = db.collection("users").doc(uid);
+  const userSnap = await userRef.get();
+  if (!userSnap.exists) return { items: [] };
+
+  const userData = userSnap.data() || {};
+  const leftSpaces = userData.leftSpaces || {};
+  const spaceIds = Object.keys(leftSpaces);
+  if (spaceIds.length === 0) return { items: [] };
+
+  const today = getTodayDateString();
+
+  const items = [];
+  // Firestore getAll supports many refs, but keep chunks modest.
+  const chunkSize = 50;
+  for (let i = 0; i < spaceIds.length; i += chunkSize) {
+    const chunk = spaceIds.slice(i, i + chunkSize);
+    const refs = chunk.map((id) => db.collection("classSpaces").doc(id));
+    const snaps = await db.getAll(...refs);
+    for (const snap of snaps) {
+      if (!snap.exists) continue;
+      const spaceData = snap.data() || {};
+      if (spaceData.active !== true) continue;
+      if (spaceData.devTest === true) continue;
+
+      const memberIds = Array.isArray(spaceData.memberIds)
+        ? spaceData.memberIds
+        : [];
+      // If they rejoined, don't show it in Left Spaces
+      if (memberIds.includes(uid)) continue;
+
+      const leftInfo = leftSpaces[snap.id] || {};
+      const lastRejoinDate = leftInfo.lastRejoinDate || null;
+      const canRejoinToday = lastRejoinDate !== today;
+
+      items.push({
+        spaceId: snap.id,
+        canRejoinToday,
+        leftAtMs: leftInfo.leftAt?.toMillis?.() || null,
+        lastRejoinDate,
+        space: {
+          spaceId: snap.id,
+          university: spaceData.university || null,
+          courseName: spaceData.courseName || null,
+          courseCode: spaceData.courseCode || null,
+          section: spaceData.section || null,
+          dayPattern: spaceData.dayPattern || null,
+          timeSlot: spaceData.timeSlot || null,
+          timeStart: spaceData.timeStart || null,
+          timeEnd: spaceData.timeEnd || null,
+          classroom: spaceData.classroom || null,
+          active: spaceData.active === true,
+        },
+      });
+    }
+  }
+
+  // Sort by most recent leftAt first
+  items.sort((a, b) => (b.leftAtMs || 0) - (a.leftAtMs || 0));
+  return { items };
+});
+
+/**
+ * Dev-only helper: clear dev test class spaces owned by the caller.
+ * Used by Groups dev tools now that client-side list is disabled.
+ */
+export const clearMyDevClassSpaces = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be signed in");
+  }
+  const uid = request.auth.uid;
+  const snap = await db
+    .collection("classSpaces")
+    .where("devOwnerUid", "==", uid)
+    .where("devTest", "==", true)
+    .get();
+
+  const removed = [];
+  // Best-effort: delete docs (and messages) recursively when possible
+  for (const docSnap of snap.docs) {
+    try {
+      await deleteClassSpaceRecursive(docSnap.id);
+      removed.push(docSnap.id);
+    } catch (err) {
+      logger.warn("clearMyDevClassSpaces: failed to delete", {
+        spaceId: docSnap.id,
+        error: String(err),
+      });
+    }
+  }
+  return { removed };
+});
+
 /**
  * Leave a class space
  * - Removes user from space memberIds and memberInfo
@@ -3980,6 +4103,153 @@ export const triggerClassSpaceScheduler = https.onRequest(async (req, res) => {
 // =============================================================================
 // 🔐 Super Admin: Manual automation triggers (callable)
 // =============================================================================
+
+export const isSuperAdmin = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be logged in");
+  }
+  const uids = await getSuperAdminUids();
+  return { isSuperAdmin: uids.includes(request.auth.uid) };
+});
+
+export const verifyAdminPin = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const pinRaw = request.data?.pin;
+  const pin = String(pinRaw || "").trim();
+  if (!/^[0-9]{6}$/.test(pin)) {
+    throw new HttpsError("invalid-argument", "PIN must be a 6-digit string");
+  }
+
+  // Only super admins are allowed to verify an admin PIN.
+  const uids = await getSuperAdminUids();
+  if (!uids.includes(uid)) {
+    throw new HttpsError("permission-denied", "Not authorized");
+  }
+
+  const adminSnap = await db.doc("admin/superAdmins").get();
+  const adminData = adminSnap.exists ? adminSnap.data() || {} : {};
+
+  // Prefer salted hash if configured; fallback to legacy pinHash.
+  const legacyHash = adminData.pinHash ? String(adminData.pinHash) : null;
+  const pinSalt = adminData.pinSalt ? String(adminData.pinSalt) : null;
+  const saltedHash = adminData.pinSaltedHash
+    ? String(adminData.pinSaltedHash)
+    : null;
+
+  const computeHashHex = (pinValue) => {
+    if (pinSalt && saltedHash) {
+      return crypto
+        .createHash("sha256")
+        .update(`${pinSalt}:${pinValue}`)
+        .digest("hex");
+    }
+    return crypto.createHash("sha256").update(pinValue).digest("hex");
+  };
+
+  const storedHash = pinSalt && saltedHash ? saltedHash : legacyHash;
+  if (!storedHash) {
+    throw new HttpsError("failed-precondition", "Admin PIN is not configured");
+  }
+
+  const attemptsRef = db.collection("adminPinAttempts").doc(uid);
+  const maxAttempts = 5;
+  const lockDurationMs = 5 * 60 * 1000;
+
+  const nowMs = Date.now();
+  const result = await db.runTransaction(async (tx) => {
+    const attemptSnap = await tx.get(attemptsRef);
+    const attemptData = attemptSnap.exists ? attemptSnap.data() || {} : {};
+    const lockUntilMs = attemptData.lockUntilMs || 0;
+
+    if (lockUntilMs && lockUntilMs > nowMs) {
+      return { success: false, locked: true, lockUntilMs };
+    }
+
+    const computedHash = computeHashHex(pin);
+    let ok = false;
+    try {
+      const a = Buffer.from(computedHash, "hex");
+      const b = Buffer.from(String(storedHash), "hex");
+      ok = a.length === b.length && crypto.timingSafeEqual(a, b);
+    } catch (_) {
+      ok = false;
+    }
+
+    if (ok) {
+      tx.set(
+        attemptsRef,
+        {
+          attemptCount: 0,
+          lockUntilMs: 0,
+          updatedAt: FieldValue.serverTimestamp(),
+          lastSuccessAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+      return { success: true, locked: false, lockUntilMs: 0 };
+    }
+
+    const attemptCount = Number(attemptData.attemptCount || 0) + 1;
+    const shouldLock = attemptCount >= maxAttempts;
+    const nextLockUntilMs = shouldLock ? nowMs + lockDurationMs : 0;
+
+    tx.set(
+      attemptsRef,
+      {
+        attemptCount,
+        lockUntilMs: nextLockUntilMs,
+        updatedAt: FieldValue.serverTimestamp(),
+        lastAttemptAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    return {
+      success: false,
+      locked: shouldLock,
+      lockUntilMs: nextLockUntilMs,
+      remaining: Math.max(0, maxAttempts - attemptCount),
+    };
+  });
+
+  return result;
+});
+
+export const setAdminPin = onCall(async (request) => {
+  const { uid: callerUid } = await assertSuperAdminV2(request);
+  await enforceAdminRateLimit(callerUid, "setAdminPin", 10);
+
+  const pinRaw = request.data?.pin;
+  const pin = String(pinRaw || "").trim();
+  if (!/^[0-9]{6}$/.test(pin)) {
+    throw new HttpsError("invalid-argument", "PIN must be a 6-digit string");
+  }
+
+  const salt = crypto.randomBytes(16).toString("hex");
+  const saltedHash = crypto
+    .createHash("sha256")
+    .update(`${salt}:${pin}`)
+    .digest("hex");
+  const legacyHash = crypto.createHash("sha256").update(pin).digest("hex");
+
+  await db.doc("admin/superAdmins").set(
+    {
+      pinSalt: salt,
+      pinSaltedHash: saltedHash,
+      // Keep legacy field for backward compatibility (server-side only).
+      pinHash: legacyHash,
+      pinUpdatedAt: FieldValue.serverTimestamp(),
+      pinUpdatedBy: callerUid,
+    },
+    { merge: true }
+  );
+
+  return { success: true };
+});
 
 export const runAdminAutomationJob = onCall(async (request) => {
   const { uid: callerUid } = await assertSuperAdminV2(request);

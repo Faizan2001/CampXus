@@ -37,7 +37,9 @@ import { currentUser } from "../../store/userStore.js";
 import { authManager } from "../../services/auth/AuthService.js";
 import { AnalyticsService } from "../../services/analytics/AnalyticsService.js";
 import { notificationManager } from "../../services/realtime/NotificationService.js";
+import { logManager } from "../../utils/debug/LogManager.js";
 import { navigateTo } from "../../app.js"; // 🎯 NEW: Import navigateTo for SPA navigation
+import { escapeHTML } from "../../utils/security/sanitize.js";
 import {
   normalizeHandle,
   validateHandle,
@@ -98,11 +100,20 @@ import {
 class ProfileSetup {
   constructor() {
     // CRITICAL: Prevent multiple instances from being created
-    if (window.profileSetupInstance) {
+    if (profileSetupInstance) {
       console.warn(
         "⚠️ ProfileSetup instance already exists! Returning existing instance.",
       );
-      return window.profileSetupInstance;
+      return profileSetupInstance;
+    }
+
+    // Backwards-compatible: if an older build left a global, prefer it
+    if (typeof window !== "undefined" && window.profileSetupInstance) {
+      profileSetupInstance = window.profileSetupInstance;
+      console.warn(
+        "⚠️ ProfileSetup instance already exists (window). Returning existing instance.",
+      );
+      return profileSetupInstance;
     }
 
     this.currentStep = 0;
@@ -115,6 +126,7 @@ class ProfileSetup {
     this.existingProfileData = null; // Cache for existing profile data
     this.isInitialized = false; // Flag to prevent re-initialization
     this._lastAvatarEditClickAt = 0; // Track explicit avatar edit clicks
+    this._listenerCleanupFns = [];
 
     this.boundScheduleHelpKeyHandler = (event) => {
       if (event.key === "Escape") {
@@ -122,8 +134,11 @@ class ProfileSetup {
       }
     };
 
-    // Store this instance globally to prevent duplicates
-    window.profileSetupInstance = this;
+    // Store this instance as the singleton (window exposure is DEV-only)
+    profileSetupInstance = this;
+    if (__DEV__ && typeof window !== "undefined") {
+      window.profileSetupInstance = this;
+    }
 
     // Ensure handle field is present even if no profile data yet (first load / reload)
     setTimeout(() => {
@@ -133,7 +148,7 @@ class ProfileSetup {
     }, 0);
 
     // Listen for hydration so we can prefill handle from cache immediately
-    document.addEventListener("profile:hydrated", (e) => {
+    this._handleProfileHydrated = (e) => {
       // Only act if not fully initialized yet
       if (this.isInitialized) return;
       const cachedProfile = e.detail?.optimistic
@@ -144,9 +159,10 @@ class ProfileSetup {
         // Try to populate form fields (will no-op if DOM not ready yet)
         try {
           this.populateFormFields(cachedProfile);
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
       }
-    });
+    };
+    this._trackListener(document, "profile:hydrated", this._handleProfileHydrated);
 
     // If a profile was already hydrated BEFORE this page loaded, use it now
     if (!this.isInitialized && currentUser?.profile) {
@@ -155,7 +171,7 @@ class ProfileSetup {
       setTimeout(() => {
         try {
           this.populateFormFields(currentUser.profile);
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
       }, 0);
     }
 
@@ -511,14 +527,12 @@ class ProfileSetup {
               }, 60000);
               this.activeTimeouts?.add?.(cooldownInterval);
             }
-          } catch (_) {}
+          } catch (error) { console.debug("Suppressed error", error); }
         };
         setTimeout(updateCooldownUI, 50);
-        document.addEventListener(
-          "profile:hydrated",
-          () => updateCooldownUI(),
-          { once: true },
-        );
+        this._trackListener(document, "profile:hydrated", updateCooldownUI, {
+          once: true,
+        });
       }
       if (email) email.value = getProfileValue("email") || "";
 
@@ -549,7 +563,7 @@ class ProfileSetup {
             }
           });
         }
-      } catch (_) {}
+      } catch (error) { console.debug("Suppressed error", error); }
 
       // Load photo + useAvatar (photo-first by default for new users)
       try {
@@ -595,7 +609,7 @@ class ProfileSetup {
         this._swapPhotoAvatarUI();
         this._updateSwapButtonLabel();
         this._updatePhotoHelperText();
-      } catch (_) {} // Load interests
+      } catch (error) { console.debug("Suppressed error", error); } // Load interests
       try {
         const interests = Array.isArray(profile.interests)
           ? profile.interests
@@ -605,7 +619,7 @@ class ProfileSetup {
         );
         this.renderInterestsSelected();
         this.renderInterestsSuggestions();
-      } catch (_) {}
+      } catch (error) { console.debug("Suppressed error", error); }
 
       // Load social links
       try {
@@ -616,7 +630,7 @@ class ProfileSetup {
           (link) => link && link.type && link.url,
         );
         this.renderSocialLinks();
-      } catch (_) {}
+      } catch (error) { console.debug("Suppressed error", error); }
 
       // Handle avatar configuration
       const avatarSource = isNested ? profileData : profile;
@@ -799,12 +813,12 @@ class ProfileSetup {
             }, 60000); // update every minute
             this.activeTimeouts?.add?.(cooldownInterval);
           }
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
       };
 
       // Defer cooldown UI calculation slightly to allow existingProfileData hydration
       setTimeout(updateCooldownUI, 50);
-      document.addEventListener("profile:hydrated", () => updateCooldownUI(), {
+      this._trackListener(document, "profile:hydrated", updateCooldownUI, {
         once: true,
       });
       handleInput.addEventListener("input", () => {
@@ -2032,7 +2046,7 @@ class ProfileSetup {
         i.style.cssText = "font-size:48px;opacity:.6;";
         photoBox.appendChild(i);
       }
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
   }
 
   _updateSwapButtonLabel() {
@@ -3580,25 +3594,6 @@ class ProfileSetup {
     }
 
     // OCR upload disabled (beta): do not attach file upload listeners
-    // if (
-    //   scheduleUploadArea &&
-    //   !scheduleUploadArea.hasAttribute("data-listener-attached")
-    // ) {
-    //   scheduleUploadArea.addEventListener("click", () => {
-    //     if (scheduleImageInput) scheduleImageInput.click();
-    //   });
-    //   scheduleUploadArea.setAttribute("data-listener-attached", "true");
-    // }
-
-    // if (
-    //   scheduleImageInput &&
-    //   !scheduleImageInput.hasAttribute("data-listener-attached")
-    // ) {
-    //   scheduleImageInput.addEventListener("change", (e) =>
-    //     this.handleImageUpload(e)
-    //   );
-    //   scheduleImageInput.setAttribute("data-listener-attached", "true");
-    // }
 
     const scheduleHelpTrigger = document.getElementById(
       "schedule-help-trigger",
@@ -3655,7 +3650,11 @@ class ProfileSetup {
 
     onboardingService
       .markSeen("schedulePasteHelpSeen", { allowPending: true })
-      .catch(() => {});
+      .catch((error) => {
+        logManager?.dev?.debug?.("[ProfileSetup] markSeen failed", {
+          message: error?.message,
+        });
+      });
   }
 
   closeScheduleHelpOverlay() {
@@ -3720,7 +3719,7 @@ class ProfileSetup {
         row.type = "button";
         row.className = "typeahead-item";
         row.setAttribute("role", "option");
-        row.innerHTML = `<span class="typeahead-code">${m.code}</span><span class="typeahead-name">${m.name}</span>`;
+        row.innerHTML = `<span class="typeahead-code">${escapeHTML(m.code)}</span><span class="typeahead-name">${escapeHTML(m.name)}</span>`;
         row.addEventListener("click", () => {
           input.value = m.code; // Save only 3-letter code
           input.dataset.selected = m.code;
@@ -3747,27 +3746,26 @@ class ProfileSetup {
       );
     };
 
-    // Input events
-    input.addEventListener("input", () => {
+    const handleMajorInput = () => {
       const val = input.value;
       const matches = filter(val);
       render(matches);
-    });
-    input.addEventListener("focus", () => {
+    };
+
+    const handleMajorFocus = () => {
       const val = input.value;
       const matches = filter(val);
       render(matches);
-    });
-    // Close on outside click
-    document.addEventListener("click", (e) => {
+    };
+
+    const handleMajorOutsideClick = (e) => {
       if (!list.contains(e.target) && e.target !== input) {
         list.classList.remove("open");
         list.classList.remove("open-up");
       }
-    });
+    };
 
-    // Keyboard selection
-    input.addEventListener("keydown", (e) => {
+    const handleMajorKeydown = (e) => {
       if (e.key === "Enter") {
         // If typed code exactly matches a valid code, accept
         const code = input.value.trim().toUpperCase();
@@ -3779,7 +3777,12 @@ class ProfileSetup {
           this.validateCurrentStep();
         }
       }
-    });
+    };
+
+    this._trackListener(input, "input", handleMajorInput);
+    this._trackListener(input, "focus", handleMajorFocus);
+    this._trackListener(document, "click", handleMajorOutsideClick);
+    this._trackListener(input, "keydown", handleMajorKeydown);
   }
 
   /** Ensure a given code is one of the predefined majors */
@@ -3861,21 +3864,24 @@ class ProfileSetup {
       else list.classList.remove("open-up");
     };
 
-    display.addEventListener("click", toggle);
-    document.addEventListener("click", (e) => {
+    const handleYearDisplayClick = () => toggle();
+    const handleYearOutsideClick = (e) => {
       if (!wrapper.contains(e.target)) {
         list.classList.remove("open");
         list.classList.remove("open-up");
         display.setAttribute("aria-expanded", "false");
       }
-    });
+    };
 
-    // Keep in sync if template preselects a value
-    select.addEventListener("change", () => {
+    const handleYearSelectChange = () => {
       display.textContent =
         select.options[select.selectedIndex]?.text || "Select year";
       renderYears();
-    });
+    };
+
+    this._trackListener(display, "click", handleYearDisplayClick);
+    this._trackListener(document, "click", handleYearOutsideClick);
+    this._trackListener(select, "change", handleYearSelectChange);
   }
 
   /**
@@ -3955,7 +3961,7 @@ class ProfileSetup {
               previewDiv.scrollIntoView({ behavior: "smooth", block: "start" });
             }, 50);
           }
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
       } else {
         this.showScheduleError(`Failed to parse schedule: ${result.error}`);
       }
@@ -4411,25 +4417,33 @@ class ProfileSetup {
     img.setAttribute("aria-label", "User avatar preview");
 
     // If image fails to load, show fallback
-    img.onerror = () => {
-      if (didFinish) return;
-      didFinish = true;
-      previewContainer.innerHTML = "";
-      renderInitials();
-      // Network hiccup retry logic
-      if (this._avatarPreviewAttempts < MAX_RETRIES) {
-        this._avatarPreviewAttempts++;
-        setTimeout(() => this.updateAvatarPreview(), 1200);
-      }
-    };
+    img.addEventListener(
+      "error",
+      () => {
+        if (didFinish) return;
+        didFinish = true;
+        previewContainer.innerHTML = "";
+        renderInitials();
+        // Network hiccup retry logic
+        if (this._avatarPreviewAttempts < MAX_RETRIES) {
+          this._avatarPreviewAttempts++;
+          setTimeout(() => this.updateAvatarPreview(), 1200);
+        }
+      },
+      { once: true }
+    );
 
     // When image loads, replace spinner with image
-    img.onload = () => {
-      if (didFinish) return;
-      didFinish = true;
-      previewContainer.innerHTML = "";
-      previewContainer.appendChild(img);
-    };
+    img.addEventListener(
+      "load",
+      () => {
+        if (didFinish) return;
+        didFinish = true;
+        previewContainer.innerHTML = "";
+        previewContainer.appendChild(img);
+      },
+      { once: true }
+    );
 
     // Timeout fallback: if image doesn't load in 5 seconds, show initials
     setTimeout(() => {
@@ -4482,15 +4496,76 @@ class ProfileSetup {
     };
 
     // Re-apply avatar preview if we land directly on step 1 after hydration
-    document.addEventListener(
-      "profile:hydrated",
-      () => {
-        if (this.currentStep === 1) {
-          setTimeout(() => this.updateAvatarPreview(), 50);
-        }
-      },
-      { once: true },
-    );
+    const handleHydratedAvatarPreview = () => {
+      if (this.currentStep === 1) {
+        setTimeout(() => this.updateAvatarPreview(), 50);
+      }
+    };
+    this._trackListener(document, "profile:hydrated", handleHydratedAvatarPreview, {
+      once: true,
+    });
+  }
+
+  _trackListener(target, type, handler, options) {
+    if (!target?.addEventListener || !target?.removeEventListener) return;
+    target.addEventListener(type, handler, options);
+
+    const capture =
+      typeof options === "boolean"
+        ? options
+        : typeof options === "object" && options
+          ? !!options.capture
+          : false;
+
+    this._listenerCleanupFns.push(() => {
+      try {
+        target.removeEventListener(type, handler, capture);
+      } catch (error) { console.debug("Suppressed error", error); }
+    });
+  }
+
+  _cleanupTrackedListeners() {
+    const cleanupFns = Array.isArray(this._listenerCleanupFns)
+      ? this._listenerCleanupFns.splice(0)
+      : [];
+    cleanupFns.forEach((fn) => {
+      try {
+        fn();
+      } catch (error) { console.debug("Suppressed error", error); }
+    });
+  }
+
+  destroy() {
+    try {
+      this._cleanupTrackedListeners();
+    } catch (error) { console.debug("Suppressed error", error); }
+
+    // Safety: if schedule help overlay was open when navigating away
+    try {
+      document.removeEventListener("keydown", this.boundScheduleHelpKeyHandler);
+    } catch (error) { console.debug("Suppressed error", error); }
+
+    if (this.handleCooldownInterval) {
+      try {
+        clearInterval(this.handleCooldownInterval);
+      } catch (error) { console.debug("Suppressed error", error); }
+      this.handleCooldownInterval = null;
+    }
+
+    // Reset DOM references/state
+    this.dom = null;
+    this.isInitialized = false;
+    this.dataLoadInProgress = false;
+
+    // Clear singleton reference
+    try {
+      if (profileSetupInstance === this) {
+        profileSetupInstance = null;
+      }
+      if (__DEV__ && typeof window !== "undefined" && window.profileSetupInstance === this) {
+        delete window.profileSetupInstance;
+      }
+    } catch (error) { console.debug("Suppressed error", error); }
   }
 }
 
@@ -4499,6 +4574,14 @@ class ProfileSetup {
  *                        GLOBAL INITIALIZATION SYSTEM
  * =============================================================================
  */
+
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development") ||
+    (window.ENV && window.ENV.ENVIRONMENT !== "production"));
 
 // Global instance variable and initialization flag
 let profileSetupInstance = null;
@@ -4594,9 +4677,12 @@ function checkAuthenticationAndInitialize() {
  */
 function initializeProfileSetup() {
   console.log("🚀 [DEBUG] initializeProfileSetup triggered.");
-  if (!window.profileSetupInstance) {
+  if (!profileSetupInstance) {
     console.log("🚀 [DEBUG] No ProfileSetup instance found, creating one.");
-    window.profileSetupInstance = new ProfileSetup();
+    profileSetupInstance = new ProfileSetup();
+    if (__DEV__ && typeof window !== "undefined") {
+      window.profileSetupInstance = profileSetupInstance;
+    }
 
     // Attach critical UI listeners immediately so controls respond
     // even while waiting for user/profile hydration. Safe to call
@@ -4605,15 +4691,15 @@ function initializeProfileSetup() {
       // Defer to next frame to ensure template nodes exist
       requestAnimationFrame(() => {
         try {
-          window.profileSetupInstance.initSocialLinksUI();
-        } catch (_) {}
+          profileSetupInstance?.initSocialLinksUI?.();
+        } catch (error) { console.debug("Suppressed error", error); }
       });
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
   }
 
   // Trigger the initialization process.
   // This is now the official entry point.
-  window.profileSetupInstance.initializeWhenReady();
+  profileSetupInstance.initializeWhenReady();
 }
 
 /**
@@ -4634,16 +4720,22 @@ function retryAuthDetection() {
 // =============================================================================
 
 // 🎯 FIX #1: Listen for SPA navigation to profile page
-document.addEventListener("spa:navigation", (event) => {
+function handleProfileSpaNavigation(event) {
   if (event.detail.route === "profile") {
     console.log("🔄 Navigated to profile page via SPA...");
 
     // If profile setup instance doesn't exist, create it now
+    if (!profileSetupInstance && __DEV__ && typeof window !== "undefined") {
+      profileSetupInstance = window.profileSetupInstance || null;
+    }
     if (!profileSetupInstance) {
       console.log("🎯 Profile setup not initialized, creating instance...");
 
       // Add a small delay to ensure template is loaded
       setTimeout(() => {
+        if (!profileSetupInstance && __DEV__ && typeof window !== "undefined") {
+          profileSetupInstance = window.profileSetupInstance || null;
+        }
         if (!profileSetupInstance) {
           initializeProfileSetup();
         }
@@ -4692,10 +4784,11 @@ document.addEventListener("spa:navigation", (event) => {
       }, 100);
     }
   }
-});
+}
+document.addEventListener("spa:navigation", handleProfileSpaNavigation);
 
 // 🎯 NEW: Event listener for SPA page loads
-document.addEventListener("spa:page:load", (event) => {
+function handleProfileSpaPageLoad(event) {
   const { route } = event.detail;
   console.log(`[profile-setup.js] Received spa:page:load for route: ${route}`);
 
@@ -4704,27 +4797,39 @@ document.addEventListener("spa:page:load", (event) => {
     // The core initialization logic from the old DOMContentLoaded listener
     initializeProfileSetup();
   }
-});
+}
+document.addEventListener("spa:page:load", handleProfileSpaPageLoad);
 
 // Disable animations right before leaving the profile page to avoid visual pull
-document.addEventListener("spa:page:unload", (event) => {
+function handleProfileSpaPageUnload(event) {
   if (event.detail?.route === "profile") {
     ProfileSetup.disableExitAnimations();
+
+    try {
+      const inst =
+        profileSetupInstance ||
+        (__DEV__ && typeof window !== "undefined" ? window.profileSetupInstance : null);
+      inst?.destroy?.();
+    } catch (e) {
+      logManager?.dev?.debug?.("[ProfileSetup] destroy failed on unload", {
+        message: e?.message,
+      });
+    }
+
+    try {
+      if (__DEV__ && typeof window !== "undefined") {
+        delete window.profileSetupInstance;
+      }
+    } catch (error) { console.debug("Suppressed error", error); }
+    profileSetupInstance = null;
+    initializationInProgress = false;
   }
-});
+}
+document.addEventListener("spa:page:unload", handleProfileSpaPageUnload);
 
 // 🗑️ LEGACY: The traditional DOMContentLoaded listener is no longer needed for the SPA.
 // The logic has been moved into the `spa:page:load` event listener above to ensure
 // it runs every time the profile page is loaded via the router.
-// document.addEventListener("DOMContentLoaded", () => {
-//   if (document.readyState === "interactive" || document.readyState === "complete") {
-//     console.log("🚀 DOM fully loaded and parsed, initializing profile setup...");
-//     initializeProfileSetup();
-//   } else {
-//     console.log("📄 DOM still loading, waiting for DOMContentLoaded...");
-//   }
-// });
-
 /* ===============================================================================================
  * 🎓 LEARNING MOMENT: From DOMContentLoaded to SPA Events
  *

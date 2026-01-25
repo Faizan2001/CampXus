@@ -25,10 +25,11 @@ service cloud.firestore {
 	    // --- Class Spaces (dev testing + read access) ---
 	    // Reads: allow authenticated users (spaces are university-visible in app logic)
 	    // Writes: disable for clients except a narrow dev-testing path to create/clear spaces you own.
-	    match /classSpaces/{spaceId} {
-	      // List: allow queries where user filters by their own memberIds (array-contains constraint)
-	      // This enables the GroupsPage to query "all class spaces I'm a member of"
-	      allow list: if request.auth != null;
+		    match /classSpaces/{spaceId} {
+		      // SECURITY: Disallow client-side listing to prevent enumeration.
+		      // Clients must use a Cloud Function to discover their space IDs,
+		      // then read individual docs via `get` (which is membership-gated below).
+		      allow list: if false;
 	      
 	      // Get (single doc read): Only members may read class spaces (prevents cross-user enumeration)
 	      allow get: if request.auth != null &&
@@ -585,19 +586,17 @@ service cloud.firestore {
       allow read, update, delete: if false;
     }
 
-	    // --- Admin Collection (/admin) ---
-	    // Super admin configuration and SAF moderator management
-	    // Only super admins (UIDs listed in /admin/superAdmins) can read/write
-	    match /admin/{docId} {
-	      // The superAdmins doc itself is readable by any authenticated user so that
-	      // client-side code can evaluate super admin status safely. It should only
-	      // be written via console/Admin SDK, never by clients.
-	      allow read: if (docId == 'superAdmins' && request.auth != null) ||
-	                   (docId != 'superAdmins' && isSuperAdmin());
-	      
-	      // Super admins can write to other admin documents; superAdmins is console/Admin SDK only.
-	      allow create, update, delete: if isSuperAdmin() && docId != 'superAdmins';
-	    }
+		    // --- Admin Collection (/admin) ---
+		    // Super admin configuration and SAF moderator management
+		    // Only super admins (UIDs listed in /admin/superAdmins) can read/write
+		    match /admin/{docId} {
+		      // SECURITY (C7): Do not expose superAdmins doc (contains PIN hashes).
+		      // Client must use callable functions for admin role checks / PIN verification.
+		      allow read: if isSuperAdmin() && docId != 'superAdmins';
+		      
+		      // Super admins can write to other admin documents; superAdmins is console/Admin SDK only.
+		      allow create, update, delete: if isSuperAdmin() && docId != 'superAdmins';
+		    }
 
 	    // --- SAF Moderators (/safModerators) ---
 	    // SAF moderators can approve events for their university

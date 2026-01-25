@@ -62,28 +62,28 @@ function logInfo(msg, detail = {}) {
   try {
     if (logManager?.info) return logManager.info(msg, detail);
     if (logManager?.dev?.info) return logManager.dev.info(msg, detail);
-  } catch (_) {}
+  } catch (err) { logManager.dev.debug("logManager.info call failed", err); }
   try {
     console.log(msg, detail);
-  } catch (_) {}
+  } catch (err) { logManager.dev.debug("console.log fallback failed", err); }
 }
 function logWarn(msg, detail = {}) {
   try {
     if (logManager?.warn) return logManager.warn(msg, detail);
     if (logManager?.dev?.warn) return logManager.dev.warn(msg, detail);
-  } catch (_) {}
+  } catch (err) { logManager.dev.debug("logManager.warn call failed", err); }
   try {
     console.warn(msg, detail);
-  } catch (_) {}
+  } catch (err) { logManager.dev.debug("console.warn fallback failed", err); }
 }
 function logError(msg, detail = {}) {
   try {
     if (logManager?.error) return logManager.error(msg, detail);
     if (logManager?.dev?.error) return logManager.dev.error(msg, detail);
-  } catch (_) {}
+  } catch (err) { logManager.dev.debug("logManager.error call failed", err); }
   try {
     console.error(msg, detail);
-  } catch (_) {}
+  } catch (err) { logManager.dev.debug("console.error fallback failed", err); }
 }
 
 function isElementVisible(element) {
@@ -131,10 +131,10 @@ function getResponsiveCoachmarkWidth(preferred = 220, minimum = 180) {
 }
 
 // Ensure per-user onboarding: clear any local hint flags when account changes
-document.addEventListener("onboarding:user-switched", (e) => {
+function handleFriendsOnboardingUserSwitched(e) {
   try {
     hideAllCoachMarks();
-  } catch (_) {}
+  } catch (err) { logManager.dev.debug("hideAllCoachMarks failed", err); }
   try {
     // Reset local flags used to gate hint sequences
     const ui = friendsUI;
@@ -142,7 +142,7 @@ document.addEventListener("onboarding:user-switched", (e) => {
       ui.friendActionsHintShown = false;
       ui.friendActionsHintPrimed = false;
     }
-  } catch (_) {}
+  } catch (err) { logManager.dev.debug("UI flags reset failed", err); }
   try {
     // Remove any leftover glow classes so the next user doesn't see them
     const desktopLink = document.querySelector(
@@ -156,8 +156,10 @@ document.addEventListener("onboarding:user-switched", (e) => {
     document
       .querySelectorAll(".quick-access-star.onboarding-glow")
       ?.forEach((el) => el.classList.remove("onboarding-glow"));
-  } catch (_) {}
-});
+  } catch (err) { logManager.dev.debug("DOM operation failed: remove glow classes", err); }
+}
+
+document.addEventListener("onboarding:user-switched", handleFriendsOnboardingUserSwitched);
 
 function didUserAcknowledgeHint(reason) {
   return reason === "primary" || reason === "secondary";
@@ -168,10 +170,20 @@ const FRIENDS_HINT_MAX_ATTEMPTS = 8;
 // Serialize friends page hints to ensure only one coachmark is visible at a time
 let friendsHintQueue = Promise.resolve();
 function enqueueFriendHint(taskFn) {
-  friendsHintQueue = friendsHintQueue
-    .then(() => taskFn())
-    .catch(() => {})
-    .then(() => delay(120));
+  const previousQueue = friendsHintQueue;
+  friendsHintQueue = (async () => {
+    try {
+      await previousQueue;
+    } catch (_) {
+      // swallow to keep queue moving
+    }
+    try {
+      await taskFn();
+    } catch (_) {
+      // non-fatal for hint sequencing
+    }
+    await delay(120);
+  })();
   return friendsHintQueue;
 }
 
@@ -257,6 +269,11 @@ class FriendsUI {
     // 📬 Current friend requests data for accept/reject functionality
     this.currentFriendRequestsData = [];
 
+    // M6: Bound stored state to prevent unbounded growth on long sessions
+    this._maxFriendsState = 500;
+    this._maxFriendRequestsState = 500;
+    this._friendRequestsClickHandler = null;
+
     // 🔔 Notification debouncing
     this.lastFriendsNotificationTime = 0;
 
@@ -291,6 +308,11 @@ class FriendsUI {
     // Track last applied pending-UI state to avoid flicker
     this._pendingLocationUi = new Map(); // friendId -> boolean
 
+    // H5: Cache repeated Firestore lookups for incoming pending location requests
+    this._incomingPendingLocReqFromIdsCache = null; // Set<fromUserId>
+    this._incomingPendingLocReqFromIdsCacheAt = 0;
+    this._incomingPendingLocReqFromIdsInFlight = null;
+
     this.friendActionsHintShown = false;
     this.friendActionsHintPrimed = false;
 
@@ -309,6 +331,34 @@ class FriendsUI {
 
     // Prevent real-time sync from briefly undoing a user's star click on slow networks
     this._pendingQuickAccessToggles = new Map(); // friendId -> { desiredStarred, expiresAt }
+  }
+
+  _normalizeAndCapById(list, maxCount) {
+    const arr = Array.isArray(list) ? list : [];
+    const seen = new Set();
+    const out = [];
+    for (const item of arr) {
+      const id = item?.id;
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push(item);
+      if (out.length >= maxCount) break;
+    }
+    return out;
+  }
+
+  _setCurrentFriendsData(friends) {
+    this.currentFriendsData = this._normalizeAndCapById(
+      friends,
+      this._maxFriendsState
+    );
+  }
+
+  _setCurrentFriendRequestsData(requests) {
+    this.currentFriendRequestsData = this._normalizeAndCapById(
+      requests,
+      this._maxFriendRequestsState
+    );
   }
 
   /**
@@ -330,7 +380,7 @@ class FriendsUI {
       // Paint from cache immediately to avoid empty UI on slow devices
       try {
         await this.renderCachedFriendsIfAvailable();
-      } catch (_) {}
+      } catch (err) { logManager.dev.debug("renderCachedFriendsIfAvailable failed", err); }
 
       // 🎛️ Set up real-time integration
       this.setupRealTimeCallbacks();
@@ -495,7 +545,7 @@ class FriendsUI {
       if (this._outgoingLocReqUnsub) {
         try {
           this._outgoingLocReqUnsub();
-        } catch (_) {}
+        } catch (err) { logManager.dev.debug("Async op failed: unsubscribe outgoing location requests", err); }
       }
       this._outgoingLocReqUnsub = onSnapshot(
         q,
@@ -525,7 +575,7 @@ class FriendsUI {
               if (!shouldShowPending) {
                 try {
                   this.outgoingLocationRequestsMap?.set(friend.id, false);
-                } catch (_) {}
+                } catch (err) { logManager.dev.debug("Data processing error: update outgoing location map", err); }
               }
               this._applyPendingUiIfChanged(
                 friend.id,
@@ -533,7 +583,7 @@ class FriendsUI {
                 shouldShowPending
               );
             });
-          } catch (_) {}
+          } catch (err) { logManager.dev.debug("Data processing error: apply outgoing location UI updates", err); }
         },
         (err) =>
           console.warn("⚠️ Outgoing location-requests listener error", err)
@@ -582,7 +632,7 @@ class FriendsUI {
       if (this._incomingLocReqUnsub) {
         try {
           this._incomingLocReqUnsub();
-        } catch (_) {}
+        } catch (err) { logManager.dev.debug("Async op failed: unsubscribe incoming location requests", err); }
       }
       this._incomingLocReqUnsub = onSnapshot(
         q,
@@ -594,6 +644,16 @@ class FriendsUI {
             const senderId = data.fromUserId; // friend id
             if (senderId) this.incomingLocationRequestsMap.set(senderId, true);
           });
+
+          // Keep a cheap derived cache for one-off "did friend request?" checks
+          try {
+            const fromIds = new Set();
+            this.incomingLocationRequestsMap.forEach((v, k) => {
+              if (v === true) fromIds.add(k);
+            });
+            this._incomingPendingLocReqFromIdsCache = fromIds;
+            this._incomingPendingLocReqFromIdsCacheAt = Date.now();
+          } catch (error) { console.debug("Suppressed error", error); }
 
           // Update visible cards without full re-render
           try {
@@ -613,7 +673,7 @@ class FriendsUI {
               if (!shouldShowPending) {
                 try {
                   this.incomingLocationRequestsMap?.set(friend.id, false);
-                } catch (_) {}
+                } catch (err) { logManager.dev.debug("Data processing error: update incoming location map", err); }
               }
               this._applyPendingUiIfChanged(
                 friend.id,
@@ -621,7 +681,7 @@ class FriendsUI {
                 shouldShowPending
               );
             });
-          } catch (_) {}
+          } catch (err) { logManager.dev.debug("Data processing error: apply incoming location UI updates", err); }
         },
         (err) =>
           logWarn("⚠️ Incoming location-requests listener error", { err })
@@ -696,7 +756,7 @@ class FriendsUI {
           if (!shouldShowPending) {
             try {
               this.outgoingLocationRequestsMap?.set(friend.id, false);
-            } catch (_) {}
+            } catch (err) { logManager.dev.debug("Data processing error: update outgoing location map", err); }
           }
           this._applyPendingUiIfChanged(
             friend.id,
@@ -704,7 +764,7 @@ class FriendsUI {
             shouldShowPending
           );
         });
-      } catch (_) {}
+      } catch (err) { logManager.dev.debug("Data processing error: seed outgoing location UI updates", err); }
 
       logInfo("📌 Seeded pending outgoing location requests from Firestore", {
         count: newMap.size,
@@ -760,6 +820,15 @@ class FriendsUI {
       newMap.forEach((v, k) => this.incomingLocationRequestsMap.set(k, v));
 
       try {
+        const fromIds = new Set();
+        this.incomingLocationRequestsMap.forEach((v, k) => {
+          if (v === true) fromIds.add(k);
+        });
+        this._incomingPendingLocReqFromIdsCache = fromIds;
+        this._incomingPendingLocReqFromIdsCacheAt = Date.now();
+      } catch (error) { console.debug("Suppressed error", error); }
+
+      try {
         (this.currentFriendsData || []).forEach((friend) => {
           const vis = this.locationVisibilityState.get(friend.id) || {
             my: false,
@@ -775,7 +844,7 @@ class FriendsUI {
           if (!shouldShowPending) {
             try {
               this.incomingLocationRequestsMap?.set(friend.id, false);
-            } catch (_) {}
+            } catch (err) { logManager.dev.debug("Data processing error: update incoming location map", err); }
           }
           this._applyPendingUiIfChanged(
             friend.id,
@@ -783,7 +852,7 @@ class FriendsUI {
             shouldShowPending
           );
         });
-      } catch (_) {}
+      } catch (err) { logManager.dev.debug("Data processing error: seed incoming location UI updates", err); }
 
       logInfo("📌 Seeded pending INCOMING location requests from Firestore", {
         count: newMap.size,
@@ -793,6 +862,57 @@ class FriendsUI {
         error: e,
       });
     }
+  }
+
+  async _getIncomingPendingLocationRequestFromUserIds(myUid, ttlMs = 15000) {
+    if (!myUid) return new Set();
+
+    const now = Date.now();
+    if (
+      this._incomingPendingLocReqFromIdsCache &&
+      now - this._incomingPendingLocReqFromIdsCacheAt < ttlMs
+    ) {
+      return this._incomingPendingLocReqFromIdsCache;
+    }
+
+    if (this._incomingPendingLocReqFromIdsInFlight) {
+      return this._incomingPendingLocReqFromIdsInFlight;
+    }
+
+    this._incomingPendingLocReqFromIdsInFlight = (async () => {
+      try {
+        const { collection, query, where, getDocs } = await import(
+          "firebase/firestore"
+        );
+        const q = query(
+          collection(db, "notifications"),
+          where("userId", "==", myUid),
+          where("type", "==", "location_share_request"),
+          where("status", "==", "pending")
+        );
+        const snap = await getDocs(q);
+
+        const fromIds = new Set();
+        const now = Date.now();
+        snap.docs.forEach((d) => {
+          const data = d.data();
+          const exp = data.expiresAt?.toDate?.()?.getTime?.() || null;
+          if (exp && exp < now) return;
+          const senderId = data.fromUserId;
+          if (senderId) fromIds.add(senderId);
+        });
+
+        this._incomingPendingLocReqFromIdsCache = fromIds;
+        this._incomingPendingLocReqFromIdsCacheAt = Date.now();
+        return fromIds;
+      } catch (_) {
+        return new Set();
+      } finally {
+        this._incomingPendingLocReqFromIdsInFlight = null;
+      }
+    })();
+
+    return this._incomingPendingLocReqFromIdsInFlight;
   }
 
   /**
@@ -880,7 +1000,7 @@ class FriendsUI {
           if (this.isUpdatingPrivacy) {
             logInfo("🔒 Skipping friends list refresh during privacy update");
             // Still update lightweight UI bits that don't close drawers
-            this.currentFriendsData = friends;
+            this._setCurrentFriendsData(friends);
             this.updateSearchResultsButtons();
             this.filterSearchResultsForAcceptedRequests();
             return;
@@ -900,11 +1020,11 @@ class FriendsUI {
               this._lastFriendsIdsSig = idsSig;
             } else {
               // Patch lightweight UI bits only
-              this.currentFriendsData = friends;
+              this._setCurrentFriendsData(friends);
               try {
                 await this.updateAllQuickAccessStars(friends);
                 await this.updateAllFriendCardsBilateralPrivacy(friends);
-              } catch (_) {}
+              } catch (err) { logManager.dev.debug("Async op failed: update UI patches", err); }
             }
           } catch (_) {
             // Fallback to full render on any error
@@ -1467,7 +1587,7 @@ class FriendsUI {
             "click",
             this.boundHandlers.searchResultsClick
           );
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
         this._searchResultsListenerAttached = false;
       }
       // Remove show class for smooth animation
@@ -1482,9 +1602,6 @@ class FriendsUI {
     }
 
     // DON'T clear search input - let user keep their search term
-    // if (this.elements.searchInput) {
-    //   this.elements.searchInput.value = "";
-    // }
   }
 
   /**
@@ -1587,7 +1704,7 @@ class FriendsUI {
     if (!this.elements.friendsList) return;
 
     // Store friends data for unfriend functionality
-    this.currentFriendsData = friends;
+    this._setCurrentFriendsData(friends);
 
     if (friends.length === 0) {
       // Show empty state (it's already in the HTML)
@@ -1611,7 +1728,7 @@ class FriendsUI {
         .filter(Boolean)
         .sort()
         .join(";");
-    } catch (_) {}
+    } catch (err) { logManager.dev.debug("Data processing error: compute friends signature", err); }
 
     this._diffAndRenderFriends(friends);
 
@@ -1619,7 +1736,7 @@ class FriendsUI {
     try {
       const uid = currentUser?.state?.user?.uid;
       if (uid) uiCache.set(uiCache.keys.friendsList(uid), friends, 120_000);
-    } catch (_) {}
+    } catch (err) { logManager.dev.debug("Storage access failed: cache friends list", err); }
 
     // 🔗 Render friend options menus for each friend card with bilateral privacy
     await this.renderFriendOptionsMenus(friends);
@@ -1631,7 +1748,7 @@ class FriendsUI {
     // ASAP for both schedule and location buttons before realtime settles
     try {
       await this._fastPrefetchFriendshipStatesAndApply(friends);
-    } catch (_) {}
+    } catch (err) { logManager.dev.debug("Async op failed: prefetch friendship states", err); }
 
     // ⭐ Update Quick Access star states for all friend cards
     await this.updateAllQuickAccessStars(friends);
@@ -1642,7 +1759,7 @@ class FriendsUI {
       await this.updateAllFriendCardsBilateralPrivacy(friends);
       await this.setupFriendCardPrivacyListeners(friends);
       this.maybeShowFriendActionsHint(friends);
-    } catch (_) {}
+    } catch (err) { logManager.dev.debug("Async op failed: setup privacy listeners and hints", err); }
 
     // 🧭 Attach drawer toggle interactions (delegated once)
     this._ensureFriendActionDrawerHandlers();
@@ -1849,7 +1966,7 @@ class FriendsUI {
         this.scheduleVisibilityState.set(friendId, { my: !!mySched });
         if (!this.mutualStatus) this.mutualStatus = new Map();
         this.mutualStatus.set(friendId, !!mutualSched);
-      } catch (_) {}
+      } catch (err) { logManager.dev.debug("Data processing error: cache schedule visibility", err); }
 
       // Cache location
       const myLoc = loc[currentUserUid] === true;
@@ -1864,7 +1981,7 @@ class FriendsUI {
         if (!this.mutualLocationHandshake)
           this.mutualLocationHandshake = new Map();
         this.mutualLocationHandshake.set(friendId, !!handshake);
-      } catch (_) {}
+      } catch (err) { logManager.dev.debug("Data processing error: cache location visibility", err); }
     });
 
     // Apply DOM updates in a single pass
@@ -1972,7 +2089,7 @@ class FriendsUI {
         );
         try {
           if (hasActiveCoachMarks && hasActiveCoachMarks()) return;
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
         if (modalActive || coachmarkActive) return;
 
         const withinOpen = ev.target.closest?.(".friend-card.drawer-open");
@@ -2000,7 +2117,7 @@ class FriendsUI {
           );
           try {
             if (hasActiveCoachMarks && hasActiveCoachMarks()) return;
-          } catch (_) {}
+          } catch (error) { console.debug("Suppressed error", error); }
           if (modalActive || coachmarkActive) return;
 
           const openCard = document.querySelector(".friend-card.drawer-open");
@@ -2142,7 +2259,7 @@ class FriendsUI {
               mutualAllowed = !!isMutual;
               mySchedState = { my: vis[currentUserUid] === true };
             }
-          } catch (_) {}
+          } catch (error) { console.debug("Suppressed error", error); }
         }
 
         if (icon && hasMutualKnown) {
@@ -2199,7 +2316,7 @@ class FriendsUI {
             this.mutualLocationHandshake?.set(friendId, !!handshakeEnabled);
             hasVisKnown = true;
           }
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
       }
 
       // Source of truth: verify with Firestore notifications if local map says not pending
@@ -2221,30 +2338,22 @@ class FriendsUI {
               hasPending = true;
               try {
                 this.outgoingLocationRequestsMap?.set(friendId, true);
-              } catch (_) {}
+              } catch (error) { console.debug("Suppressed error", error); }
             }
             // Also check if friend has sent me a pending request (incoming)
             try {
-              const { collection, query, where, getDocs } = await import(
-                "firebase/firestore"
-              );
-              const q = query(
-                collection(db, "notifications"),
-                where("userId", "==", currentUserUid),
-                where("type", "==", "location_share_request"),
-                where("status", "==", "pending")
-              );
-              const snap = await getDocs(q);
-              const anyFromFriend = snap.docs.some(
-                (d) => d.data()?.fromUserId === friendId
-              );
+              const fromIds =
+                await this._getIncomingPendingLocationRequestFromUserIds(
+                  currentUserUid
+                );
+              const anyFromFriend = fromIds.has(friendId);
               if (anyFromFriend) {
                 hasPending = true;
                 this.incomingLocationRequestsMap?.set(friendId, true);
               }
-            } catch (_) {}
+            } catch (error) { console.debug("Suppressed error", error); }
           }
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
       }
 
       // If a pending request exists, show clock when either handshake isn’t yet enabled
@@ -2264,7 +2373,7 @@ class FriendsUI {
         // Clear local optimistic pending marker if no longer pending
         try {
           this.outgoingLocationRequestsMap?.set(friendId, false);
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
         const locBtn = document.querySelector(
           `.friend-actions-dropdown[data-friend-id="${friendId}"] .mutual-location-btn`
         );
@@ -2303,7 +2412,7 @@ class FriendsUI {
         // If we don't yet know handshake/visibility, still render pending clock to be safe
         this._applyPendingUiIfChanged(friendId, friendHandle, true);
       });
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
   }
 
   async maybeShowFriendActionsHint(friends) {
@@ -2544,7 +2653,7 @@ class FriendsUI {
         });
         this.toggleFriendActionsDrawer(firstFriendId, false);
       }
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
 
     // After the full sequence, encourage starring with a subtle glow on the first card's star
     try {
@@ -2558,7 +2667,7 @@ class FriendsUI {
         const removeGlow = () => firstStar.classList.remove("onboarding-glow");
         firstStar.addEventListener("click", removeGlow, { once: true });
       }
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
 
     onboardingService
       .markSeen("friendActionsHintSeen", { allowPending: true })
@@ -2596,7 +2705,7 @@ class FriendsUI {
         const handler = () => {
           try {
             target.classList.remove("onboarding-glow");
-          } catch (_) {}
+          } catch (error) { console.debug("Suppressed error", error); }
           sessionStorage.setItem(showHintKey, "1");
           sessionStorage.removeItem(glowKey);
           target.removeEventListener("click", handler);
@@ -2613,7 +2722,7 @@ class FriendsUI {
             if (sessionStorage.getItem(glowKey) === "1") {
               try {
                 target.classList.remove("onboarding-glow");
-              } catch (_) {}
+              } catch (error) { console.debug("Suppressed error", error); }
               sessionStorage.setItem(showHintKey, "1");
               sessionStorage.removeItem(glowKey);
             }
@@ -2623,7 +2732,7 @@ class FriendsUI {
         };
         document.addEventListener("spa:page:load", onSpaLoad, { once: true });
       }
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
   }
 
   /**
@@ -2645,7 +2754,7 @@ class FriendsUI {
     if (!this.elements.friendRequests) return;
 
     // Store friend requests data for accept/reject functionality
-    this.currentFriendRequestsData = requests;
+    this._setCurrentFriendRequestsData(requests);
 
     if (requests.length === 0) {
       // Show empty state (it's already in the HTML)
@@ -2698,8 +2807,17 @@ class FriendsUI {
 
     this.elements.friendRequests.innerHTML = requestsHTML;
 
-    // Use event delegation - single listener, no memory leaks
-    this.elements.friendRequests.addEventListener("click", async (e) => {
+    // Use event delegation - store/remove handler to avoid duplicates on re-render
+    if (this._friendRequestsClickHandler) {
+      try {
+        this.elements.friendRequests.removeEventListener(
+          "click",
+          this._friendRequestsClickHandler
+        );
+      } catch (error) { console.debug("Suppressed error", error); }
+    }
+
+    this._friendRequestsClickHandler = async (e) => {
       if (e.target.closest(".btn-accept-request")) {
         const button = e.target.closest(".btn-accept-request");
 
@@ -2725,7 +2843,11 @@ class FriendsUI {
           this.currentFriendRequestsData.find((r) => r.id === requestId)
         );
       }
-    });
+    };
+    this.elements.friendRequests.addEventListener(
+      "click",
+      this._friendRequestsClickHandler
+    );
   }
 
   /**
@@ -3473,7 +3595,7 @@ class FriendsUI {
             target.className || target.tagName
           );
         }
-      } catch (_) {}
+      } catch (error) { console.debug("Suppressed error", error); }
 
       // ⭐ Quick Access star button
       if (target.closest(".quick-access-star")) {
@@ -3579,7 +3701,7 @@ class FriendsUI {
                 ? "fas fa-calendar-check"
                 : "fas fa-calendar-times";
             }
-          } catch (_) {}
+          } catch (error) { console.debug("Suppressed error", error); }
           notificationManager.showSystemNotification(
             "Failed to update schedule privacy",
             "error",
@@ -3592,7 +3714,7 @@ class FriendsUI {
           }, 800);
           try {
             await this.refreshFriendActionsState(friendId);
-          } catch (_) {}
+          } catch (error) { console.debug("Suppressed error", error); }
         }
 
         e.stopPropagation();
@@ -3649,7 +3771,7 @@ class FriendsUI {
                   // Clear local pending markers and revert UI
                   try {
                     this.outgoingLocationRequestsMap?.set(friendId, false);
-                  } catch (_) {}
+                  } catch (error) { console.debug("Suppressed error", error); }
                   this._applyPendingUiIfChanged(friendId, friend.handle, false);
                   btn.classList.remove("mine-visible");
                   btn.classList.add("mine-hidden");
@@ -3657,7 +3779,7 @@ class FriendsUI {
                 // Optimistically mark as pending in local maps and UI
                 try {
                   this.outgoingLocationRequestsMap?.set(friendId, true);
-                } catch (_) {}
+                } catch (error) { console.debug("Suppressed error", error); }
                 this._applyPendingUiIfChanged(friendId, friend.handle, true);
                 btn.classList.add("mine-visible");
                 btn.classList.remove("mine-hidden");
@@ -3697,7 +3819,7 @@ class FriendsUI {
                   // Refresh only this friend's actions and release gating shortly after
                   try {
                     await this.refreshFriendActionsState(friendId);
-                  } catch (_) {}
+                  } catch (error) { console.debug("Suppressed error", error); }
                   setTimeout(() => {
                     this.isUpdatingPrivacy = false;
                   }, 800);
@@ -3776,7 +3898,7 @@ class FriendsUI {
           btn.classList.remove("loading");
           try {
             await this.refreshFriendActionsState(friendId);
-          } catch (_) {}
+          } catch (error) { console.debug("Suppressed error", error); }
           // Release gating shortly after to let realtime updates settle without re-rendering
           setTimeout(() => {
             this.isUpdatingPrivacy = false;
@@ -3893,13 +4015,13 @@ class FriendsUI {
       if (this.friendshipPrivacyObserver) {
         try {
           this.friendshipPrivacyObserver.disconnect();
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
       }
       // Detach all existing listeners
       this.friendshipPrivacyUnsubscribers.forEach((unsub) => {
         try {
           if (typeof unsub === "function") unsub();
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
       });
       this.friendshipPrivacyUnsubscribers.clear();
 
@@ -3969,32 +4091,24 @@ class FriendsUI {
                     hasPending = true;
                     try {
                       this.outgoingLocationRequestsMap?.set(friendId, true);
-                    } catch (_) {}
+                    } catch (error) { console.debug("Suppressed error", error); }
                   }
-                } catch (_) {}
+                } catch (error) { console.debug("Suppressed error", error); }
                 if (!hasPending) {
                   try {
-                    const { collection, query, where, getDocs } = await import(
-                      "firebase/firestore"
-                    );
-                    const q = query(
-                      collection(db, "notifications"),
-                      where("userId", "==", currentUserUid),
-                      where("type", "==", "location_share_request"),
-                      where("status", "==", "pending")
-                    );
-                    const snap = await getDocs(q);
-                    const anyFromFriend = snap.docs.some(
-                      (d) => d.data()?.fromUserId === friendId
-                    );
+                    const fromIds =
+                      await this._getIncomingPendingLocationRequestFromUserIds(
+                        currentUserUid
+                      );
+                    const anyFromFriend = fromIds.has(friendId);
                     if (anyFromFriend) {
                       incomingPending = true;
                       hasPending = true;
                       try {
                         this.incomingLocationRequestsMap?.set(friendId, true);
-                      } catch (_) {}
+                      } catch (error) { console.debug("Suppressed error", error); }
                     }
-                  } catch (_) {}
+                  } catch (error) { console.debug("Suppressed error", error); }
                 }
                 // Re-apply after verification
                 const verifiedShouldShowPending =
@@ -4029,7 +4143,7 @@ class FriendsUI {
               try {
                 this.outgoingLocationRequestsMap?.set(friendId, false);
                 this.incomingLocationRequestsMap?.set(friendId, false);
-              } catch (_) {}
+              } catch (error) { console.debug("Suppressed error", error); }
               const locBtn = document.querySelector(
                 `.friend-actions-dropdown[data-friend-id="${friendId}"] .mutual-location-btn`
               );
@@ -4054,7 +4168,7 @@ class FriendsUI {
         if (unsub) {
           try {
             unsub();
-          } catch (_) {}
+          } catch (error) { console.debug("Suppressed error", error); }
           this.friendshipPrivacyUnsubscribers.delete(friendId);
         }
       };
@@ -4112,7 +4226,7 @@ class FriendsUI {
       try {
         const before = await friendsManager.getQuickAccessFriends(true);
         quickAccessBefore = Array.isArray(before) ? before.length : 0;
-      } catch (_) {}
+      } catch (error) { console.debug("Suppressed error", error); }
 
       // Find the friend's information from the current friends list
       const friend = this.currentFriendsData.find((f) => f.id === friendId);
@@ -4179,9 +4293,9 @@ class FriendsUI {
         );
 
         // Best-effort reconcile: if the DOM was stale, refresh just this star from cached truth
-        friendsManager
-          .isInQuickAccess(friendId)
-          .then((actualStarred) => {
+        void (async () => {
+          try {
+            const actualStarred = await friendsManager.isInQuickAccess(friendId);
             if (!starButton?.isConnected) return;
             this.updateStarButtonState(starButton, actualStarred);
             this._optimisticallyUpdateQuickAccessCaches(
@@ -4189,8 +4303,10 @@ class FriendsUI {
               friend,
               actualStarred
             );
-          })
-          .catch(() => {});
+          } catch (_) {
+            // non-blocking best-effort reconcile
+          }
+        })();
       } else {
         const finalStarred =
           typeof result.isStarred === "boolean" ? result.isStarred : uiNextStarred;
@@ -4726,34 +4842,26 @@ class FriendsUI {
             outgoingPending = true;
             try {
               this.outgoingLocationRequestsMap?.set(friendId, true);
-            } catch (_) {}
+            } catch (error) { console.debug("Suppressed error", error); }
           }
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
 
         // Also verify pending requests sent BY friend TO me (incoming)
         if (!hasPending) {
           try {
-            const { collection, query, where, getDocs } = await import(
-              "firebase/firestore"
-            );
-            const q = query(
-              collection(db, "notifications"),
-              where("userId", "==", currentUserUid),
-              where("type", "==", "location_share_request"),
-              where("status", "==", "pending")
-            );
-            const snap = await getDocs(q);
-            const anyFromFriend = snap.docs.some(
-              (d) => d.data()?.fromUserId === friendId
-            );
+            const fromIds =
+              await this._getIncomingPendingLocationRequestFromUserIds(
+                currentUserUid
+              );
+            const anyFromFriend = fromIds.has(friendId);
             if (anyFromFriend) {
               hasPending = true;
               incomingPending = true;
               try {
                 this.incomingLocationRequestsMap?.set(friendId, true);
-              } catch (_) {}
+              } catch (error) { console.debug("Suppressed error", error); }
             }
-          } catch (_) {}
+          } catch (error) { console.debug("Suppressed error", error); }
         }
       }
 
@@ -5136,7 +5244,7 @@ class FriendsUI {
             this._delegatedClickBound
           );
         }
-      } catch (_) {}
+      } catch (error) { console.debug("Suppressed error", error); }
       this._delegatedClickBound = null;
 
       // Remove stored chevron toggle handler if attached
@@ -5147,7 +5255,7 @@ class FriendsUI {
             this._onDrawerToggleClick
           );
         }
-      } catch (_) {}
+      } catch (error) { console.debug("Suppressed error", error); }
       this._onDrawerToggleClick = null;
 
       // Clean up Quick Access unsubscriber
@@ -5197,14 +5305,14 @@ class FriendsUI {
       if (this._outgoingLocReqUnsub) {
         try {
           this._outgoingLocReqUnsub();
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
         this._outgoingLocReqUnsub = null;
       }
       // Clean up incoming location-requests listener
       if (this._incomingLocReqUnsub) {
         try {
           this._incomingLocReqUnsub();
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
         this._incomingLocReqUnsub = null;
       }
 
@@ -5252,15 +5360,15 @@ class FriendsUI {
           this.friendshipPrivacyUnsubscribers.forEach((unsub) => {
             try {
               if (typeof unsub === "function") unsub();
-            } catch (_) {}
+            } catch (error) { console.debug("Suppressed error", error); }
           });
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
         this.friendshipPrivacyUnsubscribers.clear();
       }
       if (this.friendshipPrivacyObserver) {
         try {
           this.friendshipPrivacyObserver.disconnect();
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
         this.friendshipPrivacyObserver = null;
       }
 
@@ -5285,7 +5393,7 @@ class FriendsUI {
           this._onKeydownCloseDrawer = null;
         }
         this._drawerHandlersAttached = false;
-      } catch (_) {}
+      } catch (error) { console.debug("Suppressed error", error); }
 
       // Remove search results delegated listener if attached
       const resultsContainer = document.getElementById("searchResults");
@@ -5299,7 +5407,7 @@ class FriendsUI {
             "click",
             this.boundHandlers.searchResultsClick
           );
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
         this._searchResultsListenerAttached = false;
       }
 
@@ -5319,7 +5427,8 @@ export const friendsUI = new FriendsUI();
 // 🎯 This is the crucial part that connects the UI to the router.
 // We listen for the event dispatched by the router when a page is loaded.
 logInfo("🎧 Friends UI: Registering spa:page:load event listener...");
-document.addEventListener("spa:page:load", (event) => {
+
+function handleFriendsPageLoad(event) {
   logInfo("🎧 Friends UI: Received spa:page:load", {
     route: event.detail.route,
   });
@@ -5347,11 +5456,14 @@ document.addEventListener("spa:page:load", (event) => {
 
     // (window.friendsManager removed; use ES module import instead)
   }
-});
+}
 
 // Clean up when leaving the friends page
-document.addEventListener("spa:page:unload", (event) => {
+function handleFriendsPageUnload(event) {
   if (event.detail.route === "friends") {
     friendsUI.cleanup();
   }
-});
+}
+
+document.addEventListener("spa:page:load", handleFriendsPageLoad);
+document.addEventListener("spa:page:unload", handleFriendsPageUnload);

@@ -1293,17 +1293,21 @@ class FriendshipPrivacyService {
     }
 
     // Fetch missing entries
-    const fetchPromises = cacheMisses.map((friendUid) =>
-      this.getQuickAccessStatus(currentUserUid, friendUid)
-        .then((status) => ({ friendUid, status }))
-        .catch((error) => {
-          console.error(
-            `Failed to get privacy status for ${friendUid}:`,
-            error
-          );
-          return { friendUid, status: null };
-        })
-    );
+    const fetchPromises = cacheMisses.map(async (friendUid) => {
+      try {
+        const status = await this.getQuickAccessStatus(
+          currentUserUid,
+          friendUid
+        );
+        return { friendUid, status };
+      } catch (error) {
+        console.error(
+          `Failed to get privacy status for ${friendUid}:`,
+          error
+        );
+        return { friendUid, status: null };
+      }
+    });
 
     const fetchedResults = await Promise.all(fetchPromises);
 

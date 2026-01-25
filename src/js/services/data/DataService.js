@@ -44,7 +44,7 @@
  *   dataManager.clearCache();
  *
  * ---
- * All methods return Promises. Always use await or .then().
+ * All methods return Promises. Always use await (preferred) or promise chaining.
  *
  * ---
  *
@@ -76,6 +76,7 @@ import { getAvatarUrl } from "../../utils/avatar/avatarUtils.js";
 import { logManager } from "../../utils/debug/LogManager.js";
 import { currentUser } from "../../store/userStore.js";
 import { notificationManager } from "../realtime/NotificationService.js";
+import { callFunction } from "../../utils/firebase/functionsHelper.js";
 
 // Common field paths for queries
 export const FIELD_PATHS = {
@@ -160,6 +161,15 @@ class DataManager {
     // ⚡ FRIENDSHIP DOC CACHE (reduces repeated reads during presence refresh bursts)
     this._friendshipCache = new Map(); // key -> {data, expiry}
     this._friendshipCacheTTL = 60000; // 60s
+
+    // Real-time listener sharing to prevent duplicate onSnapshot subscriptions
+    // (multiple UI modules may request the same listener at once).
+    this._sharedRealtime = {
+      notifications: null, // { userId, unsubscribe, callbacks:Set<fn>, last:Array }
+      incomingFriendRequests: null, // { userId, unsubscribe, callbacks:Set<fn>, last:Array }
+      outgoingFriendRequests: null, // { userId, unsubscribe, callbacks:Set<fn>, last:Array }
+      userProfiles: new Map(), // userId -> { unsubscribe, callbacks:Set<fn>, last:Object|null }
+    };
   }
 
   // =========================
@@ -273,22 +283,37 @@ class DataManager {
    * @private
    */
   setupNetworkListeners() {
-    window.addEventListener("online", () => {
+    // Store bound handlers for cleanup
+    this._boundOnline = () => {
       this.isOnline = true;
       notificationManager.show("Back online! Syncing changes...", "success", {
         duration: 3000,
       });
       this.processPendingOperations();
-    });
+    };
 
-    window.addEventListener("offline", () => {
+    this._boundOffline = () => {
       this.isOnline = false;
       notificationManager.show(
         "You're offline. Changes will be saved locally and synced when you reconnect.",
         "warning",
         { duration: 5000 }
       );
-    });
+    };
+
+    window.addEventListener("online", this._boundOnline);
+    window.addEventListener("offline", this._boundOffline);
+  }
+
+  /**
+   * Remove network status listeners
+   * @private
+   */
+  cleanupNetworkListeners() {
+    if (this._boundOnline) {
+      window.removeEventListener("online", this._boundOnline);
+      window.removeEventListener("offline", this._boundOffline);
+    }
   }
 
   /**
@@ -1205,7 +1230,9 @@ class DataManager {
         freeBusySummary: freeBusySummary, // Performance optimization for friends features
         totalClasses: this._countTotalClasses(scheduleData.schedule || []),
         isEmpty: freeBusySummary.every((count) => count === 0),
-        hasConflicts: false, // TODO: Implement conflict detection
+        // Conflicts aren't representable in the current 7xN boolean matrix model.
+        // If we move to multi-class-per-slot in the future, compute this accordingly.
+        hasConflicts: false,
       },
     };
   }
@@ -1397,16 +1424,23 @@ class DataManager {
       const userId =
         (auth.currentUser && auth.currentUser.uid) || currentUser?.uid;
       if (!userId) return [];
-      const qSpaces = query(
-        collection(db, "classSpaces"),
-        where("memberIds", "array-contains", userId)
+      // SECURITY (C15): avoid client-side list on /classSpaces; fetch IDs via CF, then get docs.
+      const res = await callFunction("listMyClassSpaces", {});
+      const spaceIds = Array.isArray(res?.data?.spaceIds) ? res.data.spaceIds : [];
+      if (spaceIds.length === 0) return [];
+
+      const snaps = await Promise.all(
+        spaceIds.map(async (spaceId) => {
+          try {
+            const s = await getDoc(doc(db, "classSpaces", spaceId));
+            return s.exists() ? { spaceId, ...s.data() } : null;
+          } catch (_) {
+            return null;
+          }
+        })
       );
-      const snap = await getDocs(qSpaces);
-      const list = [];
-      snap.forEach((docSnap) => {
-        const d = docSnap.data() || {};
-        list.push({ spaceId: docSnap.id, ...d });
-      });
+
+      const list = snaps.filter(Boolean);
       // Sort by lastActivity desc
       list.sort((a, b) => {
         const at = a.lastActivity?.toMillis?.() || 0;
@@ -2564,6 +2598,45 @@ class DataManager {
         userId
       );
 
+      if (!userId) throw new Error("User ID is required for friend requests listener");
+      if (typeof callback !== "function")
+        throw new Error("Callback function is required for friend requests listener");
+
+      // Reuse existing listener for the same user to avoid duplicate subscriptions
+      const existing = this._sharedRealtime.incomingFriendRequests;
+      if (existing && existing.userId === userId && existing.unsubscribe) {
+        existing.callbacks.add(callback);
+        if (Array.isArray(existing.last)) {
+          try {
+            callback(existing.last);
+          } catch (callbackError) {
+            console.error(
+              "❌ Error in friend requests listener callback (cached emit):",
+              callbackError
+            );
+          }
+        }
+        return () => {
+          try {
+            existing.callbacks.delete(callback);
+            if (existing.callbacks.size === 0) {
+              try {
+                existing.unsubscribe();
+              } catch (_) {}
+              this._sharedRealtime.incomingFriendRequests = null;
+            }
+          } catch (_) {}
+        };
+      }
+
+      // If switching users, clean up prior shared listener
+      if (existing && existing.unsubscribe) {
+        try {
+          existing.unsubscribe();
+        } catch (_) {}
+        this._sharedRealtime.incomingFriendRequests = null;
+      }
+
       const requestsRef = collection(db, "friendRequests");
       const q = query(
         requestsRef,
@@ -2572,6 +2645,7 @@ class DataManager {
         orderBy("createdAt", "desc")
       );
 
+      const callbacks = new Set([callback]);
       const unsubscribe = onSnapshot(
         q,
         (querySnapshot) => {
@@ -2597,7 +2671,20 @@ class DataManager {
           }));
 
           // Call the callback with the fresh data
-          callback(transformedRequests);
+          // Store last for late subscribers
+          if (this._sharedRealtime.incomingFriendRequests) {
+            this._sharedRealtime.incomingFriendRequests.last = transformedRequests;
+          }
+          callbacks.forEach((cb) => {
+            try {
+              cb(transformedRequests);
+            } catch (callbackError) {
+              console.error(
+                "❌ Error in friend requests listener callback:",
+                callbackError
+              );
+            }
+          });
         },
         (error) => {
           // Suppress noisy errors during logout/auth changes
@@ -2608,12 +2695,45 @@ class DataManager {
             return; // Skip callback to prevent false deletion detection
           }
           console.error("❌ Error in friend requests listener:", error);
-          callback([]); // Only fallback to empty array for non-permission errors
+          callbacks.forEach((cb) => {
+            try {
+              cb([]);
+            } catch (callbackError) {
+              console.error(
+                "❌ Error in friend requests listener error callback:",
+                callbackError
+              );
+            }
+          });
         }
       );
 
       console.log("✅ Friend requests listener established successfully");
-      return unsubscribe;
+      this._sharedRealtime.incomingFriendRequests = {
+        userId,
+        unsubscribe,
+        callbacks,
+        last: null,
+      };
+
+      return () => {
+        try {
+          const shared = this._sharedRealtime.incomingFriendRequests;
+          if (!shared || shared.userId !== userId) {
+            try {
+              unsubscribe();
+            } catch (_) {}
+            return;
+          }
+          shared.callbacks.delete(callback);
+          if (shared.callbacks.size === 0) {
+            try {
+              shared.unsubscribe();
+            } catch (_) {}
+            this._sharedRealtime.incomingFriendRequests = null;
+          }
+        } catch (_) {}
+      };
     } catch (error) {
       console.error("❌ Error setting up friend requests listener:", error);
       return () => {}; // Return empty unsubscribe function
@@ -2644,6 +2764,46 @@ class DataManager {
         userId
       );
 
+      if (!userId)
+        throw new Error("User ID is required for outgoing friend requests listener");
+      if (typeof callback !== "function")
+        throw new Error(
+          "Callback function is required for outgoing friend requests listener"
+        );
+
+      const existing = this._sharedRealtime.outgoingFriendRequests;
+      if (existing && existing.userId === userId && existing.unsubscribe) {
+        existing.callbacks.add(callback);
+        if (Array.isArray(existing.last)) {
+          try {
+            callback(existing.last);
+          } catch (callbackError) {
+            console.error(
+              "❌ Error in outgoing requests listener callback (cached emit):",
+              callbackError
+            );
+          }
+        }
+        return () => {
+          try {
+            existing.callbacks.delete(callback);
+            if (existing.callbacks.size === 0) {
+              try {
+                existing.unsubscribe();
+              } catch (_) {}
+              this._sharedRealtime.outgoingFriendRequests = null;
+            }
+          } catch (_) {}
+        };
+      }
+
+      if (existing && existing.unsubscribe) {
+        try {
+          existing.unsubscribe();
+        } catch (_) {}
+        this._sharedRealtime.outgoingFriendRequests = null;
+      }
+
       const requestsRef = collection(db, "friendRequests");
       const q = query(
         requestsRef,
@@ -2651,6 +2811,7 @@ class DataManager {
         orderBy("createdAt", "desc")
       );
 
+      const callbacks = new Set([callback]);
       const unsubscribe = onSnapshot(
         q,
         (querySnapshot) => {
@@ -2675,7 +2836,19 @@ class DataManager {
           }));
 
           // Call the callback with the fresh data
-          callback(transformedRequests);
+          if (this._sharedRealtime.outgoingFriendRequests) {
+            this._sharedRealtime.outgoingFriendRequests.last = transformedRequests;
+          }
+          callbacks.forEach((cb) => {
+            try {
+              cb(transformedRequests);
+            } catch (callbackError) {
+              console.error(
+                "❌ Error in outgoing requests listener callback:",
+                callbackError
+              );
+            }
+          });
         },
         (error) => {
           if (error.code === "permission-denied" || !auth.currentUser) {
@@ -2688,14 +2861,47 @@ class DataManager {
             "❌ Error in outgoing friend requests listener:",
             error
           );
-          callback([]);
+          callbacks.forEach((cb) => {
+            try {
+              cb([]);
+            } catch (callbackError) {
+              console.error(
+                "❌ Error in outgoing requests listener error callback:",
+                callbackError
+              );
+            }
+          });
         }
       );
 
       console.log(
         "✅ Outgoing friend requests listener established successfully"
       );
-      return unsubscribe;
+      this._sharedRealtime.outgoingFriendRequests = {
+        userId,
+        unsubscribe,
+        callbacks,
+        last: null,
+      };
+
+      return () => {
+        try {
+          const shared = this._sharedRealtime.outgoingFriendRequests;
+          if (!shared || shared.userId !== userId) {
+            try {
+              unsubscribe();
+            } catch (_) {}
+            return;
+          }
+          shared.callbacks.delete(callback);
+          if (shared.callbacks.size === 0) {
+            try {
+              shared.unsubscribe();
+            } catch (_) {}
+            this._sharedRealtime.outgoingFriendRequests = null;
+          }
+        } catch (_) {}
+      };
     } catch (error) {
       console.error(
         "❌ Error setting up outgoing friend requests listener:",
@@ -3153,8 +3359,42 @@ class DataManager {
     try {
       console.log("👤 Setting up real-time listener for user profile:", userId);
 
+      if (!userId) throw new Error("User ID is required for user profile listener");
+      if (typeof callback !== "function")
+        throw new Error("Callback function is required for user profile listener");
+
+      // Share a single onSnapshot per userId (multiple components may subscribe)
+      const existing = this._sharedRealtime.userProfiles.get(userId);
+      if (existing && existing.unsubscribe) {
+        existing.callbacks.add(callback);
+        if (existing.last !== undefined) {
+          try {
+            callback(existing.last);
+          } catch (callbackError) {
+            console.error(
+              "❌ Error in user profile listener callback (cached emit):",
+              callbackError
+            );
+          }
+        }
+        return () => {
+          try {
+            const entry = this._sharedRealtime.userProfiles.get(userId);
+            if (!entry) return;
+            entry.callbacks.delete(callback);
+            if (entry.callbacks.size === 0) {
+              try {
+                entry.unsubscribe();
+              } catch (_) {}
+              this._sharedRealtime.userProfiles.delete(userId);
+            }
+          } catch (_) {}
+        };
+      }
+
       const userDocRef = doc(db, "users", userId);
 
+      const callbacks = new Set([callback]);
       const unsubscribe = onSnapshot(
         userDocRef,
         (docSnapshot) => {
@@ -3173,7 +3413,18 @@ class DataManager {
               logManager.profileUpdate(userId, "throttled");
               // Update cache but skip processing
               this.setCachedData(`user_${userId}`, profileData);
-              callback(profileData);
+              const entry = this._sharedRealtime.userProfiles.get(userId);
+              if (entry) entry.last = profileData;
+              callbacks.forEach((cb) => {
+                try {
+                  cb(profileData);
+                } catch (callbackError) {
+                  console.error(
+                    "❌ Error in user profile listener callback:",
+                    callbackError
+                  );
+                }
+              });
               return;
             }
 
@@ -3207,17 +3458,16 @@ class DataManager {
                 "🎨 Significant profile change detected for current user, syncing cached data..."
               );
 
-              // Clear any avatar cache in friends manager to force fresh data
-              if (
-                typeof window !== "undefined" &&
-                window.friendsManager?.clearAvatarCache
-              ) {
+              // Clear any avatar cache in FriendsService to force fresh data.
+              // Use dynamic import to avoid circular dependency with FriendsService -> DataService.
+              void (async () => {
                 try {
-                  window.friendsManager.clearAvatarCache(userId);
+                  const mod = await import("../friends/FriendsService.js");
+                  mod?.friendsManager?.clearAvatarCache?.(userId);
                 } catch (error) {
-                  console.warn("⚠️ Avatar cache clear failed:", error);
+                  // Best-effort: avoid failing the realtime handler
                 }
-              }
+              })();
 
               // Debounce cache sync to prevent excessive operations
               this.debounceCacheSync(userId);
@@ -3228,10 +3478,32 @@ class DataManager {
             }
 
             // Call the callback with the fresh profile data
-            callback(profileData);
+            const entry = this._sharedRealtime.userProfiles.get(userId);
+            if (entry) entry.last = profileData;
+            callbacks.forEach((cb) => {
+              try {
+                cb(profileData);
+              } catch (callbackError) {
+                console.error(
+                  "❌ Error in user profile listener callback:",
+                  callbackError
+                );
+              }
+            });
           } else {
             console.warn(`👤 User profile not found: ${userId}`);
-            callback(null);
+            const entry = this._sharedRealtime.userProfiles.get(userId);
+            if (entry) entry.last = null;
+            callbacks.forEach((cb) => {
+              try {
+                cb(null);
+              } catch (callbackError) {
+                console.error(
+                  "❌ Error in user profile listener callback:",
+                  callbackError
+                );
+              }
+            });
           }
         },
         (error) => {
@@ -3242,12 +3514,46 @@ class DataManager {
             return;
           }
           console.error("❌ Error in user profile listener:", error);
-          callback(null);
+          const entry = this._sharedRealtime.userProfiles.get(userId);
+          if (entry) entry.last = null;
+          callbacks.forEach((cb) => {
+            try {
+              cb(null);
+            } catch (callbackError) {
+              console.error(
+                "❌ Error in user profile listener callback:",
+                callbackError
+              );
+            }
+          });
         }
       );
 
       console.log("✅ User profile listener established successfully");
-      return unsubscribe;
+      this._sharedRealtime.userProfiles.set(userId, {
+        unsubscribe,
+        callbacks,
+        last: undefined,
+      });
+
+      return () => {
+        try {
+          const entry = this._sharedRealtime.userProfiles.get(userId);
+          if (!entry) {
+            try {
+              unsubscribe();
+            } catch (_) {}
+            return;
+          }
+          entry.callbacks.delete(callback);
+          if (entry.callbacks.size === 0) {
+            try {
+              entry.unsubscribe();
+            } catch (_) {}
+            this._sharedRealtime.userProfiles.delete(userId);
+          }
+        } catch (_) {}
+      };
     } catch (error) {
       console.error("❌ Error setting up user profile listener:", error);
       return () => {}; // Return empty unsubscribe function
@@ -3980,12 +4286,14 @@ class DataManager {
       const cacheKey = `quick_access_${userId}`;
       this.cache.delete(cacheKey);
 
-      // Clear FriendsService cache if it exists
-      if (typeof window !== "undefined" && window.friendsManager) {
-        const cacheKey = `quick_access_${userId}`;
-        if (typeof window.friendsManager.clearCached === "function") {
-          window.friendsManager.clearCached(cacheKey);
+      // Clear FriendsService cache (dynamic import avoids cycle)
+      try {
+        const mod = await import("../friends/FriendsService.js");
+        if (typeof mod?.friendsManager?.clearCached === "function") {
+          mod.friendsManager.clearCached(cacheKey);
         }
+      } catch (_) {
+        // non-fatal
       }
 
       console.log(
@@ -4893,6 +5201,42 @@ class DataManager {
       if (!userId) {
         throw new Error("User ID is required for notifications listener");
       }
+      if (typeof callback !== "function") {
+        throw new Error("Callback function is required for notifications listener");
+      }
+
+      const existing = this._sharedRealtime.notifications;
+      if (existing && existing.userId === userId && existing.unsubscribe) {
+        existing.callbacks.add(callback);
+        if (Array.isArray(existing.last)) {
+          try {
+            callback(existing.last);
+          } catch (callbackError) {
+            console.error(
+              "❌ Error in notifications listener callback (cached emit):",
+              callbackError
+            );
+          }
+        }
+        return () => {
+          try {
+            existing.callbacks.delete(callback);
+            if (existing.callbacks.size === 0) {
+              try {
+                existing.unsubscribe();
+              } catch (_) {}
+              this._sharedRealtime.notifications = null;
+            }
+          } catch (_) {}
+        };
+      }
+
+      if (existing && existing.unsubscribe) {
+        try {
+          existing.unsubscribe();
+        } catch (_) {}
+        this._sharedRealtime.notifications = null;
+      }
 
       const notificationsRef = collection(db, "notifications");
       const q = query(
@@ -4902,6 +5246,7 @@ class DataManager {
         limit(50) // Limit to 50 most recent notifications
       );
 
+      const callbacks = new Set([callback]);
       const unsubscriber = onSnapshot(
         q,
         (snapshot) => {
@@ -4930,15 +5275,20 @@ class DataManager {
             });
           });
 
-          // Call the callback with the notifications
-          try {
-            callback(notifications);
-          } catch (callbackError) {
-            console.error(
-              "❌ Error in notifications listener callback:",
-              callbackError
-            );
+          // Store last for late subscribers, then fan out
+          if (this._sharedRealtime.notifications) {
+            this._sharedRealtime.notifications.last = notifications;
           }
+          callbacks.forEach((cb) => {
+            try {
+              cb(notifications);
+            } catch (callbackError) {
+              console.error(
+                "❌ Error in notifications listener callback:",
+                callbackError
+              );
+            }
+          });
         },
         (error) => {
           console.error("❌ Error in notifications listener:", error);
@@ -4949,20 +5299,46 @@ class DataManager {
             );
           } else {
             // For other errors, call callback with empty array to maintain state
-            try {
-              callback([]);
-            } catch (callbackError) {
-              console.error(
-                "❌ Error in notifications listener error callback:",
-                callbackError
-              );
-            }
+            callbacks.forEach((cb) => {
+              try {
+                cb([]);
+              } catch (callbackError) {
+                console.error(
+                  "❌ Error in notifications listener error callback:",
+                  callbackError
+                );
+              }
+            });
           }
         }
       );
 
       console.log("✅ Real-time notifications listener set up successfully");
-      return unsubscriber;
+      this._sharedRealtime.notifications = {
+        userId,
+        unsubscribe: unsubscriber,
+        callbacks,
+        last: null,
+      };
+
+      return () => {
+        try {
+          const shared = this._sharedRealtime.notifications;
+          if (!shared || shared.userId !== userId) {
+            try {
+              unsubscriber();
+            } catch (_) {}
+            return;
+          }
+          shared.callbacks.delete(callback);
+          if (shared.callbacks.size === 0) {
+            try {
+              shared.unsubscribe();
+            } catch (_) {}
+            this._sharedRealtime.notifications = null;
+          }
+        } catch (_) {}
+      };
     } catch (error) {
       console.error("❌ Error setting up notifications listener:", error);
       return () => {}; // Return empty unsubscriber function
@@ -5028,7 +5404,13 @@ class DataManager {
 export const dataManager = new DataManager();
 
 // Only expose globally for development/debugging (suppress noisy console logs)
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development"));
+if (__DEV__) {
   window.dataManager = dataManager;
 }
 

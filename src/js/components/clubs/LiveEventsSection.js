@@ -44,6 +44,27 @@ export class LiveEventsSection {
     this.pastExpanded = false;
   }
 
+  chunkArray(items, size) {
+    const chunks = [];
+    if (!Array.isArray(items) || items.length === 0) return chunks;
+    const safeSize = Math.max(1, Number(size) || 1);
+    for (let i = 0; i < items.length; i += safeSize) {
+      chunks.push(items.slice(i, i + safeSize));
+    }
+    return chunks;
+  }
+
+  extractClubIdFromEventPath(path) {
+    if (!path) return null;
+    const parts = String(path).split("/");
+    const clubsIndex = parts.indexOf("clubs");
+    if (clubsIndex === -1) return null;
+    const clubId = parts[clubsIndex + 1] || null;
+    const sub = parts[clubsIndex + 2] || null;
+    if (!clubId || sub !== "events") return null;
+    return clubId;
+  }
+
   /**
    * Initialize and render the section
    */
@@ -64,8 +85,9 @@ export class LiveEventsSection {
 
     try {
       const { db } = await import("../../lib/firebase/firebase-config.js");
-      const { collection, query, where, getDocs, orderBy, Timestamp } =
-        await import("firebase/firestore");
+      const { collection, collectionGroup, query, where, getDocs } = await import(
+        "firebase/firestore"
+      );
 
       // Get all approved events from all clubs
       const now = new Date();
@@ -94,25 +116,71 @@ export class LiveEventsSection {
 
       this.clubs.clear();
       const allEvents = [];
+      const clubIds = [];
 
       for (const clubDoc of clubsSnap.docs) {
         const clubData = { id: clubDoc.id, ...clubDoc.data() };
         this.clubs.set(clubDoc.id, clubData);
+        clubIds.push(clubDoc.id);
+      }
 
-        // Get approved events for this club
-        const eventsQuery = query(
-          collection(db, "clubs", clubDoc.id, "events"),
-          where("status", "==", "approved")
+      // Preferred: use collectionGroup + chunked clubId "in" queries to avoid N+1
+      // (Fallback to per-club queries if an index is missing or legacy data lacks clubId)
+      let usedOptimizedQuery = false;
+      try {
+        const clubIdChunks = this.chunkArray(clubIds, 30); // Firestore "in" supports up to 30 values
+        for (const chunk of clubIdChunks) {
+          const eventsQuery = query(
+            collectionGroup(db, "events"),
+            where("status", "==", "approved"),
+            where("clubId", "in", chunk)
+          );
+          const eventsSnap = await getDocs(eventsQuery);
+
+          for (const eventDoc of eventsSnap.docs) {
+            const data = eventDoc.data() || {};
+            const clubId =
+              data.clubId || this.extractClubIdFromEventPath(eventDoc.ref?.path);
+            if (!clubId) continue;
+            const clubData = this.clubs.get(clubId);
+            if (!clubData) continue; // Defensive: ignore events outside this university set
+            allEvents.push({
+              id: eventDoc.id,
+              clubId,
+              club: clubData,
+              ...data,
+            });
+          }
+        }
+        usedOptimizedQuery = true;
+      } catch (optimizedError) {
+        logManager.system?.warn?.(
+          "[LiveEventsSection] Optimized events query failed; falling back to per-club fetch",
+          { message: optimizedError?.message }
         );
+      }
 
-        const eventsSnap = await getDocs(eventsQuery);
-        for (const eventDoc of eventsSnap.docs) {
-          allEvents.push({
-            id: eventDoc.id,
-            clubId: clubDoc.id,
-            club: clubData,
-            ...eventDoc.data(),
-          });
+      if (!usedOptimizedQuery) {
+        for (const clubDoc of clubsSnap.docs) {
+          const clubId = clubDoc.id;
+          const clubData = this.clubs.get(clubId);
+          if (!clubData) continue;
+
+          // Get approved events for this club
+          const eventsQuery = query(
+            collection(db, "clubs", clubId, "events"),
+            where("status", "==", "approved")
+          );
+
+          const eventsSnap = await getDocs(eventsQuery);
+          for (const eventDoc of eventsSnap.docs) {
+            allEvents.push({
+              id: eventDoc.id,
+              clubId,
+              club: clubData,
+              ...eventDoc.data(),
+            });
+          }
         }
       }
 
@@ -620,35 +688,23 @@ export class LiveEventsSection {
   }
 
   /**
-   * Bind event handlers
+   * Bind event handlers using event delegation (prevents listener accumulation on re-render)
    */
   bindEvents() {
     if (!this.container) return;
 
-    // Live event cards and dropdown event cards
-    this.container
-      .querySelectorAll(".live-event-card, .dropdown-event-card")
-      .forEach((card) => {
-        card.addEventListener("click", () => {
-          const eventId = card.dataset.eventId;
-          const clubId = card.dataset.clubId;
-          const event = [
-            ...this.events.live,
-            ...this.events.upcoming,
-            ...this.events.past,
-          ].find((e) => e.id === eventId);
+    // Remove previous delegated listener if any (idempotent)
+    if (this._boundContainerClick) {
+      this.container.removeEventListener("click", this._boundContainerClick);
+    }
 
-          if (event) {
-            this.onEventClick(event, clubId);
-          }
-        });
-      });
-
-    // Dropdown toggles
-    this.container.querySelectorAll(".dropdown-toggle").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
+    // Single delegated click handler for all cards and toggles
+    this._boundContainerClick = (e) => {
+      // Check for dropdown toggle click
+      const toggleBtn = e.target.closest(".dropdown-toggle");
+      if (toggleBtn) {
         e.preventDefault();
-        const section = btn.dataset.section;
+        const section = toggleBtn.dataset.section;
 
         if (section === "upcoming") {
           this.upcomingExpanded = !this.upcomingExpanded;
@@ -656,11 +712,29 @@ export class LiveEventsSection {
           this.pastExpanded = !this.pastExpanded;
         }
 
-        // Re-render to update dropdown state
+        // Re-render to update dropdown state (no need to rebind - delegation handles it)
         this.render();
-        this.bindEvents();
-      });
-    });
+        return;
+      }
+
+      // Check for event card click
+      const card = e.target.closest(".live-event-card, .dropdown-event-card");
+      if (card) {
+        const eventId = card.dataset.eventId;
+        const clubId = card.dataset.clubId;
+        const event = [
+          ...this.events.live,
+          ...this.events.upcoming,
+          ...this.events.past,
+        ].find((ev) => ev.id === eventId);
+
+        if (event) {
+          this.onEventClick(event, clubId);
+        }
+      }
+    };
+
+    this.container.addEventListener("click", this._boundContainerClick);
   }
 
   /**

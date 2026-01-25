@@ -900,14 +900,21 @@ class DebugHelpers {
 // Create global debug instance
 const debugHelpers = new DebugHelpers();
 
-// Add to global scope for console access
-if (typeof window !== "undefined") {
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development") ||
+    (window.ENV && window.ENV.ENVIRONMENT !== "production"));
+if (__DEV__) {
+  // Add to global scope for console access
   window.debug = debugHelpers;
-}
 
-// Check if debug mode should be enabled from localStorage
-if (localStorage.getItem("meetchuthere_debug") === "true") {
-  debugHelpers.toggleDebug();
+  // Check if debug mode should be enabled from localStorage
+  if (localStorage.getItem("meetchuthere_debug") === "true") {
+    debugHelpers.toggleDebug();
+  }
 }
 
 export { debugHelpers };

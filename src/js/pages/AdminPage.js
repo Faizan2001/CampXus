@@ -30,6 +30,8 @@ import {
 import { logManager } from "../utils/debug/LogManager.js";
 import {
   createClub,
+  isSuperAdmin as adminIsSuperAdmin,
+  verifyAdminPin as adminVerifyAdminPin,
   assignPresident as adminAssignPresident,
   deleteClub as adminDeleteClub,
   createUniversity as adminCreateUniversity,
@@ -62,6 +64,21 @@ export class AdminPage {
       clubs: null,
       stats: null,
     };
+    this._tabsEl = null;
+    this._contentEl = null;
+    this._pinInputEl = null;
+    this._pinDotsEls = [];
+    this._pinVerifyBtnEl = null;
+    this._pinErrorEl = null;
+    this._pinFocusTimer = null;
+
+    this._handleTabsClick = this._handleTabsClick.bind(this);
+    this._handleContentClick = this._handleContentClick.bind(this);
+    this._handleContentInput = this._handleContentInput.bind(this);
+    this._handleContentChange = this._handleContentChange.bind(this);
+    this._handlePinInput = this._handlePinInput.bind(this);
+    this._handlePinKeypress = this._handlePinKeypress.bind(this);
+    this._handlePinVerifyClick = this._handlePinVerifyClick.bind(this);
 
     // Restore PIN lock state from this session if available
     if (typeof window !== "undefined") {
@@ -118,15 +135,7 @@ export class AdminPage {
   async checkSuperAdmin(uid) {
     try {
       logManager.info("AdminPage: Checking super admin status", { uid });
-      const adminDoc = await getDoc(doc(db, "admin", "superAdmins"));
-      if (!adminDoc.exists()) {
-        logManager.warn("superAdmins document does not exist");
-        return false;
-      }
-
-      const data = adminDoc.data();
-      const superAdmins = data.uids || [];
-      const isSuper = superAdmins.includes(uid);
+      const isSuper = await adminIsSuperAdmin(uid);
       logManager.info("AdminPage: Super admin check result", {
         uid,
         isSuperAdmin: isSuper,
@@ -215,39 +224,61 @@ export class AdminPage {
     const verifyBtn = container.querySelector(".btn-verify-pin");
     const errorEl = container.querySelector(".pin-error");
 
-    // Update dots as user types
-    input.addEventListener("input", (e) => {
-      const value = e.target.value.replace(/\D/g, "").slice(0, 6);
-      e.target.value = value;
+    this._pinInputEl = input;
+    this._pinDotsEls = Array.from(dots || []);
+    this._pinVerifyBtnEl = verifyBtn;
+    this._pinErrorEl = errorEl;
 
-      // Update dot visuals
-      dots.forEach((dot, i) => {
-        dot.classList.toggle("filled", i < value.length);
-      });
-
-      // Enable/disable verify button
-      verifyBtn.disabled = value.length !== 6;
-
-      // Hide error on new input
-      errorEl.style.display = "none";
-    });
-
-    // Handle enter key
-    input.addEventListener("keypress", (e) => {
-      if (e.key === "Enter" && input.value.length === 6) {
-        this.verifyPin(input.value, errorEl);
-      }
-    });
-
-    // Handle verify button click
-    verifyBtn.addEventListener("click", () => {
-      if (input.value.length === 6) {
-        this.verifyPin(input.value, errorEl);
-      }
-    });
+    if (input) {
+      input.addEventListener("input", this._handlePinInput);
+      input.addEventListener("keypress", this._handlePinKeypress);
+    }
+    if (verifyBtn) {
+      verifyBtn.addEventListener("click", this._handlePinVerifyClick);
+    }
 
     // Focus input on load
-    setTimeout(() => input.focus(), 100);
+    this._pinFocusTimer = setTimeout(() => {
+      try {
+        this._pinInputEl?.focus();
+      } catch (error) { console.debug("Suppressed error", error); }
+    }, 100);
+  }
+
+  _handlePinInput(e) {
+    const input = this._pinInputEl;
+    if (!input) return;
+    const value = String(input.value || "")
+      .replace(/\D/g, "")
+      .slice(0, 6);
+    input.value = value;
+
+    // Update dot visuals
+    (this._pinDotsEls || []).forEach((dot, i) => {
+      dot.classList.toggle("filled", i < value.length);
+    });
+
+    // Enable/disable verify button
+    if (this._pinVerifyBtnEl) {
+      this._pinVerifyBtnEl.disabled = value.length !== 6;
+    }
+
+    // Hide error on new input
+    if (this._pinErrorEl) {
+      this._pinErrorEl.style.display = "none";
+    }
+  }
+
+  _handlePinKeypress(e) {
+    if (e.key === "Enter" && this._pinInputEl?.value?.length === 6) {
+      void this.verifyPin(this._pinInputEl.value, this._pinErrorEl);
+    }
+  }
+
+  _handlePinVerifyClick() {
+    if (this._pinInputEl?.value?.length === 6) {
+      void this.verifyPin(this._pinInputEl.value, this._pinErrorEl);
+    }
   }
 
   /**
@@ -324,24 +355,8 @@ export class AdminPage {
     }
 
     try {
-      // Hash the PIN using SHA-256
-      const encoder = new TextEncoder();
-      const data = encoder.encode(pin);
-      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const pinHash = hashArray
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-
-      // Get stored hash
-      const adminDoc = await getDoc(doc(db, "admin", "superAdmins"));
-      if (!adminDoc.exists()) {
-        throw new Error("Admin config not found");
-      }
-
-      const storedHash = adminDoc.data().pinHash;
-
-      if (pinHash === storedHash) {
+      const result = await adminVerifyAdminPin(pin);
+      if (result?.success === true) {
         this.isVerified = true;
         this.pinAttempts = 0;
         this.pinLockUntil = 0;
@@ -352,18 +367,11 @@ export class AdminPage {
         logManager.info("Admin PIN verified successfully");
         this.renderDashboard();
       } else {
-        this.pinAttempts += 1;
-        if (typeof window !== "undefined") {
-          window.sessionStorage.setItem(
-            "adminPinAttempts",
-            String(this.pinAttempts)
-          );
-        }
-
-        const maxAttempts = 5;
-        if (this.pinAttempts >= maxAttempts) {
-          const lockDurationMs = 5 * 60 * 1000; // 5 minutes
-          this.pinLockUntil = Date.now() + lockDurationMs;
+        // Server-enforced lockout (authoritative)
+        const locked = result?.locked === true;
+        const lockUntilMs = Number(result?.lockUntilMs || 0);
+        if (locked && lockUntilMs) {
+          this.pinLockUntil = lockUntilMs;
           if (typeof window !== "undefined") {
             window.sessionStorage.setItem(
               "adminPinLockUntil",
@@ -371,13 +379,23 @@ export class AdminPage {
             );
           }
           logManager.warn("Admin PIN locked after too many attempts");
-          if (pinScreen) {
-            this.updatePinLockUI(pinScreen);
-          }
-        } else {
-          errorEl.style.display = "flex";
-          logManager.warn("Invalid admin PIN attempt");
+          if (pinScreen) this.updatePinLockUI(pinScreen);
+          return;
         }
+
+        // Track attempts for local UX only (server remains source-of-truth)
+        this.pinAttempts = Number.isFinite(Number(result?.remaining))
+          ? Math.max(0, 5 - Number(result.remaining))
+          : this.pinAttempts + 1;
+        if (typeof window !== "undefined") {
+          window.sessionStorage.setItem(
+            "adminPinAttempts",
+            String(this.pinAttempts)
+          );
+        }
+
+        errorEl.style.display = "flex";
+        logManager.warn("Invalid admin PIN attempt");
       }
     } catch (error) {
       logManager.error("PIN verification error", error);
@@ -390,9 +408,9 @@ export class AdminPage {
   /**
    * Render the main dashboard
    */
-  async renderDashboard() {
-    const container = this.rootEl;
-    container.innerHTML = `
+	  async renderDashboard() {
+	    const container = this.rootEl;
+	    container.innerHTML = `
       <div class="admin-page admin-super">
         <div class="admin-dashboard">
           <header class="admin-header">
@@ -440,35 +458,188 @@ export class AdminPage {
           </div>
         </div>
       </div>
-    `;
+	    `;
 
-    this.setupTabNavigation(container);
-    await this.loadTabContent("overview");
+	    this._tabsEl = container.querySelector(".admin-tabs");
+	    this._contentEl = container.querySelector(".admin-content");
+	    this._tabsEl?.addEventListener("click", this._handleTabsClick);
+	    this._contentEl?.addEventListener("click", this._handleContentClick);
+	    this._contentEl?.addEventListener("input", this._handleContentInput);
+	    this._contentEl?.addEventListener("change", this._handleContentChange);
+	    await this.loadTabContent("overview");
+	  }
+
+  _handleTabsClick(e) {
+    const tabsEl = this._tabsEl;
+    if (!tabsEl) return;
+    const tab = e.target?.closest?.(".admin-tab");
+    if (!tab || !tabsEl.contains(tab)) return;
+
+    const tabName = tab.dataset.tab;
+    if (!tabName) return;
+
+    // Update active state
+    tabsEl.querySelectorAll(".admin-tab").forEach((t) => {
+      t.classList.toggle("active", t === tab);
+    });
+
+    // Update data-active-tab for pill animation
+    tabsEl.dataset.activeTab = tabName;
+
+    // Load tab content
+    void this.loadTabContent(tabName);
   }
 
-  /**
-   * Setup tab navigation
-   */
-  setupTabNavigation(container) {
-    const tabs = container.querySelectorAll(".admin-tab");
+  _handleContentClick(e) {
+    const contentEl = this._contentEl;
+    if (!contentEl) return;
 
-    tabs.forEach((tab) => {
-      tab.addEventListener("click", async () => {
-        // Update active state
-        tabs.forEach((t) => t.classList.remove("active"));
-        tab.classList.add("active");
+    const retryBtn = e.target?.closest?.(".btn-retry");
+    if (retryBtn && contentEl.contains(retryBtn)) {
+      void this.loadTabContent(this.activeTab);
+      return;
+    }
 
-        // Update data-active-tab for pill animation
-        const tabsNav = container.querySelector(".admin-tabs");
-        if (tabsNav) {
-          tabsNav.dataset.activeTab = tab.dataset.tab;
-        }
+    const quickActionBtn = e.target?.closest?.(".quick-action-btn");
+    if (quickActionBtn && contentEl.contains(quickActionBtn)) {
+      this.handleQuickAction(quickActionBtn.dataset.action);
+      return;
+    }
 
-        // Load tab content
-        const tabName = tab.dataset.tab;
-        await this.loadTabContent(tabName);
-      });
-    });
+    const addUniversityBtn = e.target?.closest?.(".btn-add-university");
+    if (addUniversityBtn && contentEl.contains(addUniversityBtn)) {
+      this.openAddUniversityModal();
+      return;
+    }
+
+    const uniEditBtn = e.target?.closest?.(".university-card .btn-edit");
+    if (uniEditBtn && contentEl.contains(uniEditBtn)) {
+      const card = uniEditBtn.closest(".university-card");
+      if (card?.dataset?.id) this.openEditUniversityModal(card.dataset.id);
+      return;
+    }
+
+    const uniDeleteBtn = e.target?.closest?.(".university-card .btn-delete");
+    if (uniDeleteBtn && contentEl.contains(uniDeleteBtn)) {
+      const card = uniDeleteBtn.closest(".university-card");
+      if (card?.dataset?.id) void this.confirmDeleteUniversity(card.dataset.id);
+      return;
+    }
+
+    const addSafBtn = e.target?.closest?.(".btn-add-saf");
+    if (addSafBtn && contentEl.contains(addSafBtn)) {
+      this.openAddSafModal();
+      return;
+    }
+
+    const removeSafBtn = e.target?.closest?.(".saf-card .btn-remove");
+    if (removeSafBtn && contentEl.contains(removeSafBtn)) {
+      const card = removeSafBtn.closest(".saf-card");
+      if (card?.dataset?.id) void this.confirmRemoveSaf(card.dataset.id);
+      return;
+    }
+
+    const createClubBtn = e.target?.closest?.(".btn-create-club");
+    if (createClubBtn && contentEl.contains(createClubBtn)) {
+      void this.openCreateClubModal();
+      return;
+    }
+
+    const clubRowActionBtn = e.target?.closest?.(
+      ".clubs-table .btn-edit, .clubs-table .btn-president, .clubs-table .btn-delete"
+    );
+    if (clubRowActionBtn && contentEl.contains(clubRowActionBtn)) {
+      const row = clubRowActionBtn.closest("tr[data-id]");
+      const clubId = row?.dataset?.id;
+      if (!clubId) return;
+      if (clubRowActionBtn.classList.contains("btn-edit")) {
+        this.openEditClubModal(clubId);
+        return;
+      }
+      if (clubRowActionBtn.classList.contains("btn-president")) {
+        this.openAssignPresidentModal(clubId, {
+          clubName: row?.dataset?.clubName,
+          universityId: row?.dataset?.universityId,
+        });
+        return;
+      }
+      if (clubRowActionBtn.classList.contains("btn-delete")) {
+        this.confirmDeleteClub(clubId);
+        return;
+      }
+    }
+
+    const runAutomationBtn = e.target?.closest?.(".btn-run-automation");
+    if (runAutomationBtn && contentEl.contains(runAutomationBtn)) {
+      void this._runAutomationFromButton(runAutomationBtn);
+    }
+  }
+
+  _handleContentInput(e) {
+    const contentEl = this._contentEl;
+    if (!contentEl) return;
+    const target = e?.target;
+    if (!target || !contentEl.contains(target)) return;
+    if (target.id === "club-search") {
+      this.filterClubs(target.value);
+    }
+  }
+
+  _handleContentChange(e) {
+    const contentEl = this._contentEl;
+    if (!contentEl) return;
+    const target = e?.target;
+    if (!target || !contentEl.contains(target)) return;
+    if (target.id === "saf-university-filter") {
+      this.filterSafByUniversity(target.value);
+    }
+  }
+
+  async _runAutomationFromButton(btn) {
+    const job = btn?.dataset?.job;
+    const card = btn?.closest?.(".automation-card");
+    const outputEl = card?.querySelector?.(".automation-output");
+    if (!job || !card || !outputEl) return;
+
+    const confirmText =
+      job === "classSpacesScheduler"
+        ? "Run Class Spaces membership sync now? This updates memberships for all users."
+        : "Run this automation job now?";
+    if (!confirm(confirmText)) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running...';
+    outputEl.innerHTML = `
+      <div class="automation-status automation-status--running">
+        <i class="fas fa-spinner fa-spin"></i> Executing...
+      </div>
+    `;
+
+    try {
+      const data = await adminRunAutomationJob(job);
+      const pretty = JSON.stringify(data, null, 2);
+      outputEl.innerHTML = `
+        <div class="automation-status automation-status--success">
+          <i class="fas fa-check-circle"></i> Success
+          <span class="automation-time">${new Date().toLocaleString()}</span>
+        </div>
+        <pre class="automation-result">${escapeHtmlAdmin(pretty)}</pre>
+      `;
+    } catch (error) {
+      const msg =
+        error?.message || error?.details || error?.code || "Unknown error";
+      outputEl.innerHTML = `
+        <div class="automation-status automation-status--error">
+          <i class="fas fa-exclamation-triangle"></i> Failed: ${escapeHtmlAdmin(
+            msg
+          )}
+          <span class="automation-time">${new Date().toLocaleString()}</span>
+        </div>
+      `;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-play"></i> Run Now';
+    }
   }
 
   /**
@@ -510,7 +681,7 @@ export class AdminPage {
         <div class="admin-error">
           <i class="fas fa-exclamation-triangle"></i>
           <p>Failed to load ${tabName}. Please try again.</p>
-          <button class="btn-retry" onclick="location.reload()">Retry</button>
+          <button class="btn-retry">Retry</button>
         </div>
       `;
     }
@@ -615,12 +786,7 @@ export class AdminPage {
       </div>
     `;
 
-    // Setup quick action handlers
-    contentEl.querySelectorAll(".quick-action-btn").forEach((btn) => {
-      btn.addEventListener("click", () =>
-        this.handleQuickAction(btn.dataset.action)
-      );
-    });
+    // Quick actions handled via delegated click on this._contentEl
   }
 
   async fetchDashboardStats() {
@@ -835,22 +1001,7 @@ export class AdminPage {
         </div>
       </div>
     `;
-
-    // Setup handlers
-    contentEl
-      .querySelector(".btn-add-university")
-      ?.addEventListener("click", () => {
-        this.openAddUniversityModal();
-      });
-
-    contentEl.querySelectorAll(".university-card").forEach((card) => {
-      card.querySelector(".btn-edit")?.addEventListener("click", () => {
-        this.openEditUniversityModal(card.dataset.id);
-      });
-      card.querySelector(".btn-delete")?.addEventListener("click", () => {
-        this.confirmDeleteUniversity(card.dataset.id);
-      });
-    });
+    // Handlers are delegated via this._contentEl (click/change/input)
   }
 
   async fetchUniversities() {
@@ -1045,25 +1196,7 @@ export class AdminPage {
         </div>
       </div>
     `;
-
-    // Setup handlers
-    contentEl.querySelector(".btn-add-saf")?.addEventListener("click", () => {
-      this.openAddSafModal();
-    });
-
-    contentEl.querySelectorAll(".saf-card .btn-remove").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const card = e.target.closest(".saf-card");
-        this.confirmRemoveSaf(card.dataset.id);
-      });
-    });
-
-    // Filter handler
-    contentEl
-      .querySelector("#saf-university-filter")
-      ?.addEventListener("change", (e) => {
-        this.filterSafByUniversity(e.target.value);
-      });
+    // Handlers are delegated via this._contentEl (click/change/input)
   }
 
   async fetchSafModerators() {
@@ -1156,6 +1289,7 @@ export class AdminPage {
           allowAllUniversities: !select?.value,
           allowMissingProfile: true,
           bypassSearchable: true, // Admin can find users even if they have search disabled
+          audit: { enabled: true, source: "admin_add_saf_moderator" },
           onSelect: (user) => {
             const uniId = select?.value || null;
             const profile = user.profile || {};
@@ -1314,32 +1448,7 @@ export class AdminPage {
         </div>
       </div>
     `;
-
-    // Setup handlers
-    contentEl
-      .querySelector(".btn-create-club")
-      ?.addEventListener("click", () => {
-        this.openCreateClubModal();
-      });
-
-    contentEl.querySelector("#club-search")?.addEventListener("input", (e) => {
-      this.filterClubs(e.target.value);
-    });
-
-    contentEl.querySelectorAll(".clubs-table tbody tr").forEach((row) => {
-      row.querySelector(".btn-edit")?.addEventListener("click", () => {
-        this.openEditClubModal(row.dataset.id);
-      });
-      row.querySelector(".btn-president")?.addEventListener("click", () => {
-        this.openAssignPresidentModal(row.dataset.id, {
-          clubName: row.dataset.clubName,
-          universityId: row.dataset.universityId,
-        });
-      });
-      row.querySelector(".btn-delete")?.addEventListener("click", () => {
-        this.confirmDeleteClub(row.dataset.id);
-      });
-    });
+    // Handlers are delegated via this._contentEl (click/change/input)
   }
 
   async fetchClubs() {
@@ -1598,6 +1707,7 @@ export class AdminPage {
           null,
         allowAllUniversities: false,
         bypassSearchable: true, // Admin can find users even if they have search disabled
+        audit: { enabled: true, source: "admin_assign_club_president" },
         onSelect: (user) => {
           const profile = user.profile || {};
           const handle = profile.handle || profile.handle_lower || user.id;
@@ -1685,31 +1795,33 @@ export class AdminPage {
       },
     });
 
-    // Add validation listener for the input
-    setTimeout(() => {
-      const input = document.getElementById("confirmClubName");
-      const hint = document.getElementById("typeHint");
-      const confirmBtn = document.querySelector(".admin-modal .btn-confirm");
+	    // Add validation listener for the input
+	    setTimeout(() => {
+	      const input = document.getElementById("confirmClubName");
+	      const hint = document.getElementById("typeHint");
+	      const confirmBtn = document.querySelector(".admin-modal .btn-confirm");
 
-      if (input && confirmBtn) {
-        // Initially disable the confirm button
-        confirmBtn.disabled = true;
-        confirmBtn.classList.add("btn-disabled");
+	      if (input && confirmBtn) {
+	        // Initially disable the confirm button
+	        confirmBtn.disabled = true;
+	        confirmBtn.classList.add("btn-disabled");
 
-        input.addEventListener("input", () => {
-          const typedName = input.value.trim();
-          const matches = typedName === clubName;
+	        function handleConfirmNameInput() {
+	          const typedName = input.value.trim();
+	          const matches = typedName === clubName;
 
-          if (hint) {
-            hint.style.display = matches ? "block" : "none";
-          }
+	          if (hint) {
+	            hint.style.display = matches ? "block" : "none";
+	          }
 
-          confirmBtn.disabled = !matches;
-          confirmBtn.classList.toggle("btn-disabled", !matches);
-        });
-      }
-    }, 100);
-  }
+	          confirmBtn.disabled = !matches;
+	          confirmBtn.classList.toggle("btn-disabled", !matches);
+	        }
+
+	        input.addEventListener("input", handleConfirmNameInput);
+	      }
+	    }, 100);
+	  }
 
   filterClubs(searchTerm) {
     const rows = this.rootEl.querySelectorAll(".clubs-table tbody tr");
@@ -1773,59 +1885,7 @@ export class AdminPage {
         </div>
       </div>
     `;
-
-    const runButtons = contentEl.querySelectorAll(".btn-run-automation");
-    runButtons.forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const job = btn.dataset.job;
-        const card = btn.closest(".automation-card");
-        const outputEl = card?.querySelector(".automation-output");
-        if (!job || !card || !outputEl) return;
-
-        const confirmText =
-          job === "classSpacesScheduler"
-            ? "Run Class Spaces membership sync now? This updates memberships for all users."
-            : "Run this automation job now?";
-        if (!confirm(confirmText)) return;
-
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running...';
-        outputEl.innerHTML = `
-          <div class="automation-status automation-status--running">
-            <i class="fas fa-spinner fa-spin"></i> Executing...
-          </div>
-        `;
-
-        try {
-          const data = await adminRunAutomationJob(job);
-          const pretty = JSON.stringify(data, null, 2);
-          outputEl.innerHTML = `
-            <div class="automation-status automation-status--success">
-              <i class="fas fa-check-circle"></i> Success
-              <span class="automation-time">${new Date().toLocaleString()}</span>
-            </div>
-            <pre class="automation-result">${escapeHtmlAdmin(pretty)}</pre>
-          `;
-        } catch (error) {
-          const msg =
-            error?.message ||
-            error?.details ||
-            error?.code ||
-            "Unknown error";
-          outputEl.innerHTML = `
-            <div class="automation-status automation-status--error">
-              <i class="fas fa-exclamation-triangle"></i> Failed: ${escapeHtmlAdmin(
-                msg
-              )}
-              <span class="automation-time">${new Date().toLocaleString()}</span>
-            </div>
-          `;
-        } finally {
-          btn.disabled = false;
-          btn.innerHTML = '<i class="fas fa-play"></i> Run Now';
-        }
-      });
-    });
+    // Handlers are delegated via this._contentEl (click/change/input)
   }
 
   // ==========================================
@@ -1869,34 +1929,68 @@ export class AdminPage {
     document.body.appendChild(modal);
 
     // Close handlers
-    const close = () => modal.remove();
-    modal.querySelector(".modal-close").addEventListener("click", close);
-    modal.querySelector(".btn-cancel").addEventListener("click", close);
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) close();
-    });
+    function closeModal() {
+      modal.remove();
+    }
 
-    // Confirm handler
-    modal.querySelector(".btn-confirm").addEventListener("click", async () => {
+    function handleOverlayClick(e) {
+      if (e.target === modal) closeModal();
+    }
+
+    async function handleConfirmClick() {
       try {
-        modal.querySelector(".btn-confirm").disabled = true;
-        modal.querySelector(".btn-confirm").innerHTML =
+        const confirmBtn = modal.querySelector(".btn-confirm");
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML =
           '<i class="fas fa-spinner fa-spin"></i> Processing...';
         await onConfirm();
-        close();
+        closeModal();
       } catch (error) {
         logManager.error("Modal action error", error);
         alert("An error occurred. Please try again.");
-        modal.querySelector(".btn-confirm").disabled = false;
-        modal.querySelector(".btn-confirm").innerHTML = confirmText;
+        const confirmBtn = modal.querySelector(".btn-confirm");
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = confirmText;
       }
-    });
+    }
+
+    modal.querySelector(".modal-close").addEventListener("click", closeModal);
+    modal.querySelector(".btn-cancel").addEventListener("click", closeModal);
+    modal.addEventListener("click", handleOverlayClick);
+    modal.querySelector(".btn-confirm").addEventListener("click", handleConfirmClick);
   }
 
   /**
    * Cleanup on unmount
    */
   unmount() {
+    if (this._tabsEl) {
+      this._tabsEl.removeEventListener("click", this._handleTabsClick);
+      this._tabsEl = null;
+    }
+    if (this._contentEl) {
+      this._contentEl.removeEventListener("click", this._handleContentClick);
+      this._contentEl.removeEventListener("input", this._handleContentInput);
+      this._contentEl.removeEventListener("change", this._handleContentChange);
+      this._contentEl = null;
+    }
+    if (this._pinInputEl) {
+      this._pinInputEl.removeEventListener("input", this._handlePinInput);
+      this._pinInputEl.removeEventListener("keypress", this._handlePinKeypress);
+      this._pinInputEl = null;
+    }
+    if (this._pinVerifyBtnEl) {
+      this._pinVerifyBtnEl.removeEventListener("click", this._handlePinVerifyClick);
+      this._pinVerifyBtnEl = null;
+    }
+    this._pinDotsEls = [];
+    this._pinErrorEl = null;
+    if (this._pinFocusTimer) {
+      try {
+        clearTimeout(this._pinFocusTimer);
+      } catch (error) { console.debug("Suppressed error", error); }
+      this._pinFocusTimer = null;
+    }
     this.isVerified = false;
     this.cachedData = {};
     logManager.debug("AdminPage unmounted");
@@ -1918,15 +2012,15 @@ function escapeHtmlAdmin(str) {
 // Wire AdminPage to SPA router lifecycle
 let _adminPageInstance = null;
 
-document.addEventListener("spa:page:unload", (event) => {
+function handleAdminPageUnload(event) {
   const route = event?.detail?.route;
   if (route === "admin" && _adminPageInstance) {
     _adminPageInstance.unmount();
     _adminPageInstance = null;
   }
-});
+}
 
-document.addEventListener("spa:page:load", async (event) => {
+async function handleAdminPageLoad(event) {
   const route = event?.detail?.route;
   if (route !== "admin") return;
 
@@ -1940,4 +2034,7 @@ document.addEventListener("spa:page:load", async (event) => {
 
   _adminPageInstance = new AdminPage();
   await _adminPageInstance.mount(root);
-});
+}
+
+document.addEventListener("spa:page:unload", handleAdminPageUnload);
+document.addEventListener("spa:page:load", handleAdminPageLoad);

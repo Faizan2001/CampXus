@@ -21,6 +21,7 @@ import {
   where,
   documentId,
 } from "firebase/firestore";
+import { callFunction } from "../../utils/firebase/functionsHelper.js";
 
 export class ClassSpacesService {
   async ensureSignedInUser(timeoutMs = 2500) {
@@ -41,7 +42,7 @@ export class ClassSpacesService {
           clearTimeout(timeout);
           try {
             unsub();
-          } catch (_) {}
+          } catch (error) { console.debug("Suppressed error", error); }
           resolve(user || null);
         });
       });
@@ -223,7 +224,7 @@ export class ClassSpacesService {
 
         try {
           connectFunctionsEmulator(functions, "localhost", 5001);
-        } catch (_) {}
+        } catch (error) { console.debug("Suppressed error", error); }
         const callable = httpsCallable(functions, "sendGroupMessage");
         const res = await callable({ spaceId, content });
         return res?.data?.messageId || null;
@@ -247,7 +248,7 @@ export class ClassSpacesService {
     // Warm token so callable attaches Authorization reliably
     try {
       await user.getIdToken(true);
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
 
     const { httpsCallable } = await import("firebase/functions");
     const functions = await getFunctionsInstance();
@@ -270,7 +271,7 @@ export class ClassSpacesService {
     // Warm token so callable attaches Authorization reliably
     try {
       await user.getIdToken(true);
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
 
     const { httpsCallable } = await import("firebase/functions");
     const functions = await getFunctionsInstance();
@@ -288,73 +289,16 @@ export class ClassSpacesService {
     if (!uid) {
       return [];
     }
-
-    // Get user's leftSpaces from their document
-    const userRef = doc(db, "users", uid);
-    const userSnap = await getDoc(userRef);
-    if (!userSnap.exists()) {
-      return [];
-    }
-
-    const userData = userSnap.data() || {};
-    const leftSpaces = userData.leftSpaces || {};
-    const spaceIds = Object.keys(leftSpaces);
-
-    if (spaceIds.length === 0) {
-      return [];
-    }
-
-    // Get today's date in YYYY-MM-DD format (Asia/Dhaka timezone)
-    const now = new Date();
-    const dhaka = new Date(now.getTime() + 6 * 60 * 60 * 1000);
-    const today = dhaka.toISOString().split("T")[0];
-
-    // Firestore 'in' queries support max 30 items at a time
-    const results = [];
-    const chunkSize = 30;
-
-    for (let i = 0; i < spaceIds.length; i += chunkSize) {
-      const chunk = spaceIds.slice(i, i + chunkSize);
-      const spacesRef = collection(db, "classSpaces");
-      const q = query(
-        spacesRef,
-        where(documentId(), "in", chunk),
-        where("active", "==", true),
-      );
-      const snap = await getDocs(q);
-
-      snap.forEach((d) => {
-        const spaceData = { spaceId: d.id, ...d.data() };
-
-        // Skip spaces where user is currently a member (they rejoined)
-        const memberIds = Array.isArray(spaceData.memberIds)
-          ? spaceData.memberIds
-          : [];
-        if (memberIds.includes(uid)) {
-          return; // User is a member, don't show in "Left Spaces"
-        }
-
-        const leftInfo = leftSpaces[d.id] || {};
-        const lastRejoinDate = leftInfo.lastRejoinDate || null;
-        const canRejoinToday = lastRejoinDate !== today;
-
-        results.push({
-          space: spaceData,
-          leftAt: leftInfo.leftAt,
-          lastRejoinDate,
-          canRejoinToday,
-        });
-      });
-    }
-
-    // Sort by leftAt (most recent first)
-    results.sort((a, b) => {
-      const aTime = a.leftAt?.toDate?.()?.getTime?.() || 0;
-      const bTime = b.leftAt?.toDate?.()?.getTime?.() || 0;
-      return bTime - aTime;
-    });
-
-    return results;
+    // SECURITY (C15): after disabling client-side list on /classSpaces, users who left a space
+    // can no longer read the space doc. Fetch rejoinable summaries via Cloud Function.
+    const res = await callFunction("listMyLeftClassSpaces", {});
+    const items = Array.isArray(res?.data?.items) ? res.data.items : [];
+    return items.map((item) => ({
+      space: item.space,
+      canRejoinToday: item.canRejoinToday === true,
+      leftAt: item.leftAtMs ? new Date(item.leftAtMs) : null,
+      lastRejoinDate: item.lastRejoinDate || null,
+    }));
   }
 }
 

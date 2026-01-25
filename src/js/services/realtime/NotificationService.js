@@ -675,10 +675,31 @@ class NotificationManager {
   handleFriendRequestClick(requestData) {
     console.log("Friend request notification clicked:", requestData);
 
-    // TODO: Navigate to friends page or show friend request modal
-    // if (window.navigateTo) {
-    //   window.navigateTo('friends');
-    // }
+    // Navigate to Friends page for request management (best-effort).
+    const navigateFallback = () => {
+      try {
+        window.location.hash = "#friends";
+      } catch (error) {
+        console.debug("Suppressed error", error);
+      }
+    };
+
+    try {
+      void (async () => {
+        try {
+          const mod = await import("../../app.js");
+          if (typeof mod?.navigateTo === "function") {
+            mod.navigateTo("friends");
+            return;
+          }
+        } catch (_) {
+          // fall through to hash navigation
+        }
+        navigateFallback();
+      })();
+    } catch (_) {
+      navigateFallback();
+    }
   }
 
   /**
@@ -753,6 +774,12 @@ class NotificationManager {
 export const notificationManager = new NotificationManager();
 
 // Only add to global scope for debugging in development
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+const __DEV__ =
+  typeof window !== "undefined" &&
+  (import.meta?.env?.DEV ||
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NODE_ENV === "development"));
+if (__DEV__) {
   window.notificationManager = notificationManager;
 }

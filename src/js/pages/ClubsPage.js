@@ -15,6 +15,19 @@ export default class ClubsPage {
     this.isSafModerator = false;
     this.isSuperAdminUser = false;
     this.isDevMode = false;
+    this._searchTimeout = null;
+    this._searchInput = null;
+    this._searchClearBtn = null;
+    this._clubsListEl = null;
+    this._adminControlsEl = null;
+    this._completeProfileBtn = null;
+
+    this._handleSearchInput = this._handleSearchInput.bind(this);
+    this._handleSearchClearClick = this._handleSearchClearClick.bind(this);
+    this._handleAdminControlsClick = this._handleAdminControlsClick.bind(this);
+    this._handleClubsListClick = this._handleClubsListClick.bind(this);
+    this._handleCompleteProfileClick =
+      this._handleCompleteProfileClick.bind(this);
   }
 
   async mount(rootEl) {
@@ -27,23 +40,24 @@ export default class ClubsPage {
     }
 
     if (!currentUser.isProfileComplete()) {
-      this.container.innerHTML = `
-        <section class="clubs-page">
-          <div class="profile-gate-message">
-            <div class="gate-icon"><i class="fas fa-flag"></i></div>
-            <h2>Complete Your Profile</h2>
-            <p>Complete your profile before browsing clubs.</p>
-            <button id="completeProfileBtn" class="btn primary">Complete Profile</button>
-          </div>
-        </section>
-      `;
-      this.container
-        .querySelector("#completeProfileBtn")
-        ?.addEventListener("click", () => {
-          window.location.hash = "#profile";
-        });
-      return;
-    }
+	      this.container.innerHTML = `
+	        <section class="clubs-page">
+	          <div class="profile-gate-message">
+	            <div class="gate-icon"><i class="fas fa-flag"></i></div>
+	            <h2>Complete Your Profile</h2>
+	            <p>Complete your profile before browsing clubs.</p>
+	            <button id="completeProfileBtn" class="btn primary">Complete Profile</button>
+	          </div>
+	        </section>
+	      `;
+	      this._completeProfileBtn =
+	        this.container.querySelector("#completeProfileBtn");
+	      this._completeProfileBtn?.addEventListener(
+	        "click",
+	        this._handleCompleteProfileClick
+	      );
+	      return;
+	    }
 
     // Load user's followed clubs from their profile
     this.followedClubs = new Set(currentUser?.profile?.followedClubs || []);
@@ -56,8 +70,8 @@ export default class ClubsPage {
     // Check user roles (SAF moderator, Super Admin)
     await this.checkUserRoles();
 
-    this.container.innerHTML = `
-      <section class="clubs-page">
+	    this.container.innerHTML = `
+	      <section class="clubs-page">
         <div class="clubs-header-bar">
           <h1><i class="fas fa-flag"></i> Campus Clubs</h1>
           <p class="clubs-subtitle">Discover student organizations at your university</p>
@@ -94,11 +108,15 @@ export default class ClubsPage {
       </section>
     `;
 
-    // Setup admin control buttons
-    this.setupAdminControls();
+	    // Setup admin control buttons
+	    this.setupAdminControls();
 
-    // Setup search functionality
-    this.setupSearch();
+	    // Setup search functionality
+	    this.setupSearch();
+
+	    // Delegated handler for follow buttons (avoids per-render listener accumulation)
+	    this._clubsListEl = this.container.querySelector("#clubs-list");
+	    this._clubsListEl?.addEventListener("click", this._handleClubsListClick);
 
     // Clear clubs notification badge when page is visited
     // This marks informational notifications (new events, live events) as read
@@ -114,36 +132,18 @@ export default class ClubsPage {
   /**
    * Setup search functionality for filtering clubs
    */
-  setupSearch() {
-    const searchInput = this.container.querySelector("#clubs-search-input");
-    const clearBtn = this.container.querySelector("#search-clear-btn");
+	  setupSearch() {
+	    const searchInput = this.container.querySelector("#clubs-search-input");
+	    const clearBtn = this.container.querySelector("#search-clear-btn");
 
-    if (!searchInput) return;
+	    if (!searchInput) return;
 
-    // Debounce search input
-    let searchTimeout;
-    searchInput.addEventListener("input", (e) => {
-      const query = e.target.value.trim();
+	    this._searchInput = searchInput;
+	    this._searchClearBtn = clearBtn;
 
-      // Show/hide clear button
-      if (clearBtn) {
-        clearBtn.style.display = query ? "flex" : "none";
-      }
-
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        this.filterAndRenderClubs(query);
-      }, 200);
-    });
-
-    // Clear button handler
-    clearBtn?.addEventListener("click", () => {
-      searchInput.value = "";
-      clearBtn.style.display = "none";
-      this.filterAndRenderClubs("");
-      searchInput.focus();
-    });
-  }
+	    searchInput.addEventListener("input", this._handleSearchInput);
+	    clearBtn?.addEventListener("click", this._handleSearchClearClick);
+	  }
 
   /**
    * Check if current user is SAF moderator or Super Admin
@@ -240,28 +240,15 @@ export default class ClubsPage {
   /**
    * Setup event listeners for admin control buttons
    */
-  setupAdminControls() {
-    // SAF Dashboard navigation
-    this.container
-      .querySelector("#goto-saf-dashboard")
-      ?.addEventListener("click", () => {
-        window.location.hash = "#saf";
-      });
-
-    // Admin Dashboard navigation
-    this.container
-      .querySelector("#goto-admin-dashboard")
-      ?.addEventListener("click", () => {
-        window.location.hash = "#admin";
-      });
-
-    // Create Test Club button (dev mode only)
-    this.container
-      .querySelector("#create-test-club-btn")
-      ?.addEventListener("click", async () => {
-        await this.createTestClub();
-      });
-  }
+	  setupAdminControls() {
+	    this._adminControlsEl = this.container.querySelector(
+	      ".clubs-admin-controls"
+	    );
+	    this._adminControlsEl?.addEventListener(
+	      "click",
+	      this._handleAdminControlsClick
+	    );
+	  }
 
   /**
    * Create a test club (dev mode only)
@@ -501,14 +488,16 @@ export default class ClubsPage {
         <div class="clubs-error">
           <i class="fas fa-exclamation-triangle"></i>
           <p>Failed to load clubs. Check your connection.</p>
-          <button class="btn secondary" onclick="location.reload()">Retry</button>
+          <button class="btn secondary btn-retry">Retry</button>
         </div>
       `;
+      const retryBtn = listEl.querySelector(".btn-retry");
+      if (retryBtn) retryBtn.addEventListener("click", handleReloadClick);
     }
   }
 
-  renderClubs(listEl) {
-    listEl.innerHTML = this.clubs
+	  renderClubs(listEl) {
+	    listEl.innerHTML = this.clubs
       .map((c) => {
         const isFollowing = this.followedClubs.has(c.id);
         const accentColor = c.accentColor || "purple";
@@ -554,19 +543,13 @@ export default class ClubsPage {
           </div>
         </div>
       `;
-      })
-      .join("");
+	      })
+	      .join("");
+	  }
 
-    // Bind follow button clicks
-    listEl.querySelectorAll(".follow-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => this.handleFollowClick(e));
-    });
-  }
-
-  async handleFollowClick(e) {
-    const btn = e.currentTarget;
-    const clubId = btn.dataset.clubId;
-    if (!clubId || !currentUser?.uid) return;
+	  async handleFollowClick(btn) {
+	    const clubId = btn.dataset.clubId;
+	    if (!clubId || !currentUser?.uid) return;
 
     // Bug #23: Prevent multiple clicks during async operation
     if (btn.disabled) return;
@@ -657,15 +640,112 @@ export default class ClubsPage {
       // Bug #23: Re-enable button after operation
       btn.disabled = false;
     }
-  }
+	  }
 
-  unmount() {
-    // Cleanup live events section
-    if (this.liveEventsSection) {
-      this.liveEventsSection.destroy();
-      this.liveEventsSection = null;
-    }
-  }
+	  _handleSearchInput(e) {
+	    const query = (e?.target?.value || "").trim();
+	    const clearBtn = this._searchClearBtn;
+	    if (clearBtn) {
+	      clearBtn.style.display = query ? "flex" : "none";
+	    }
+
+	    try {
+	      if (this._searchTimeout) clearTimeout(this._searchTimeout);
+	    } catch (error) { console.debug("Suppressed error", error); }
+	    this._searchTimeout = setTimeout(() => {
+	      this.filterAndRenderClubs(query);
+	    }, 200);
+	  }
+
+	  _handleSearchClearClick() {
+	    const searchInput = this._searchInput;
+	    const clearBtn = this._searchClearBtn;
+	    if (!searchInput) return;
+	    searchInput.value = "";
+	    if (clearBtn) clearBtn.style.display = "none";
+	    this.filterAndRenderClubs("");
+	    searchInput.focus();
+	  }
+
+	  _handleAdminControlsClick(e) {
+	    const controlsEl = this._adminControlsEl;
+	    if (!controlsEl) return;
+	    const btn = e.target?.closest?.("button");
+	    if (!btn || !controlsEl.contains(btn)) return;
+
+	    if (btn.id === "goto-saf-dashboard") {
+	      window.location.hash = "#saf";
+	      return;
+	    }
+	    if (btn.id === "goto-admin-dashboard") {
+	      window.location.hash = "#admin";
+	      return;
+	    }
+	    if (btn.id === "create-test-club-btn") {
+	      void this.createTestClub();
+	    }
+	  }
+
+	  _handleClubsListClick(e) {
+	    const listEl = this._clubsListEl;
+	    if (!listEl) return;
+	    const btn = e.target?.closest?.(".follow-btn");
+	    if (!btn || !listEl.contains(btn)) return;
+	    void this.handleFollowClick(btn);
+	  }
+
+	  _handleCompleteProfileClick() {
+	    window.location.hash = "#profile";
+	  }
+
+	  unmount() {
+	    if (this._searchInput) {
+	      this._searchInput.removeEventListener("input", this._handleSearchInput);
+	      this._searchInput = null;
+	    }
+	    if (this._searchClearBtn) {
+	      this._searchClearBtn.removeEventListener(
+	        "click",
+	        this._handleSearchClearClick
+	      );
+	      this._searchClearBtn = null;
+	    }
+	    if (this._searchTimeout) {
+	      try {
+	        clearTimeout(this._searchTimeout);
+	      } catch (err) {
+        logManager.dev.debug("Search timeout cleanup failed", err);
+      }
+	      this._searchTimeout = null;
+	    }
+	    if (this._adminControlsEl) {
+	      this._adminControlsEl.removeEventListener(
+	        "click",
+	        this._handleAdminControlsClick
+	      );
+	      this._adminControlsEl = null;
+	    }
+	    if (this._clubsListEl) {
+	      this._clubsListEl.removeEventListener(
+	        "click",
+	        this._handleClubsListClick
+	      );
+	      this._clubsListEl = null;
+	    }
+	    if (this._completeProfileBtn) {
+	      this._completeProfileBtn.removeEventListener(
+	        "click",
+	        this._handleCompleteProfileClick
+	      );
+	      this._completeProfileBtn = null;
+	    }
+
+	    // Cleanup live events section
+	    if (this.liveEventsSection) {
+	      this.liveEventsSection.destroy();
+	      this.liveEventsSection = null;
+	    }
+	  }
 }
 
 function escapeHtml(str) {
@@ -677,26 +757,30 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
+function handleReloadClick() {
+  location.reload();
+}
+
 // Wire to SPA router lifecycle
 let _clubsPageInstance = null;
 
-document.addEventListener("spa:page:unload", (event) => {
+function handleClubsPageUnload(event) {
   const route = event?.detail?.route;
   // Only unmount if we're leaving clubs page
   if (route !== "clubs") return;
 
-  console.log("[ClubsPage] spa:page:unload for route:", route);
+  logManager.dev?.debug?.("[ClubsPage] spa:page:unload", { route });
   if (_clubsPageInstance) {
     _clubsPageInstance.unmount();
     _clubsPageInstance = null;
   }
-});
+}
 
-document.addEventListener("spa:page:load", async (event) => {
+async function handleClubsPageLoad(event) {
   const route = event?.detail?.route;
   if (route !== "clubs") return;
 
-  console.log("[ClubsPage] spa:page:load for route:", route);
+  logManager.dev?.debug?.("[ClubsPage] spa:page:load", { route });
 
   // Wait a tick for DOM to be ready after template injection
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -706,17 +790,20 @@ document.addEventListener("spa:page:load", async (event) => {
     document.querySelector(".main-content");
 
   if (!root) {
-    console.error("[ClubsPage] Root element not found!");
+    logManager.error("[ClubsPage] Root element not found!");
     return;
   }
 
-  console.log("[ClubsPage] Mounting to root:", root);
+  logManager.dev?.debug?.("[ClubsPage] Mounting", { hasRoot: !!root });
 
   try {
     _clubsPageInstance = new ClubsPage();
     await _clubsPageInstance.mount(root);
-    console.log("[ClubsPage] Mount completed successfully");
+    logManager.dev?.debug?.("[ClubsPage] Mount completed");
   } catch (error) {
-    console.error("[ClubsPage] Mount failed:", error);
+    logManager.error("[ClubsPage] Mount failed", error);
   }
-});
+}
+
+document.addEventListener("spa:page:unload", handleClubsPageUnload);
+document.addEventListener("spa:page:load", handleClubsPageLoad);

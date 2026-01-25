@@ -1,8 +1,12 @@
 // Privacy and GDPR compliance manager
+import { logManager } from "../../utils/debug/LogManager.js";
+
 export class PrivacyManager {
   constructor() {
     this.consentKey = "meetchuthere_privacy_consent";
     this.consentVersion = "1.0";
+    this._boundAcceptEssentialClick = this.acceptEssential.bind(this);
+    this._boundAcceptAllClick = this.acceptAll.bind(this);
     this.init();
   }
 
@@ -24,6 +28,8 @@ export class PrivacyManager {
   }
 
   showConsentBanner() {
+    if (document.querySelector(".privacy-consent-banner")) return;
+
     const banner = document.createElement("div");
     banner.className = "privacy-consent-banner";
     banner.innerHTML = `
@@ -32,10 +38,10 @@ export class PrivacyManager {
            By using MeetchuThere, you agree to our 
            <a href="/pages/privacy.html" target="_blank">Privacy Policy</a>.</p>
         <div class="privacy-consent-actions">
-          <button class="btn btn-secondary" onclick="privacyManager.acceptEssential()">
+          <button class="btn btn-secondary" type="button" data-privacy-action="essential">
             Essential Only
           </button>
-          <button class="btn btn-primary" onclick="privacyManager.acceptAll()">
+          <button class="btn btn-primary" type="button" data-privacy-action="all">
             Accept All
           </button>
         </div>
@@ -56,6 +62,13 @@ export class PrivacyManager {
     `;
 
     document.body.appendChild(banner);
+
+    const essentialBtn = banner.querySelector(
+      '[data-privacy-action="essential"]'
+    );
+    const allBtn = banner.querySelector('[data-privacy-action="all"]');
+    essentialBtn?.addEventListener("click", this._boundAcceptEssentialClick);
+    allBtn?.addEventListener("click", this._boundAcceptAllClick);
   }
 
   acceptEssential() {
@@ -85,7 +98,7 @@ export class PrivacyManager {
     localStorage.setItem(this.consentKey, JSON.stringify(consentData));
 
     // Log consent for audit trail
-    console.log("Privacy: Consent updated", consentData);
+    logManager.system?.info?.("Privacy: Consent updated", consentData);
   }
 
   hideConsentBanner() {
@@ -114,10 +127,10 @@ export class PrivacyManager {
         // Clear Firebase auth (user must delete account through Firebase)
         // Database deletion handled by Cloud Functions
 
-        console.log("Privacy: Local user data deleted");
+        logManager.system?.info?.("Privacy: Local user data deleted");
         resolve();
       } catch (error) {
-        console.error("Privacy: Error deleting user data", error);
+        logManager.system?.error?.("Privacy: Error deleting user data", error);
         reject(error);
       }
     });

@@ -17,20 +17,24 @@ import { notificationManager } from "../services/realtime/NotificationService.js
 import { logManager } from "../utils/debug/LogManager.js";
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js"; // 📊 Track page views
 import { profileCache } from "../cache/profileCache.js"; // 🚀 Session hint for faster initial route
+import { timerRegistry } from "../utils/timers/TimerRegistry.js";
 
 // Lazy DataService loader so Firestore bundle is only pulled in when needed
 let routerDataManagerPromise = null;
 async function getRouterDataManager() {
   if (!routerDataManagerPromise) {
-    routerDataManagerPromise = import("../services/data/DataService.js")
-      .then((mod) => mod.dataManager)
-      .catch((error) => {
+    routerDataManagerPromise = (async () => {
+      try {
+        const mod = await import("../services/data/DataService.js");
+        return mod.dataManager;
+      } catch (error) {
         logManager.system.warn(
           "Router: Failed to load DataService (non-critical):",
           error
         );
         return null;
-      });
+      }
+    })();
   }
   return routerDataManagerPromise;
 }
@@ -196,6 +200,8 @@ class SPARouter {
     this._navVisibility = { hidden: null };
     // During first page load we may suppress auth-driven redirects
     this._suppressAuthRedirects = false;
+    // Track timers so they can be cancelled (prevents delayed DOM writes after route changes)
+    this._hideLoadingTimer = null;
     // Prevent re-entrant profile gate redirects
     this._profileGateInProgress = false;
     // Allow SPA init to skip the first full-screen loading overlay
@@ -204,6 +210,13 @@ class SPARouter {
     // session hint can see their schedule immediately while
     // Firebase Auth finishes hydrating in the background.
     this._initialAuthGraceUntil = Date.now() + 5000;
+
+    // Event listener references (for idempotent init / cleanup)
+    this._navigationListenersBound = false;
+    this._browserNavigationBound = false;
+    this._onDocumentClickNavigate = null;
+    this._onPopState = null;
+    this._onHashChange = null;
 
     // 🎯 Learning: Initialize the router when created
     this.init();
@@ -231,7 +244,8 @@ class SPARouter {
 
       if (name && this.routes[name]) return name;
       return this.routes[raw] ? raw : "home";
-    } catch (_) {
+    } catch (error) {
+      logManager.dev.debug("Failed to parse route name", { error: error?.message });
       return "home";
     }
   }
@@ -524,16 +538,24 @@ class SPARouter {
    * 🎯 Learning: We intercept clicks on navigation links to handle them with JavaScript
    */
   setupNavigationListeners() {
+    if (this._navigationListenersBound) return;
+    this._navigationListenersBound = true;
+
     // Listen for clicks on elements with data-spa-route attribute
-    document.addEventListener("click", (event) => {
-      const routeElement = event.target.closest("[data-spa-route]");
-      if (routeElement) {
-        event.preventDefault(); // Stop the normal link behavior
-        const route = routeElement.getAttribute("data-spa-route");
-        // Navigation clicked
-        this.navigateTo(route);
-      }
-    });
+    this._onDocumentClickNavigate = (event) => {
+      const target =
+        event.target instanceof Element ? event.target : event.target?.parentElement;
+      if (!target) return;
+
+      const routeElement = target.closest("[data-spa-route]");
+      if (!routeElement) return;
+
+      event.preventDefault(); // Stop the normal link behavior
+      const route = routeElement.getAttribute("data-spa-route");
+      this.navigateTo(route);
+    };
+
+    document.addEventListener("click", this._onDocumentClickNavigate);
   }
 
   /**
@@ -541,7 +563,10 @@ class SPARouter {
    * 🎯 Learning: Users expect back/forward buttons to work in SPAs too!
    */
   setupBrowserNavigation() {
-    window.addEventListener("popstate", (event) => {
+    if (this._browserNavigationBound) return;
+    this._browserNavigationBound = true;
+
+    this._onPopState = (event) => {
       // Browser navigation detected
 
       // Try to get route from event state first, then from URL hash
@@ -560,8 +585,8 @@ class SPARouter {
         // Defer handling to smart loader flow to avoid content flash
         this._suppressAuthRedirects = true;
         this.showLoading();
-        Promise.resolve()
-          .then(async () => {
+        (async () => {
+          try {
             if (
               authManager?.authReady &&
               typeof authManager.authReady.then === "function"
@@ -575,19 +600,21 @@ class SPARouter {
             }
             const authed = !!authManager?.auth?.currentUser;
             await this.loadPage(authed ? route : "landing", false);
-          })
-          .finally(() => {
+          } finally {
             this._suppressAuthRedirects = false;
             this.hideLoading();
-          });
+          }
+        })();
         return;
       }
 
       this.loadPage(route, false); // Don't update history again
-    });
+    };
+
+    window.addEventListener("popstate", this._onPopState);
 
     // Also listen for hash changes (in case someone manually types a URL)
-    window.addEventListener("hashchange", (event) => {
+    this._onHashChange = (event) => {
       // Hash change detected
       const route = this._parseRouteName(window.location.hash);
 
@@ -601,8 +628,8 @@ class SPARouter {
         if (requiresAuth && !hasFirebaseUser) {
           this._suppressAuthRedirects = true;
           this.showLoading();
-          Promise.resolve()
-            .then(async () => {
+          (async () => {
+            try {
               if (
                 authManager?.authReady &&
                 typeof authManager.authReady.then === "function"
@@ -618,16 +645,18 @@ class SPARouter {
               }
               const authed = !!authManager?.auth?.currentUser;
               await this.loadPage(authed ? route : "landing", false);
-            })
-            .finally(() => {
+            } finally {
               this._suppressAuthRedirects = false;
               this.hideLoading();
-            });
+            }
+          })();
         } else {
           this.loadPage(route, false);
         }
       }
-    });
+    };
+
+    window.addEventListener("hashchange", this._onHashChange);
   }
 
   /**
@@ -635,8 +664,8 @@ class SPARouter {
    * 🎯 This ensures users are redirected appropriately when they log in/out
    */
   setupAuthStateHandling() {
-    // Subscribe to currentUser state changes
-    currentUser.subscribe((state) => {
+    // Subscribe to currentUser state changes (store unsubscribe for cleanup)
+    this._authStateUnsub = currentUser.subscribe((state) => {
       const isLoggedIn = state.isLoggedIn;
       const currentRoute = this.currentPage;
 
@@ -804,7 +833,7 @@ class SPARouter {
             authReadyPromise?.catch?.(() => {}) || Promise.resolve(),
             new Promise((resolve) => setTimeout(resolve, 1000)),
           ]);
-        } catch (_) {}
+        } catch (error) { logManager.dev.debug("Error waiting for auth with session hint", { error: error?.message }); }
       }
       const authedUser = authManager?.auth?.currentUser;
       // With a strong session hint (cached profile / user store), prefer
@@ -892,7 +921,7 @@ class SPARouter {
             authManager.authReady.catch(() => {}),
             new Promise((r) => setTimeout(r, hasSessionHint ? 2500 : 1000)),
           ]);
-        } catch (_) {}
+        } catch (error) { logManager.dev.debug("Error waiting for authReady in navigateTo", { error: error?.message }); }
         isAuthenticated = !!authManager?.auth?.currentUser;
       }
 
@@ -993,7 +1022,7 @@ class SPARouter {
             authManager.authReady.catch(() => {}),
             new Promise((r) => setTimeout(r, hasSessionHint ? 2500 : 1000)),
           ]);
-        } catch (_) {}
+        } catch (error) { logManager.dev.debug("Error waiting for authReady on landing", { error: error?.message }); }
         if (authManager?.auth?.currentUser) {
           logManager.info(
             "🏠 Authenticated user accessing landing (post-wait), redirecting to home"
@@ -1103,7 +1132,7 @@ class SPARouter {
           } else {
             await new Promise((r) => setTimeout(r, 300));
           }
-        } catch (_) {}
+        } catch (error) { logManager.dev.debug("Error waiting for profile timeout in gate", { error: error?.message }); }
         isComplete = !!(
           currentUser?.profile?.systemInfo?.profileSetupComplete === true
         );
@@ -1123,11 +1152,11 @@ class SPARouter {
               if (!currentUser?.profile) {
                 try {
                   currentUser.setProfile(profileDoc);
-                } catch (_) {}
+                } catch (error) { logManager.dev.debug("Error setting profile in gate", { error: error?.message }); }
               }
             }
           }
-        } catch (_) {}
+        } catch (error) { logManager.dev.debug("Error fetching profile from Firestore in gate", { error: error?.message }); }
       }
 
       if (!isComplete) {
@@ -1162,7 +1191,7 @@ class SPARouter {
       if (this._abortController) {
         try {
           this._abortController.abort();
-        } catch {}
+        } catch (error) { logManager.dev.debug("Error aborting navigation controller", { error: error?.message }); }
       }
       this._abortController = new AbortController();
       const { signal } = this._abortController;
@@ -1257,7 +1286,7 @@ class SPARouter {
         this.mainContentContainer.setAttribute("tabindex", "-1");
         this.mainContentContainer.focus({ preventScroll: true });
         window.scrollTo(0, 0);
-      } catch {}
+      } catch (error) { logManager.dev.debug("Error setting focus on main content", { error: error?.message }); }
 
       // Load and execute page controller code lazily
       await this.loadRouteCode(routeData);
@@ -1323,18 +1352,8 @@ class SPARouter {
       const firebaseUser = authManager?.auth?.currentUser;
       if (!firebaseUser) return false;
 
-      // Use existing Firebase config (db) to avoid duplicating initialization
-      const { db } = await import("../lib/firebase/firebase-config.js");
-      const { doc, getDoc } = await import("firebase/firestore");
-
-      const adminDoc = await getDoc(doc(db, "admin", "superAdmins"));
-      if (!adminDoc.exists()) {
-        logManager.warn("Super admin document does not exist");
-        return false;
-      }
-
-      const superAdmins = adminDoc.data()?.uids || [];
-      const isSuper = superAdmins.includes(firebaseUser.uid);
+      const { isSuperAdmin } = await import("../services/admin/AdminService.js");
+      const isSuper = await isSuperAdmin(firebaseUser.uid);
       logManager.auth.user("Router: Super admin check", {
         uid: firebaseUser.uid,
         isSuperAdmin: isSuper,
@@ -1381,14 +1400,22 @@ class SPARouter {
         const link = document.createElement("link");
         link.rel = "stylesheet";
         link.href = cssFile;
-        link.onload = () => {
-          // CSS loaded successfully
-          resolve();
-        };
-        link.onerror = (error) => {
-          logManager.error(`❌ Failed to load CSS: ${cssFile}`, error);
-          reject(error);
-        };
+        link.addEventListener(
+          "load",
+          () => {
+            // CSS loaded successfully
+            resolve();
+          },
+          { once: true }
+        );
+        link.addEventListener(
+          "error",
+          (error) => {
+            logManager.error(`❌ Failed to load CSS: ${cssFile}`, error);
+            reject(error);
+          },
+          { once: true }
+        );
         document.head.appendChild(link);
       });
     });
@@ -1477,8 +1504,8 @@ class SPARouter {
         const script = document.createElement("script");
         script.type = "module";
         script.src = jsFile;
-        script.onload = () => resolve();
-        script.onerror = (err) => reject(err);
+        script.addEventListener("load", () => resolve(), { once: true });
+        script.addEventListener("error", (err) => reject(err), { once: true });
         document.head.appendChild(script);
       });
     }
@@ -1715,7 +1742,7 @@ class SPARouter {
     // Secondary safeguard: ensure body class reflects auth state for CSS-driven visibility
     try {
       document.body.classList.toggle("is-auth", !!isLoggedIn);
-    } catch (_) {}
+    } catch (error) { logManager.dev.debug("Error toggling auth body class", { error: error?.message }); }
 
     // Hide navigation elements if user is on landing page OR about page and not logged in
     if ((route === "landing" || route === "about") && !isLoggedIn) {
@@ -1787,6 +1814,10 @@ class SPARouter {
       this._skipNextLoadingOverlay = false;
       return;
     }
+    if (this._hideLoadingTimer) {
+      clearTimeout(this._hideLoadingTimer);
+      this._hideLoadingTimer = null;
+    }
     if (this.loadingIndicator) {
       this.loadingIndicator.style.display = "block";
       // Small delay to ensure display is set before adding animation class
@@ -1804,7 +1835,8 @@ class SPARouter {
     if (this.loadingIndicator) {
       this.loadingIndicator.classList.remove("show");
       // Wait for fade out animation before hiding
-      setTimeout(() => {
+      if (this._hideLoadingTimer) clearTimeout(this._hideLoadingTimer);
+      this._hideLoadingTimer = setTimeout(() => {
         if (this.loadingIndicator) {
           this.loadingIndicator.style.display = "none";
         }
@@ -1868,7 +1900,7 @@ class SPARouter {
           ${displayMessage}
         </p>
         <div style="margin-bottom: 2rem;">
-          <button onclick="window.location.reload()" class="btn btn-secondary" style="margin-right: 1rem;">
+          <button id="router-error-refresh" class="btn btn-secondary" style="margin-right: 1rem;">
             <i class="fas fa-refresh"></i> Refresh Page
           </button>
           <button id="router-error-go-home" class="btn btn-primary">
@@ -1886,7 +1918,14 @@ Stack: ${error?.stack || "No stack trace available"}
       </div>
     `;
 
-    // Attach safe navigation without relying on window globals
+    // Attach safe navigation without relying on inline onclick
+    const refreshBtn = this.mainContentContainer.querySelector(
+      "#router-error-refresh"
+    );
+    if (refreshBtn) {
+      refreshBtn.addEventListener("click", () => window.location.reload());
+    }
+
     const goHomeBtn = this.mainContentContainer.querySelector(
       "#router-error-go-home"
     );
@@ -1937,7 +1976,12 @@ Stack: ${error?.stack || "No stack trace available"}
         hash: fullHash || window.location.hash,
       },
     });
-    document.dispatchEvent(event);
+    try {
+      timerRegistry.enterRoute(route);
+      document.dispatchEvent(event);
+    } finally {
+      timerRegistry.exitRoute(route);
+    }
     logManager.debug(`🔔 Dispatched spa:page:load event for route: ${route}`);
   }
 
@@ -1955,6 +1999,62 @@ Stack: ${error?.stack || "No stack trace available"}
       // Fallback to alert if notification system not available
       alert(message);
     }
+  }
+
+  /**
+   * Clean up event listeners and timers
+   * Useful for tests or future router re-inits
+   */
+  destroy() {
+    try {
+      if (this._onDocumentClickNavigate) {
+        document.removeEventListener("click", this._onDocumentClickNavigate);
+      }
+    } catch (error) { console.debug("Suppressed error", error); }
+
+    try {
+      if (this._onPopState) {
+        window.removeEventListener("popstate", this._onPopState);
+      }
+    } catch (error) { console.debug("Suppressed error", error); }
+
+    try {
+      if (this._onHashChange) {
+        window.removeEventListener("hashchange", this._onHashChange);
+      }
+    } catch (error) { console.debug("Suppressed error", error); }
+
+    this._onDocumentClickNavigate = null;
+    this._onPopState = null;
+    this._onHashChange = null;
+    this._navigationListenersBound = false;
+    this._browserNavigationBound = false;
+
+    try {
+      if (typeof this._authStateUnsub === "function") {
+        this._authStateUnsub();
+      }
+    } catch (error) { console.debug("Suppressed error", error); }
+    this._authStateUnsub = null;
+
+    if (this._authRedirectTimer) {
+      try {
+        clearTimeout(this._authRedirectTimer);
+      } catch (error) { console.debug("Suppressed error", error); }
+      this._authRedirectTimer = null;
+    }
+
+    if (this._hideLoadingTimer) {
+      try {
+        clearTimeout(this._hideLoadingTimer);
+      } catch (error) { console.debug("Suppressed error", error); }
+      this._hideLoadingTimer = null;
+    }
+
+    try {
+      this._abortController?.abort?.();
+    } catch (error) { console.debug("Suppressed error", error); }
+    this._abortController = null;
   }
 
   /**

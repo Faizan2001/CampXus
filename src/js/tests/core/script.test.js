@@ -498,8 +498,7 @@ describe("Modal System (js/modal.js)", () => {
       expect(DOM_ELEMENTS.appModal.style.display).toBe("none");
     });
 
-    test.skip("pressing Escape key should call onCancel and hide modal", () => {
-      // Skipped: Keyboard event handling requires additional modal system setup
+    test("pressing Escape key should call onCancel and hide modal", () => {
       const onCancelCallback = jest.fn();
       showModal({ content: "Press Esc", onCancel: onCancelCallback });
       jest.runAllTimers(); // Ensure modal is active

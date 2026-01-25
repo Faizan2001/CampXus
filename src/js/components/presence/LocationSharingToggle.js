@@ -225,7 +225,7 @@ export class LocationSharingToggle {
       try {
         // Refresh UI state on any permission change (denied/granted)
         await this.refresh();
-      } catch (_) {}
+      } catch (error) { console.debug("Suppressed error", error); }
     };
     document.addEventListener(
       "location-permission:changed",

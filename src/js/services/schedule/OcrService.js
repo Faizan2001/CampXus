@@ -380,36 +380,45 @@ export class OcrService {
     return new Promise((resolve) => {
       const img = new Image();
 
-      img.onload = () => {
-        try {
-          const aspectRatio = img.width / img.height;
-          const isPortrait = img.height > img.width;
-          const isMobileLikeAspect = aspectRatio < 0.75 || aspectRatio > 1.5; // Very wide or very tall
-          const isLikelyMobileSize =
-            (img.width <= 500 && img.height >= 800) ||
-            (img.width >= 800 && img.height <= 500);
+      img.addEventListener(
+        "load",
+        () => {
+          try {
+            const aspectRatio = img.width / img.height;
+            const isPortrait = img.height > img.width;
+            const isMobileLikeAspect =
+              aspectRatio < 0.75 || aspectRatio > 1.5; // Very wide or very tall
+            const isLikelyMobileSize =
+              (img.width <= 500 && img.height >= 800) ||
+              (img.width >= 800 && img.height <= 500);
 
-          const isMobile =
-            isPortrait && (isMobileLikeAspect || isLikelyMobileSize);
+            const isMobile =
+              isPortrait && (isMobileLikeAspect || isLikelyMobileSize);
 
-          console.log(
-            `📱 Image analysis - Width: ${img.width}, Height: ${
-              img.height
-            }, Aspect: ${aspectRatio.toFixed(2)}, Mobile: ${isMobile}`
-          );
+            console.log(
+              `📱 Image analysis - Width: ${img.width}, Height: ${
+                img.height
+              }, Aspect: ${aspectRatio.toFixed(2)}, Mobile: ${isMobile}`
+            );
 
+            URL.revokeObjectURL(img.src);
+            resolve(isMobile);
+          } catch (error) {
+            URL.revokeObjectURL(img.src);
+            resolve(false); // Default to desktop mode if analysis fails
+          }
+        },
+        { once: true }
+      );
+
+      img.addEventListener(
+        "error",
+        () => {
           URL.revokeObjectURL(img.src);
-          resolve(isMobile);
-        } catch (error) {
-          URL.revokeObjectURL(img.src);
-          resolve(false); // Default to desktop mode if analysis fails
-        }
-      };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(img.src);
-        resolve(false);
-      };
+          resolve(false);
+        },
+        { once: true }
+      );
 
       img.src = URL.createObjectURL(imageFile);
     });
@@ -646,81 +655,94 @@ export class OcrService {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
-      img.onload = () => {
-        try {
-          // Set canvas size with reasonable limits
-          const maxWidth = isMobileScreenshot ? 1500 : 2000; // Smaller for mobile to maintain text clarity
-          const maxHeight = isMobileScreenshot ? 2500 : 2000; // Taller for mobile screenshots
-          let { width, height } = img;
+      img.addEventListener(
+        "load",
+        () => {
+          try {
+            // Set canvas size with reasonable limits
+            const maxWidth = isMobileScreenshot ? 1500 : 2000; // Smaller for mobile to maintain text clarity
+            const maxHeight = isMobileScreenshot ? 2500 : 2000; // Taller for mobile screenshots
+            let { width, height } = img;
 
-          // Scale down if too large
-          if (width > maxWidth || height > maxHeight) {
-            const scale = Math.min(maxWidth / width, maxHeight / height);
-            width *= scale;
-            height *= scale;
+            // Scale down if too large
+            if (width > maxWidth || height > maxHeight) {
+              const scale = Math.min(maxWidth / width, maxHeight / height);
+              width *= scale;
+              height *= scale;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            // Draw original image
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Get image data for processing
+            const imageData = ctx.getImageData(
+              0,
+              0,
+              canvas.width,
+              canvas.height
+            );
+            const data = imageData.data;
+
+            if (isMobileScreenshot) {
+              // Mobile-specific preprocessing - more aggressive for small/fragmented text
+              console.log("📱 Applying mobile-specific image preprocessing...");
+
+              // 1. Enhanced contrast for mobile screens (often have lower contrast)
+              this.enhanceContrast(data, 1.5); // Higher contrast factor for mobile
+
+              // 2. Convert to grayscale
+              this.convertToGrayscale(data);
+
+              // 3. Apply aggressive sharpening for better text edge definition
+              this.sharpenImage(data, canvas.width, canvas.height);
+
+              // 4. Apply additional contrast enhancement after sharpening
+              this.enhanceTextContrast(data);
+
+              // 5. Light noise reduction to clean up mobile compression artifacts
+              this.reduceNoise(data, canvas.width, canvas.height);
+
+              // 6. Apply binarization for very poor quality images
+              this.binarizeImage(data);
+            } else {
+              // Desktop preprocessing - minimal to preserve table quality
+              console.log("🖥️ Applying desktop image preprocessing...");
+
+              // Only apply grayscale conversion for consistency
+              this.convertToGrayscale(data);
+              // Skip other processing that might corrupt desktop table text
+            }
+            // this.binarizeImage(data);
+
+            // Put processed data back
+            ctx.putImageData(imageData, 0, 0);
+
+            // Clean up the blob URL
+            URL.revokeObjectURL(img.src);
+
+            resolve(canvas);
+          } catch (error) {
+            reject(new Error("Image preprocessing failed: " + error.message));
           }
+        },
+        { once: true }
+      );
 
-          canvas.width = width;
-          canvas.height = height;
-
-          // Draw original image
-          ctx.drawImage(img, 0, 0, width, height);
-
-          // Get image data for processing
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const data = imageData.data;
-
-          if (isMobileScreenshot) {
-            // Mobile-specific preprocessing - more aggressive for small/fragmented text
-            console.log("📱 Applying mobile-specific image preprocessing...");
-
-            // 1. Enhanced contrast for mobile screens (often have lower contrast)
-            this.enhanceContrast(data, 1.5); // Higher contrast factor for mobile
-
-            // 2. Convert to grayscale
-            this.convertToGrayscale(data);
-
-            // 3. Apply aggressive sharpening for better text edge definition
-            this.sharpenImage(data, canvas.width, canvas.height);
-
-            // 4. Apply additional contrast enhancement after sharpening
-            this.enhanceTextContrast(data);
-
-            // 5. Light noise reduction to clean up mobile compression artifacts
-            this.reduceNoise(data, canvas.width, canvas.height);
-
-            // 6. Apply binarization for very poor quality images
-            this.binarizeImage(data);
-          } else {
-            // Desktop preprocessing - minimal to preserve table quality
-            console.log("🖥️ Applying desktop image preprocessing...");
-
-            // Only apply grayscale conversion for consistency
-            this.convertToGrayscale(data);
-            // Skip other processing that might corrupt desktop table text
-          }
-          // this.binarizeImage(data);
-
-          // Put processed data back
-          ctx.putImageData(imageData, 0, 0);
-
-          // Clean up the blob URL
+      img.addEventListener(
+        "error",
+        () => {
           URL.revokeObjectURL(img.src);
-
-          resolve(canvas);
-        } catch (error) {
-          reject(new Error("Image preprocessing failed: " + error.message));
-        }
-      };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(img.src);
-        reject(
-          new Error(
-            "Failed to load image. Please try a different image format or smaller file size."
-          )
-        );
-      };
+          reject(
+            new Error(
+              "Failed to load image. Please try a different image format or smaller file size."
+            )
+          );
+        },
+        { once: true }
+      );
 
       // Set crossOrigin before src to avoid CORS issues
       img.crossOrigin = "anonymous";
@@ -740,66 +762,79 @@ export class OcrService {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
-      img.onload = () => {
-        try {
-          // Use larger scaling for mobile to capture more detail
-          let { width, height } = img;
-          const scale = Math.min(2000 / width, 3000 / height, 2.0); // Allow 2x upscaling
+      img.addEventListener(
+        "load",
+        () => {
+          try {
+            // Use larger scaling for mobile to capture more detail
+            let { width, height } = img;
+            const scale = Math.min(2000 / width, 3000 / height, 2.0); // Allow 2x upscaling
 
-          width *= scale;
-          height *= scale;
+            width *= scale;
+            height *= scale;
 
-          canvas.width = width;
-          canvas.height = height;
+            canvas.width = width;
+            canvas.height = height;
 
-          // Draw with image smoothing disabled for crisp edges
-          ctx.imageSmoothingEnabled = false;
-          ctx.drawImage(img, 0, 0, width, height);
+            // Draw with image smoothing disabled for crisp edges
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(img, 0, 0, width, height);
 
-          // Get image data for processing
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const data = imageData.data;
+            // Get image data for processing
+            const imageData = ctx.getImageData(
+              0,
+              0,
+              canvas.width,
+              canvas.height
+            );
+            const data = imageData.data;
 
-          console.log("📱 Applying alternative mobile preprocessing...");
+            console.log("📱 Applying alternative mobile preprocessing...");
 
-          // Alternative approach: More aggressive enhancement
-          // 1. Extreme contrast enhancement
-          this.enhanceContrast(data, 2.0); // Very high contrast
+            // Alternative approach: More aggressive enhancement
+            // 1. Extreme contrast enhancement
+            this.enhanceContrast(data, 2.0); // Very high contrast
 
-          // 2. Convert to grayscale
-          this.convertToGrayscale(data);
+            // 2. Convert to grayscale
+            this.convertToGrayscale(data);
 
-          // 3. Apply edge enhancement instead of sharpening
-          this.enhanceEdges(data, canvas.width, canvas.height);
+            // 3. Apply edge enhancement instead of sharpening
+            this.enhanceEdges(data, canvas.width, canvas.height);
 
-          // 4. Very aggressive binarization with different threshold
-          this.aggressiveBinarize(data);
+            // 4. Very aggressive binarization with different threshold
+            this.aggressiveBinarize(data);
 
-          // 5. Optional morphological operations to clean up text
-          this.morphologicalCleanup(data, canvas.width, canvas.height);
+            // 5. Optional morphological operations to clean up text
+            this.morphologicalCleanup(data, canvas.width, canvas.height);
 
-          // Put processed data back
-          ctx.putImageData(imageData, 0, 0);
+            // Put processed data back
+            ctx.putImageData(imageData, 0, 0);
 
-          // Clean up the blob URL
+            // Clean up the blob URL
+            URL.revokeObjectURL(img.src);
+
+            resolve(canvas);
+          } catch (error) {
+            reject(
+              new Error(
+                "Alternative image preprocessing failed: " + error.message
+              )
+            );
+          }
+        },
+        { once: true }
+      );
+
+      img.addEventListener(
+        "error",
+        () => {
           URL.revokeObjectURL(img.src);
-
-          resolve(canvas);
-        } catch (error) {
           reject(
-            new Error(
-              "Alternative image preprocessing failed: " + error.message
-            )
+            new Error("Failed to load image for alternative preprocessing.")
           );
-        }
-      };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(img.src);
-        reject(
-          new Error("Failed to load image for alternative preprocessing.")
-        );
-      };
+        },
+        { once: true }
+      );
 
       img.crossOrigin = "anonymous";
       img.src = URL.createObjectURL(imageFile);

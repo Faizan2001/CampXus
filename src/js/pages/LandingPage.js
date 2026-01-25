@@ -511,7 +511,7 @@ class LandingPage {
 let landingPageInstance = null;
 
 // Listen for the spa:page:load event to initialize
-document.addEventListener("spa:page:load", (event) => {
+function handleLandingPageLoad(event) {
   if (event.detail.route === "landing") {
     logManager.ui.init(
       "📍 LandingPage: SPA page load event received for landing page"
@@ -525,10 +525,10 @@ document.addEventListener("spa:page:load", (event) => {
     // Create new instance
     landingPageInstance = new LandingPage();
   }
-});
+}
 
 // Listen for page unload to cleanup
-document.addEventListener("spa:page:unload", (event) => {
+function handleLandingPageUnload(event) {
   if (event.detail.route === "landing" && landingPageInstance) {
     logManager.ui.init(
       "🧹 LandingPage: SPA page unload event received, cleaning up"
@@ -536,7 +536,10 @@ document.addEventListener("spa:page:unload", (event) => {
     landingPageInstance.cleanup();
     landingPageInstance = null;
   }
-});
+}
+
+document.addEventListener("spa:page:load", handleLandingPageLoad);
+document.addEventListener("spa:page:unload", handleLandingPageUnload);
 
 // Export for potential external usage
 export default LandingPage;

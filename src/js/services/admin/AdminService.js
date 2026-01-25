@@ -19,6 +19,7 @@ import {
   deleteDoc,
   deleteField,
   collection,
+  collectionGroup,
   addDoc,
   query,
   where,
@@ -67,6 +68,56 @@ async function logAdminActivity(type, details = {}) {
 }
 
 /**
+ * Public helper for UI components that need an audit trail entry.
+ * Uses the same /adminActivity collection used throughout AdminService.
+ *
+ * @param {string} type
+ * @param {Object} details
+ */
+export async function logAdminAuditEvent(type, details = {}) {
+  const safeType = String(type || "").trim() || "unknown";
+  const safeDetails = details && typeof details === "object" ? details : {};
+
+  // Normalize potentially large fields
+  const termRaw = safeDetails.term ?? safeDetails.query ?? null;
+  const term =
+    termRaw == null
+      ? undefined
+      : String(termRaw).trim().slice(0, 120);
+
+  const payload = {
+    ...safeDetails,
+    ...(term !== undefined ? { term } : {}),
+  };
+
+  await logAdminActivity(safeType, payload);
+}
+
+function defaultAdminLog(message, level = "info") {
+  const safeMessage = message == null ? "" : String(message);
+  const safeLevel = typeof level === "string" ? level : "info";
+  const logger =
+    logManager?.[safeLevel] ||
+    logManager?.system?.[safeLevel] ||
+    logManager?.info ||
+    logManager?.system?.info;
+  if (typeof logger === "function") {
+    logger(safeMessage);
+  }
+}
+
+function extractClubIdFromSubcollectionPath(path, expectedSubcollection) {
+  if (!path) return null;
+  const parts = String(path).split("/");
+  const clubsIndex = parts.indexOf("clubs");
+  if (clubsIndex === -1) return null;
+  const clubId = parts[clubsIndex + 1] || null;
+  const sub = parts[clubsIndex + 2] || null;
+  if (!clubId || sub !== expectedSubcollection) return null;
+  return clubId;
+}
+
+/**
  * Check if a user is a super admin
  * @param {string} uid - User ID to check
  * @returns {Promise<boolean>}
@@ -75,11 +126,16 @@ export async function isSuperAdmin(uid) {
   if (!uid) return false;
 
   try {
-    const adminDoc = await getDoc(doc(db, "admin", "superAdmins"));
-    if (!adminDoc.exists()) return false;
+    const currentUid =
+      currentUser?.uid ||
+      currentUser?.profile?.uid ||
+      currentUser?.user?.uid ||
+      null;
+    // Only the currently signed-in user can be evaluated via callable auth context.
+    if (currentUid && uid !== currentUid) return false;
 
-    const superAdmins = adminDoc.data()?.uids || [];
-    return superAdmins.includes(uid);
+    const res = await callFunction("isSuperAdmin", {});
+    return res?.data?.isSuperAdmin === true;
   } catch (error) {
     logManager.error("Error checking super admin status", error);
     return false;
@@ -93,23 +149,21 @@ export async function isSuperAdmin(uid) {
  */
 export async function verifyAdminPin(pin) {
   try {
-    // Hash the PIN using SHA-256
-    const encoder = new TextEncoder();
-    const data = encoder.encode(pin);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const pinHash = hashArray
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-
-    const adminDoc = await getDoc(doc(db, "admin", "superAdmins"));
-    if (!adminDoc.exists()) return false;
-
-    return pinHash === adminDoc.data().pinHash;
+    const res = await callFunction("verifyAdminPin", { pin });
+    return res?.data || { success: false };
   } catch (error) {
     logManager.error("PIN verification error", error);
-    return false;
+    return { success: false, error: error?.message || "Verification failed" };
   }
+}
+
+export async function setAdminPin(pin) {
+  const res = await callFunction("setAdminPin", { pin });
+  if (!res?.data?.success) {
+    throw new Error(res?.data?.error || "Failed to update PIN");
+  }
+  await logAdminActivity("admin_pin_updated", { updatedBy: currentUser?.uid });
+  return true;
 }
 
 // ==========================================
@@ -596,9 +650,58 @@ export async function assignPresident(clubId, uid) {
  * Rebuild all club statistics (member counts, event counts)
  * @param {Function} log - Logging callback
  */
-export async function rebuildClubStats(log = console.log) {
-  log("Fetching all clubs...");
+export async function rebuildClubStats(log = defaultAdminLog) {
+  const safeLog = typeof log === "function" ? log : defaultAdminLog;
+  safeLog("Fetching all clubs...");
   const clubsSnap = await getDocs(collection(db, "clubs"));
+
+  const clubIds = clubsSnap.docs.map((d) => d.id);
+  const clubIdSet = new Set(clubIds);
+
+  const memberCountsByClubId = new Map();
+  const eventCountsByClubId = new Map();
+
+  try {
+    safeLog("Fetching club members (president + official) via collectionGroup...");
+    const membersQuery = query(
+      collectionGroup(db, "members"),
+      where("role", "in", ["president", "official"])
+    );
+    const membersSnap = await getDocs(membersQuery);
+    for (const memberDoc of membersSnap.docs) {
+      const clubId = extractClubIdFromSubcollectionPath(
+        memberDoc.ref?.path,
+        "members"
+      );
+      if (!clubId || !clubIdSet.has(clubId)) continue;
+      memberCountsByClubId.set(
+        clubId,
+        (memberCountsByClubId.get(clubId) || 0) + 1
+      );
+    }
+  } catch (error) {
+    // If an index is missing, we'll fall back to per-club counts below.
+    logManager.warn("AdminService: Failed collectionGroup members query", {
+      message: error?.message,
+    });
+  }
+
+  try {
+    safeLog("Fetching club events via collectionGroup...");
+    const eventsSnap = await getDocs(collectionGroup(db, "events"));
+    for (const eventDoc of eventsSnap.docs) {
+      const clubId = extractClubIdFromSubcollectionPath(
+        eventDoc.ref?.path,
+        "events"
+      );
+      if (!clubId || !clubIdSet.has(clubId)) continue;
+      eventCountsByClubId.set(clubId, (eventCountsByClubId.get(clubId) || 0) + 1);
+    }
+  } catch (error) {
+    logManager.warn("AdminService: Failed collectionGroup events query", {
+      message: error?.message,
+    });
+  }
 
   let batch = writeBatch(db);
   let updated = 0;
@@ -609,22 +712,24 @@ export async function rebuildClubStats(log = console.log) {
     const clubId = clubDoc.id;
 
     // Count members (only president + officials per data model)
-    const membersSnap = await getDocs(
-      collection(db, "clubs", clubId, "members")
-    );
-    let memberCount = 0;
-    membersSnap.docs.forEach((memberDoc) => {
-      const role = memberDoc.data()?.role;
-      if (role === "president" || role === "official") {
-        memberCount++;
-      }
-    });
+    let memberCount = memberCountsByClubId.get(clubId) || 0;
+    if (!memberCountsByClubId.size) {
+      const membersSnap = await getDocs(collection(db, "clubs", clubId, "members"));
+      memberCount = 0;
+      membersSnap.docs.forEach((memberDoc) => {
+        const role = memberDoc.data()?.role;
+        if (role === "president" || role === "official") {
+          memberCount++;
+        }
+      });
+    }
 
     // Count events in subcollection
-    const eventsSubSnap = await getDocs(
-      collection(db, "clubs", clubId, "events")
-    );
-    const eventCount = eventsSubSnap.size;
+    let eventCount = eventCountsByClubId.get(clubId) || 0;
+    if (!eventCountsByClubId.size) {
+      const eventsSubSnap = await getDocs(collection(db, "clubs", clubId, "events"));
+      eventCount = eventsSubSnap.size;
+    }
 
     batch.update(doc(db, "clubs", clubId), {
       memberCount,
@@ -634,7 +739,7 @@ export async function rebuildClubStats(log = console.log) {
 
     operationsInBatch++;
     updated++;
-    log(
+    safeLog(
       `Updated ${
         clubDoc.data().name
       }: ${memberCount} members (officials+president), ${eventCount} events`
@@ -649,7 +754,7 @@ export async function rebuildClubStats(log = console.log) {
   if (operationsInBatch > 0) {
     await batch.commit();
   }
-  log(`Rebuilt stats for ${updated} clubs`);
+  safeLog(`Rebuilt stats for ${updated} clubs`);
   await logAdminActivity("maintenance_rebuild_stats", {
     clubsUpdated: updated,
   });
@@ -661,7 +766,7 @@ export async function rebuildClubStats(log = console.log) {
  * @param {number} daysOld - Number of days old to consider for cleanup
  * @param {Function} log - Logging callback
  */
-export async function cleanupOldEvents(daysOld = 30, log = console.log) {
+export async function cleanupOldEvents(daysOld = 30, log = defaultAdminLog) {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
@@ -700,7 +805,7 @@ export async function cleanupOldEvents(daysOld = 30, log = console.log) {
  * Verify data integrity across collections
  * @param {Function} log - Logging callback
  */
-export async function verifyDataIntegrity(log = console.log) {
+export async function verifyDataIntegrity(log = defaultAdminLog) {
   log("Checking club data integrity...");
 
   const clubsSnap = await getDocs(collection(db, "clubs"));
@@ -752,7 +857,7 @@ export async function verifyDataIntegrity(log = console.log) {
  * @param {number} daysOld - Number of days old
  * @param {Function} log - Logging callback
  */
-export async function cleanupOldNotifications(daysOld = 7, log = console.log) {
+export async function cleanupOldNotifications(daysOld = 7, log = defaultAdminLog) {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
@@ -808,6 +913,7 @@ export async function runAutomationJob(job) {
 export const AdminService = {
   isSuperAdmin,
   verifyAdminPin,
+  setAdminPin,
   // Universities
   getUniversities,
   createUniversity,

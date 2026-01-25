@@ -119,16 +119,17 @@ export class AnalyticsService {
       return;
     }
 
-    ensureAnalyticsContext()
-      .then((ctx) => {
+    void (async () => {
+      try {
+        const ctx = await ensureAnalyticsContext();
         if (!ctx) {
           return;
         }
         handler(ctx);
-      })
-      .catch((error) => {
+      } catch (error) {
         console.warn("📊 Analytics action failed:", error);
-      });
+      }
+    })();
   }
 
   /**
@@ -313,8 +314,9 @@ export class AnalyticsService {
     const startingYear = userData?.profile?.startingYear || "unknown";
     const handle = userData?.profile?.handle || userData?.handle || "anon";
 
-    ensureAnalyticsContext()
-      .then((ctx) => {
+    void (async () => {
+      try {
+        const ctx = await ensureAnalyticsContext();
         if (!ctx) {
           return;
         }
@@ -340,10 +342,10 @@ export class AnalyticsService {
 
         logEvent(analytics, "login", { method: "password", university, major });
         console.log("📊 Analytics: User properties set", university);
-      })
-      .catch((error) => {
+      } catch (error) {
         console.warn("📊 Analytics user property update failed:", error);
-      });
+      }
+    })();
   }
 }
 
@@ -357,8 +359,9 @@ export function isAnalyticsAvailable() {
  * This helps events show up immediately in DebugView
  */
 export function enableDebugMode() {
-  ensureAnalyticsContext()
-    .then((ctx) => {
+  void (async () => {
+    try {
+      const ctx = await ensureAnalyticsContext();
       if (!ctx) {
         console.warn("📊 Analytics not available for debug mode");
         return;
@@ -382,10 +385,10 @@ export function enableDebugMode() {
       } catch (error) {
         console.error("📊 Failed to enable debug mode:", error);
       }
-    })
-    .catch((error) => {
+    } catch (error) {
       console.error("📊 Failed to load analytics for debug mode:", error);
-    });
+    }
+  })();
 }
 
 /**

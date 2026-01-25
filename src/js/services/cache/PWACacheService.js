@@ -19,6 +19,8 @@
  * 3. Update UI when fresh data arrives
  */
 
+import { logManager } from "../../utils/debug/LogManager.js";
+
 const CACHE_PREFIX = "meetchuthere:pwa:";
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days hard expiry
@@ -75,7 +77,10 @@ export const pwaCache = {
       return true;
     } catch (e) {
       // Storage might be full or disabled
-      console.warn("[PWA Cache] Failed to save:", key, e);
+      logManager.system.warn("[PWA Cache] Failed to save", {
+        key,
+        message: e?.message,
+      });
       return false;
     }
   },
@@ -112,7 +117,8 @@ export const pwaCache = {
         isExpired: false,
         savedAt: record.savedAt,
       };
-    } catch (_) {
+    } catch (err) {
+      logManager.dev.debug("JSON parse failed for cache data", err);
       return null;
     }
   },
@@ -135,7 +141,7 @@ export const pwaCache = {
     if (!key) return;
     try {
       localStorage.removeItem(key);
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
   },
 
   /**
@@ -168,7 +174,7 @@ export const pwaCache = {
         }
       }
       keysToRemove.forEach((key) => localStorage.removeItem(key));
-    } catch (_) {}
+    } catch (error) { console.debug("Suppressed error", error); }
   },
 
   // ═══════════════════════════════════════════════════════════════════════
