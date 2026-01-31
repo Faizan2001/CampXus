@@ -19,6 +19,7 @@ export class GroupDetailPage {
     this.isLoadingMore = false;
     this._initialRenderDone = false; // track first paint for auto-scroll
     this._lastSendAtBySpace = {}; // client-side rate limit (per space)
+    this._spaceMemberInfo = {}; // cached member info for avatars in messages
   }
 
   // Re-render members list state (blocked badges/buttons) without full reload
@@ -157,7 +158,7 @@ export class GroupDetailPage {
       const returnTab = sessionStorage.getItem("group:returnTab");
       console.log(
         "[GroupDetailPage] Checking returnTab session value:",
-        returnTab
+        returnTab,
       );
       if (returnTab === "members") {
         console.log("[GroupDetailPage] Restoring members tab view");
@@ -183,7 +184,7 @@ export class GroupDetailPage {
     if (!this.spaceId) {
       logManager.dev.debug(
         "[GroupDetailPage] Missing spaceId before metadata load",
-        { stored: sessionStorage.getItem("group:spaceId") }
+        { stored: sessionStorage.getItem("group:spaceId") },
       );
       titleEl.textContent = "Group not found";
       return;
@@ -232,6 +233,8 @@ export class GroupDetailPage {
       titleEl.textContent = "Group not found";
       return;
     }
+    // Cache member info for rendering message avatars
+    this._spaceMemberInfo = space.memberInfo || {};
     const title = this.buildTitle(space);
     titleEl.textContent = title;
     subEl.textContent = `${space.classroom || ""} • ${space.dayPattern || ""} ${
@@ -257,7 +260,7 @@ export class GroupDetailPage {
     const memberInfo = space.memberInfo || {};
     // Quick check to avoid showing Add button for existing friends (uses denormalized friendIds)
     const myFriendIds = Array.isArray(
-      currentUser?.profile?.socialInfo?.friendIds
+      currentUser?.profile?.socialInfo?.friendIds,
     )
       ? new Set(currentUser.profile.socialInfo.friendIds)
       : new Set();
@@ -271,8 +274,9 @@ export class GroupDetailPage {
         const label = name || uid;
         const target = encodeURIComponent(uid);
         const photo = info.profilePhotoUrl || null;
-        const avatar =
-          photo || getAvatarUrl({ avatarConfig: info.avatarConfig }) || null;
+        const avatar = sanitizeImageUrl(
+          photo || getAvatarUrl({ avatarConfig: info.avatarConfig }) || null,
+        );
         const blocked = blockService.isBlocked(myUid, uid);
         const alreadyFriend = myFriendIds.has(uid);
         return `
@@ -283,13 +287,15 @@ export class GroupDetailPage {
               <a class="member-avatar" href="#user?id=${target}&from=group&tab=members" aria-label="View profile">
                 ${
                   avatar
-                    ? `<img src="${avatar}" alt="${escapeHtml(label)}">`
+                    ? `<img src="${escapeHtml(avatar)}" alt="${escapeHtml(
+                        label,
+                      )}">`
                     : `<div class="avatar-placeholder"><i class="fas fa-user"></i></div>`
                 }
               </a>
               <a class="member-link" href="#user?id=${target}&from=group&tab=members">${escapeHtml(
-          label
-        )}</a>
+                label,
+              )}</a>
               ${blocked ? '<span class="member-badge">Blocked</span>' : ""}
             </div>
             <div class="member-actions">
@@ -331,9 +337,8 @@ export class GroupDetailPage {
         const uid = btn.dataset.uid;
         if (!uid) return;
 
-        const { ReportModal } = await import(
-          "../components/modals/ReportModal.js"
-        );
+        const { ReportModal } =
+          await import("../components/modals/ReportModal.js");
         const modal = new ReportModal();
         modal.show({
           type: "user",
@@ -398,7 +403,7 @@ export class GroupDetailPage {
           btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
           const res = await friendsManager.sendFriendRequest(
             uid,
-            targetUserData
+            targetUserData,
           );
           if (res?.success) {
             btn.className = "member-friends-btn";
@@ -411,7 +416,7 @@ export class GroupDetailPage {
             btn.innerHTML = originalHtml;
             notificationManager.show(
               res?.message || "Failed to send friend request",
-              "error"
+              "error",
             );
           }
         } catch (err) {
@@ -512,7 +517,7 @@ export class GroupDetailPage {
             messagesEl.scrollTop = prevScrollTop;
           }
         }
-      }
+      },
     );
 
     // Load older messages handler
@@ -540,7 +545,7 @@ export class GroupDetailPage {
           const { items, docs } = await classSpacesService.loadMore(
             this.spaceId,
             firstDoc,
-            { pageSize: 50 }
+            { pageSize: 50 },
           );
 
           if (items.length === 0) {
@@ -596,7 +601,7 @@ export class GroupDetailPage {
           const secs = Math.ceil(waitMs / 1000);
           notificationManager.show(
             `Please wait ${secs}s before sending another message.`,
-            "warning"
+            "warning",
           );
           return;
         }
@@ -667,72 +672,88 @@ export class GroupDetailPage {
     document.body.appendChild(modal);
 
     // Bind cancel button
-    modal.querySelector(".leave-confirm-cancel").addEventListener("click", () => {
-      modal.remove();
-    });
+    modal
+      .querySelector(".leave-confirm-cancel")
+      .addEventListener("click", () => {
+        modal.remove();
+      });
 
     // Bind overlay click
-    modal.querySelector(".leave-confirm-overlay").addEventListener("click", () => {
-      modal.remove();
-    });
+    modal
+      .querySelector(".leave-confirm-overlay")
+      .addEventListener("click", () => {
+        modal.remove();
+      });
 
     // Bind submit button
-    modal.querySelector(".leave-confirm-submit").addEventListener("click", async () => {
-      const submitBtn = modal.querySelector(".leave-confirm-submit");
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Leaving...";
+    modal
+      .querySelector(".leave-confirm-submit")
+      .addEventListener("click", async () => {
+        const submitBtn = modal.querySelector(".leave-confirm-submit");
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Leaving...";
 
-      try {
-        // Basic spaceId sanity check - server does authoritative format validation
-        if (!this.spaceId || typeof this.spaceId !== "string" || this.spaceId.trim().length === 0) {
-          console.error("[GroupDetailPage] Invalid spaceId:", this.spaceId);
-          throw new Error("Space ID not found. Please navigate back and try again.");
-        }
+        try {
+          // Basic spaceId sanity check - server does authoritative format validation
+          if (
+            !this.spaceId ||
+            typeof this.spaceId !== "string" ||
+            this.spaceId.trim().length === 0
+          ) {
+            console.error("[GroupDetailPage] Invalid spaceId:", this.spaceId);
+            throw new Error(
+              "Space ID not found. Please navigate back and try again.",
+            );
+          }
 
-        // Stop ALL listeners BEFORE leaving to prevent permission-denied errors
-        // (Once we leave, Firestore rules deny access to non-members)
+          // Stop ALL listeners BEFORE leaving to prevent permission-denied errors
+          // (Once we leave, Firestore rules deny access to non-members)
 
-        // 1. Stop message listener
-        if (this.unsub) {
+          // 1. Stop message listener
+          if (this.unsub) {
+            try {
+              this.unsub();
+            } catch (e) {
+              console.warn(
+                "[GroupDetailPage] Message listener cleanup failed:",
+                e,
+              );
+            }
+            this.unsub = null;
+          }
+
+          // 2. Stop block service listener (also runs on this page)
           try {
-            this.unsub();
+            const uid = currentUser?.uid;
+            if (uid) {
+              blockService.stopSync(uid);
+            }
           } catch (e) {
-            console.warn("[GroupDetailPage] Message listener cleanup failed:", e);
+            console.warn("[GroupDetailPage] Block service cleanup failed:", e);
           }
-          this.unsub = null;
-        }
 
-        // 2. Stop block service listener (also runs on this page)
-        try {
-          const uid = currentUser?.uid;
-          if (uid) {
-            blockService.stopSync(uid);
+          await classSpacesService.leaveSpace(this.spaceId);
+          modal.remove();
+          notificationManager.show("You have left the class space", "success");
+
+          // Navigate back to groups list
+          try {
+            const { navigateTo } = await import("../app.js");
+            navigateTo("messages");
+          } catch (_) {
+            window.location.hash = "#messages";
           }
-        } catch (e) {
-          console.warn("[GroupDetailPage] Block service cleanup failed:", e);
+        } catch (err) {
+          console.error("[GroupDetailPage] Leave space failed", err);
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Leave";
+
+          // Show specific error message if available
+          const errMsg =
+            err?.message || err?.code || "Failed to leave class space";
+          notificationManager.show(errMsg, "error");
         }
-
-        await classSpacesService.leaveSpace(this.spaceId);
-        modal.remove();
-        notificationManager.show("You have left the class space", "success");
-
-        // Navigate back to groups list
-        try {
-          const { navigateTo } = await import("../app.js");
-          navigateTo("messages");
-        } catch (_) {
-          window.location.hash = "#messages";
-        }
-      } catch (err) {
-        console.error("[GroupDetailPage] Leave space failed", err);
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Leave";
-
-        // Show specific error message if available
-        const errMsg = err?.message || err?.code || "Failed to leave class space";
-        notificationManager.show(errMsg, "error");
-      }
-    });
+      });
   }
 
   renderMessages(messagesEl, myUid) {
@@ -741,35 +762,106 @@ export class GroupDetailPage {
     // Filter out messages from blocked users (client-side hide)
     const visibleMessages = Array.isArray(this.allMessages)
       ? this.allMessages.filter(
-          (m) => !m.senderId || !blockService.isBlocked(myUid, m.senderId)
+          (m) => !m.senderId || !blockService.isBlocked(myUid, m.senderId),
         )
       : [];
 
+    // Get space member info for avatars (cached from mount)
+    const memberInfo = this._spaceMemberInfo || {};
+
+    // Get current user's display info for their avatar
+    const myDisplayInfo = currentUser.getDisplayInfo?.() || {};
+
     messagesEl.innerHTML = visibleMessages
-      .map((m) => {
+      .map((m, index, arr) => {
         const isMe = myUid && m.senderId === myUid;
+
+        // For current user, use their display info; for others, use memberInfo
+        const info = isMe
+          ? myDisplayInfo
+          : memberInfo[m.senderId] || m.senderInfo || {};
+
         const sender =
+          info.firstName ||
+          info.handle ||
           m.senderInfo?.firstName ||
           m.senderInfo?.handle ||
-          (isMe ? "You" : m.senderId);
+          (isMe ? "You" : (m.senderId && m.senderId.trim()) || "Unknown");
         const safeSender = escapeHtml(sender);
         const text = m.content || "";
         const ts = m.createdAt?.toDate?.() || null;
+        // Short time format like Messenger (e.g., "2:45 PM")
         const time = ts
           ? new Intl.DateTimeFormat(undefined, {
-              hour: "2-digit",
+              hour: "numeric",
               minute: "2-digit",
+              hour12: true,
             }).format(ts)
           : "";
-        const bubbleClass = isMe ? "bubble me" : "bubble other";
+
+        // Get avatar - prefer photo (based on useAvatar preference), then avatar config
+        let avatarUrl = null;
+        if (isMe) {
+          // Current user: respect useAvatar preference
+          if (info.useAvatar && info.avatarConfig) {
+            avatarUrl = getAvatarUrl({ avatarConfig: info.avatarConfig });
+          } else if (info.profilePhotoUrl) {
+            avatarUrl = info.profilePhotoUrl;
+          } else if (info.avatarConfig) {
+            avatarUrl = getAvatarUrl({ avatarConfig: info.avatarConfig });
+          }
+        } else {
+          // Other users: prefer photo, then avatar config
+          const photo = info.profilePhotoUrl || null;
+          avatarUrl =
+            photo ||
+            (info.avatarConfig
+              ? getAvatarUrl({ avatarConfig: info.avatarConfig })
+              : null);
+        }
+
+        const safeAvatarUrl = sanitizeImageUrl(avatarUrl);
+        const avatarHtml = safeAvatarUrl
+          ? `<img src="${escapeHtml(
+              safeAvatarUrl,
+            )}" alt="${safeSender}" class="msg-avatar-img">`
+          : `<div class="msg-avatar-placeholder"><i class="fas fa-user"></i></div>`;
+
+        // Check if this is the first message in a group from the same sender
+        const prevMsg = index > 0 ? arr[index - 1] : null;
+        const isFirstInGroup = !prevMsg || prevMsg.senderId !== m.senderId;
+        // Check if this is the last message in a group from the same sender
+        const nextMsg = index < arr.length - 1 ? arr[index + 1] : null;
+        const isLastInGroup = !nextMsg || nextMsg.senderId !== m.senderId;
+
+        const messageClass = isMe ? "message msg-me" : "message msg-other";
+        const groupClass = !isFirstInGroup ? " msg-grouped" : "";
+        const bubbleClass = isMe
+          ? "msg-bubble msg-bubble-me"
+          : "msg-bubble msg-bubble-other";
         const reportBtn = !isMe
-          ? `<button class="message-report-btn" data-msgid="${m.id}" title="Report message"><i class="fas fa-flag"></i></button>`
+          ? `<button class="message-report-btn" data-msgid="${m.id}" title="Report message" aria-label="Report message"><i class="fas fa-flag"></i></button>`
           : "";
-        return `<div class="message" data-msgid="${
-          m.id
-        }"><div class="${bubbleClass}"><span class="sender">${safeSender}</span><span class="time">${time}</span><div class="text">${escapeHtml(
-          text
-        )}</div>${reportBtn}</div></div>`;
+
+        // Only show avatar on the last message of a group (messenger style)
+        const showAvatar = isLastInGroup;
+
+        return `<div class="${messageClass}${groupClass}" data-msgid="${m.id}">
+          ${!isMe ? (showAvatar ? `<div class="msg-avatar">${avatarHtml}</div>` : `<div class="msg-avatar msg-avatar-spacer"></div>`) : ""}
+          <div class="msg-content">
+            <div class="msg-header">
+              ${!isMe && isFirstInGroup ? `<span class="msg-sender">${safeSender}</span>` : ""}
+              <span class="msg-time">${time}</span>
+            </div>
+            <div class="msg-bubble-row">
+              <div class="${bubbleClass}">
+                <span class="msg-text">${escapeHtml(text)}</span>
+              </div>
+              ${reportBtn}
+            </div>
+          </div>
+          ${isMe ? (showAvatar ? `<div class="msg-avatar">${avatarHtml}</div>` : `<div class="msg-avatar msg-avatar-spacer"></div>`) : ""}
+        </div>`;
       })
       .join("");
 
@@ -782,9 +874,8 @@ export class GroupDetailPage {
         const msgId = btn.dataset.msgid;
         if (!msgId) return;
 
-        const { ReportModal } = await import(
-          "../components/modals/ReportModal.js"
-        );
+        const { ReportModal } =
+          await import("../components/modals/ReportModal.js");
         const modal = new ReportModal();
         modal.show({
           type: "message",
@@ -807,6 +898,7 @@ export class GroupDetailPage {
     this.lastDocs = [];
     this.hasMoreMessages = true;
     this.isLoadingMore = false;
+    this._spaceMemberInfo = {};
   }
 }
 
@@ -817,6 +909,28 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function sanitizeImageUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== "string") return null;
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return null;
+  // Disallow control characters that can lead to odd parsing behavior.
+  if (/[\u0000-\u001F\u007F]/.test(trimmed)) return null;
+  try {
+    const url = new URL(trimmed, window.location.origin);
+    const protocol = String(url.protocol || "").toLowerCase();
+    if (protocol === "http:" || protocol === "https:" || protocol === "blob:") {
+      return url.href;
+    }
+    if (protocol === "data:") {
+      // Allow common raster image data URLs; avoid SVG/scriptable types.
+      if (/^data:image\/(png|gif|jpe?g|webp);/i.test(trimmed)) return trimmed;
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
 }
 
 // Wire to SPA lifecycle
