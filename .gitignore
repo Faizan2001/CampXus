@@ -51,4 +51,6 @@ build/
 *.log
 requirements/
 
+# Tooling artifacts
+.playwright-mcp/
 

@@ -80,6 +80,21 @@ body.immersive-profile-mode {
   --bottom-offset: env(safe-area-inset-bottom, 0px);
 }
 
+/* ===== AUTH-DEPENDENT VISIBILITY ===== */
+/* Hide notification button for non-authenticated users */
+body:not(.is-auth) [href="#notifications"],
+body:not(.is-auth) [data-spa-route="notifications"] {
+  display: none !important;
+}
+
+/* CLUBS FEATURE TEMPORARILY DISABLED - Will be reintroduced in a later build */
+[href^="#clubs"],
+[href^="#club"],
+[data-spa-route="clubs"],
+[data-spa-route="club"] {
+  display: none !important;
+}
+
 /* ===== APP CONTAINER ===== */
 .app-container {
   /* Let content define height; avoid forcing fixed viewport height on iOS */
@@ -469,6 +484,11 @@ body:not(.dark-mode) #installPwaBtn.nav-link:hover {
   display: flex;
   align-items: center;
   gap: var(--space-md, 1rem);
+}
+
+/* With fewer primary links (Clubs disabled), give the desktop nav a bit more breathing room. */
+.top-nav .nav-links {
+  gap: var(--space-lg, 1.25rem);
 }
 
 /* ===== LOGO ===== */
@@ -1101,7 +1121,8 @@ body:not(.dark-mode) .user-dropdown {
   bottom: 0;
   z-index: 1000;
   display: none;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  /* Clubs is currently disabled, so we render 4 items (Schedule/Friends/Messages/Profile). */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   justify-items: center;
   align-items: center;
   gap: 0;
@@ -1125,7 +1146,7 @@ body:not(.dark-mode) .user-dropdown {
 .mobile-nav-item {
   position: relative;
   width: 100%;
-  max-width: 110px;
+  max-width: none;
   height: 100%;
   padding: 3px 0 2px; /* slight top lift to align with avatar */
   display: grid;

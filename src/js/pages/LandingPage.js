@@ -21,8 +21,12 @@ class LandingPage {
     this.joinButton = null;
     this.animationInterval = null;
     this.presenceInterval = null;
+    this.presenceTimeoutId = null;
     this.presenceElements = null;
-    this.presenceStateIndex = 0;
+    this.imageIndex = 0;
+    this.stateIndex = 0;
+    this.friendImages = [];
+    this.presenceRunId = 0;
     this.originalButtonMarkup = "";
     this.boundHandleJoinClick = this.handleJoinClick.bind(this);
 
@@ -143,7 +147,7 @@ class LandingPage {
       // Restore button state after a short delay
       setTimeout(() => {
         if (this.joinButton) {
-          this.joinButton.innerHTML = this.originalButtonMarkup || originalText;
+          this.joinButton.innerHTML = this.originalButtonMarkup;
           this.joinButton.classList.remove("is-busy");
           this.joinButton.disabled = false;
         }
@@ -322,10 +326,12 @@ class LandingPage {
   initPresenceDemo() {
     const container = document.querySelector(".landing-avatar-demo");
     const avatarImg = document.getElementById("demo-avatar-img");
-    const presencePill = document.getElementById("demo-presence-pill");
     const presenceText = document.getElementById("demo-presence-text");
+    const avatarPicture = avatarImg?.closest?.("picture") || null;
+    const webpSource =
+      avatarPicture?.querySelector?.('source[data-demo-format="webp"]') || null;
 
-    if (!container || !avatarImg || !presencePill || !presenceText) {
+    if (!container || !avatarImg || !presenceText) {
       logManager.ui.warn("LandingPage: Presence demo elements missing");
       return;
     }
@@ -336,8 +342,6 @@ class LandingPage {
 
     container.dataset.demoInitialized = "1";
 
-    this.loadRandomAvatar(avatarImg);
-
     const prefersReducedMotion =
       window.matchMedia &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -345,151 +349,219 @@ class LandingPage {
     this.presenceElements = {
       container,
       avatarImg,
-      presencePill,
       presenceText,
     };
-    this.presenceStateIndex = 0;
+    this.imageIndex = 0;
+    this.stateIndex = 0;
+    this.presenceRunId += 1;
+    const runId = this.presenceRunId;
+    const isActive = () =>
+      this.presenceRunId === runId &&
+      this.presenceElements?.container === container &&
+      document.body.contains(container);
 
-    const states = [
-      {
-        cls: "grey",
-        label: "Not sharing",
-        color: "#9fa7b8",
-        pillText: "PRIVATE",
-      },
-      {
-        cls: "red",
-        label: "Off campus",
-        color: "#ff87a4",
-        pillText: "OFF CAMPUS",
-      },
-      {
-        cls: "green",
-        label: "On campus",
-        color: "#75f7b9",
-        pillText: "ON CAMPUS",
-      },
+    const friendImageBases = [
+      "dev-picture-1",
+      "aurpadp",
+      "aurkodp",
+      "sameedp",
+      "salmandp",
+      "hashmitadp",
+      "mehaldp",
+      "moin_dp",
+      "samiya_dp",
+      "atifdp",
+      "omardp",
+      "shams_dp",
     ];
 
-    const applyState = () => {
-      const state = states[this.presenceStateIndex];
-      if (!state) return;
+    const connection =
+      navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const effectiveType = String(connection?.effectiveType || "");
+    const saveData = !!connection?.saveData;
+    const isSlowConnection =
+      saveData || effectiveType === "slow-2g" || effectiveType === "2g";
+    const is3g = effectiveType === "3g";
 
-      presencePill.className = `presence-pill ${state.cls}`;
-      presencePill.setAttribute(
-        "aria-label",
-        `Presence status: ${state.label}`
-      );
+    // Limit cycles on slower connections to avoid pulling lots of assets on first visit.
+    this.friendImages = isSlowConnection
+      ? friendImageBases.slice(0, 1)
+      : is3g
+        ? friendImageBases.slice(0, Math.min(3, friendImageBases.length))
+        : friendImageBases;
 
-      const pillTextSpan = presencePill.querySelector(".pill-text");
-      if (pillTextSpan) {
-        pillTextSpan.textContent = state.pillText;
-      }
+    const getThumbUrl = (base, ext) =>
+      `/assets/landing-friends/thumbs/${base}-320.${ext}`;
 
-      presenceText.textContent = state.label;
-      presenceText.setAttribute("data-state", state.cls);
-      presenceText.classList.remove("swap");
-      void presenceText.offsetWidth;
-      presenceText.classList.add("swap");
+    const supportsWebpPromise = (() => {
+      if (!webpSource) return Promise.resolve(false);
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img.width === 1);
+        img.onerror = () => resolve(false);
+        img.src =
+          "data:image/webp;base64,UklGRiIAAABXRUJQVlA4TAYAAAAvAAAAAAfQ//73v/+BiOh/AAA=";
+      });
+    })();
 
-      container.setAttribute("data-presence", state.cls);
-      if (state.color) {
-        container.style.setProperty("--presence-color", state.color);
-      }
+    // Presence states matching the app's actual states
+    const states = [
+      { cls: "green", label: "Free", color: "#75f7b9" },
+      { cls: "green", label: "On campus", color: "#75f7b9" },
+      { cls: "red", label: "Off campus", color: "#ff87a4" },
+      { cls: "blue", label: "In class", color: "#60a5fa" },
+      { cls: "grey", label: "Not sharing", color: "#9fa7b8" },
+    ];
 
-      this.presenceStateIndex = (this.presenceStateIndex + 1) % states.length;
+    let hasCycled = false;
+    let isCycling = false;
+    const imageCache = new Map();
+
+    const preloadImage = (src) => {
+      if (!src) return Promise.resolve();
+      if (imageCache.has(src)) return imageCache.get(src);
+
+      const promise = new Promise((resolve) => {
+        const img = new Image();
+        img.decoding = "async";
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+        img.src = src;
+      });
+
+      imageCache.set(src, promise);
+      return promise;
     };
 
-    applyState();
+    const preloadBase = (base) => {
+      if (!base) return Promise.resolve();
+      return supportsWebpPromise.then((supported) =>
+        preloadImage(getThumbUrl(base, supported && webpSource ? "webp" : "jpg"))
+      );
+    };
+
+    const preloadUpcoming = (count = 2) => {
+      if (this.friendImages.length <= 1) return;
+      for (let i = 0; i < Math.min(count, this.friendImages.length); i++) {
+        const idx = (this.imageIndex + i) % this.friendImages.length;
+        preloadBase(this.friendImages[idx]);
+      }
+    };
+
+    // Sequential cycle - loops through images and states in order
+    const cycleDemo = () => {
+      if (!isActive() || isCycling) return;
+
+      const state = states[this.stateIndex];
+      const nextBase = this.friendImages[this.imageIndex];
+      const nextWebp = getThumbUrl(nextBase, "webp");
+      const nextJpg = getThumbUrl(nextBase, "jpg");
+
+      isCycling = true;
+      const warm = !hasCycled ? Promise.resolve() : preloadBase(nextBase);
+      warm.then(() => {
+        if (!isActive()) {
+          isCycling = false;
+          return;
+        }
+
+        // Update presence status
+        presenceText.textContent = state.label;
+        presenceText.setAttribute("data-state", state.cls);
+        presenceText.classList.remove("swap");
+        void presenceText.offsetWidth;
+        presenceText.classList.add("swap");
+        container.setAttribute("data-presence", state.cls);
+        container.style.setProperty("--presence-color", state.color);
+
+        // Update image (no fade on first paint to avoid flicker)
+        avatarImg.decoding = "async";
+        avatarImg.onload = () => {
+          avatarImg.style.opacity = "1";
+        };
+        avatarImg.onerror = () => {
+          avatarImg.style.opacity = "1";
+        };
+
+        if (webpSource) {
+          webpSource.srcset = nextWebp;
+        }
+
+        if (!hasCycled) {
+          avatarImg.style.opacity = "1";
+          avatarImg.src = nextJpg;
+          hasCycled = true;
+          this.imageIndex = (this.imageIndex + 1) % this.friendImages.length;
+          this.stateIndex = (this.stateIndex + 1) % states.length;
+          preloadUpcoming(is3g ? 1 : 2);
+          isCycling = false;
+          return;
+        }
+
+        // Only fade out once the next image is already cached, so slow networks
+        // don't show an empty frame.
+        avatarImg.style.transition = "opacity 200ms ease";
+        avatarImg.style.opacity = "0";
+
+        if (this.presenceTimeoutId) {
+          clearTimeout(this.presenceTimeoutId);
+        }
+        this.presenceTimeoutId = window.setTimeout(() => {
+          if (!isActive()) {
+            isCycling = false;
+            return;
+          }
+          avatarImg.src = nextJpg;
+          this.imageIndex = (this.imageIndex + 1) % this.friendImages.length;
+          this.stateIndex = (this.stateIndex + 1) % states.length;
+          preloadUpcoming(is3g ? 1 : 2);
+          isCycling = false;
+        }, 200);
+      });
+    };
+
+    // Initial state
+    avatarImg.style.opacity = "1";
+    preloadUpcoming(is3g ? 1 : 2);
+    cycleDemo();
 
     if (prefersReducedMotion) {
       return;
     }
 
-    this.presenceInterval = window.setInterval(applyState, 2000);
-  }
+    if (isSlowConnection || this.friendImages.length <= 1) {
+      return;
+    }
 
-  loadRandomAvatar(avatarImg) {
-    const backgrounds = [
-      "b6e3f4",
-      "c0aede",
-      "ffd93d",
-      "ffdfbf",
-      "d1d4f9",
-      "b6e3f4,c0aede",
-      "ffd93d,ffdfbf",
-      "d1d4f9,b6e3f4",
-      "c0aede,ffd93d",
-      "ffdfbf,d1d4f9",
-    ];
-    const hairs = [
-      "classic01",
-      "classic02",
-      "curly",
-      "elvis",
-      "long",
-      "ponyTail",
-      "stylish",
-    ];
-
-    const seed = Math.random().toString(36).slice(2, 10);
-    const background =
-      backgrounds[Math.floor(Math.random() * backgrounds.length)];
-    const hair = hairs[Math.floor(Math.random() * hairs.length)];
-
-    const url =
-      `https://api.dicebear.com/9.x/miniavs/svg?seed=${seed}` +
-      `&backgroundColor=${encodeURIComponent(background)}` +
-      "&backgroundType=gradientLinear" +
-      `&hair=${hair}`;
-
-    avatarImg.style.opacity = "0";
-    avatarImg.addEventListener(
-      "load",
-      () => {
-        avatarImg.style.transition = "opacity 500ms ease";
-        avatarImg.style.opacity = "1";
-      },
-      { once: true }
-    );
-
-    avatarImg.addEventListener(
-      "error",
-      () => {
-        avatarImg.style.opacity = "1";
-      },
-      { once: true }
-    );
-
-    avatarImg.src = url;
+    // Sync both image and status at 1.25 second intervals (slower on 3G)
+    const intervalMs = is3g ? 2000 : 1250;
+    this.presenceInterval = window.setInterval(cycleDemo, intervalMs);
   }
 
   teardownPresenceDemo() {
+    // Invalidate any in-flight async work from initPresenceDemo()
+    this.presenceRunId += 1;
+
     if (this.presenceInterval) {
       clearInterval(this.presenceInterval);
       this.presenceInterval = null;
+    }
+
+    if (this.presenceTimeoutId) {
+      clearTimeout(this.presenceTimeoutId);
+      this.presenceTimeoutId = null;
     }
 
     if (!this.presenceElements) {
       return;
     }
 
-    const { container, avatarImg, presencePill, presenceText } =
-      this.presenceElements;
+    const { container, avatarImg, presenceText } = this.presenceElements;
 
     if (container) {
       container.removeAttribute("data-presence");
       delete container.dataset.demoInitialized;
       container.style.removeProperty("--presence-color");
-    }
-
-    if (presencePill) {
-      presencePill.className = "presence-pill grey";
-      presencePill.setAttribute("aria-label", "Presence status: Not sharing");
-      const pillTextSpan = presencePill.querySelector(".pill-text");
-      if (pillTextSpan) {
-        pillTextSpan.textContent = "PRIVATE";
-      }
     }
 
     if (presenceText) {
@@ -503,7 +575,8 @@ class LandingPage {
     }
 
     this.presenceElements = null;
-    this.presenceStateIndex = 0;
+    this.imageIndex = 0;
+    this.stateIndex = 0;
   }
 }
 

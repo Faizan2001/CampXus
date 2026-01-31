@@ -219,14 +219,11 @@ class SPARouter {
       const raw = String(rawHash || "").replace(/^#/, "");
       let name = raw.split("?")[0];
 
-      // Legacy redirect: "groups" route is now "clubs"
-      if (name === "groups") {
-        name = "clubs";
-        // Update the URL silently to avoid confusion
-        const queryPart = raw.includes("?")
-          ? raw.substring(raw.indexOf("?"))
-          : "";
-        window.history.replaceState(null, "", `#clubs${queryPart}`);
+      // CLUBS FEATURE TEMPORARILY DISABLED - redirect to home
+      // Will be reintroduced in a later build
+      if (name === "clubs" || name === "club" || name === "groups") {
+        name = "home";
+        window.history.replaceState(null, "", "#home");
       }
 
       if (name && this.routes[name]) return name;
@@ -811,32 +808,6 @@ class SPARouter {
       // rendering the intended protected route instead of bouncing through
       // the landing page, even if Firebase auth has not fully hydrated yet.
       const target = authedUser || hasSessionHint ? desiredRoute : "landing";
-      await this.navigateTo(target, true);
-    } finally {
-      this._suppressAuthRedirects = false;
-      this.hideLoading();
-    }
-    return;
-
-    // Route requires auth but user not known yet — avoid flashing landing
-    // Show loader and temporarily suppress auth-driven redirects
-    this._suppressAuthRedirects = true;
-    this.showLoading();
-
-    try {
-      // Wait for authReady or timeout
-      if (authReadyPromise && typeof authReadyPromise.then === "function") {
-        await Promise.race([
-          authReadyPromise.catch(() => {}),
-          new Promise((resolve) => setTimeout(resolve, timeoutMs)),
-        ]);
-      } else {
-        // No auth promise provided; still wait a tiny moment to allow onAuthStateChanged to fire
-        await new Promise((resolve) => setTimeout(resolve, 250));
-      }
-
-      const isAuthedNow = currentUser.isLoggedIn() && currentUser.user;
-      const target = isAuthedNow ? desiredRoute : "landing";
       await this.navigateTo(target, true);
     } finally {
       this._suppressAuthRedirects = false;
@@ -1676,8 +1647,11 @@ class SPARouter {
     // Treat certain routes as aliases in the navigation so the correct
     // tab remains highlighted even when legacy hashes are used elsewhere.
     const resolveActiveNavRoutes = (route) => {
-      // Legacy 'groups' route should highlight 'clubs' tab
-      if (route === "groups") return ["clubs"];
+      // CLUBS FEATURE TEMPORARILY DISABLED - clubs/groups routes redirect to home
+      // Will be reintroduced in a later build
+      if (route === "groups" || route === "clubs" || route === "club") {
+        return ["home"];
+      }
       return [route];
     };
 
