@@ -4305,11 +4305,10 @@ class FriendsUI {
     );
 
     try {
-      // Always fetch a fresh snapshot of Quick Access friends from FriendsService.
-      // FriendsService will still leverage DataManager's cache under the hood,
-      // but this bypasses any stale in-memory TTL cache inside FriendsService itself.
+      // Prefer cache: DataManager optimistically updates Quick Access cache on star/unstar,
+      // while a "fresh" Firestore read can be briefly stale and cause the UI to flip back.
       const quickAccessFriends = await friendsManager.getQuickAccessFriends(
-        false
+        true
       );
       const starredFriendIds = new Set(
         (quickAccessFriends || [])

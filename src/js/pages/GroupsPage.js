@@ -53,7 +53,10 @@ export class GroupsPage {
 
   async ensureFirebaseAuth(userId) {
     try {
-      if (authManager?.authReady && typeof authManager.authReady.then === "function") {
+      if (
+        authManager?.authReady &&
+        typeof authManager.authReady.then === "function"
+      ) {
         await authManager.authReady.catch(() => {});
       }
 
@@ -202,14 +205,13 @@ export class GroupsPage {
         return;
       }
 
-      const { collection, query, where, onSnapshot } = await import(
-        "firebase/firestore"
-      );
+      const { collection, query, where, onSnapshot } =
+        await import("firebase/firestore");
       const { db } = await import("../lib/firebase/firebase-config.js");
 
       const q = query(
         collection(db, "classSpaces"),
-        where("memberIds", "array-contains", userId)
+        where("memberIds", "array-contains", userId),
       );
 
       this.groupsListener = onSnapshot(
@@ -250,7 +252,7 @@ export class GroupsPage {
           listEl.querySelector(".btn-retry")?.addEventListener("click", () => {
             this.loadGroupsHybrid();
           });
-        }
+        },
       );
     } catch (e) {
       console.error("[GroupsPage] Failed to attach realtime listener:", e);
@@ -364,7 +366,7 @@ export class GroupsPage {
       this.pullState.indicator.classList.remove(
         "ready",
         "refreshing",
-        "success"
+        "success",
       );
     };
 
@@ -659,11 +661,15 @@ export class GroupsPage {
     button.disabled = true;
     button.classList.add("loading");
     const originalHtml = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Rejoining...</span>';
+    button.innerHTML =
+      '<i class="fas fa-spinner fa-spin"></i> <span>Rejoining...</span>';
 
     try {
       await classSpacesService.rejoinSpace(spaceId);
-      notificationManager.show("Successfully rejoined the class space!", "success");
+      notificationManager.show(
+        "Successfully rejoined the class space!",
+        "success",
+      );
 
       // Remove the card with animation
       card.style.opacity = "0";
@@ -693,9 +699,13 @@ export class GroupsPage {
       button.innerHTML = originalHtml;
 
       // Show specific error message
-      const errMsg = err?.message || err?.code || "Failed to rejoin class space";
+      const errMsg =
+        err?.message || err?.code || "Failed to rejoin class space";
       if (errMsg.includes("once per day")) {
-        notificationManager.show("You can only rejoin this space once per day. Try again tomorrow.", "warning");
+        notificationManager.show(
+          "You can only rejoin this space once per day. Try again tomorrow.",
+          "warning",
+        );
         button.disabled = true;
         button.innerHTML = '<i class="fas fa-clock"></i> <span>Tomorrow</span>';
       } else {
@@ -783,9 +793,8 @@ export class GroupsPage {
       createBtn.addEventListener("click", async () => {
         createBtn.disabled = true;
         try {
-          const { createDevSpacesForUser } = await import(
-            "../services/groups/DevSpaceTools.js"
-          );
+          const { createDevSpacesForUser } =
+            await import("../services/groups/DevSpaceTools.js");
           await createDevSpacesForUser(2);
           await this.loadGroups();
         } catch (e) {
@@ -801,9 +810,8 @@ export class GroupsPage {
       clearBtn.addEventListener("click", async () => {
         clearBtn.disabled = true;
         try {
-          const { clearMyDevSpaces } = await import(
-            "../services/groups/DevSpaceTools.js"
-          );
+          const { clearMyDevSpaces } =
+            await import("../services/groups/DevSpaceTools.js");
           await clearMyDevSpaces();
           await this.loadGroups();
         } catch (e) {
@@ -831,7 +839,7 @@ export class GroupsPage {
             (window.location.hostname === "localhost" ||
               window.location.hostname === "127.0.0.1");
           const functionUrl = isLocal
-            ? `http://127.0.0.1:5001/${projectId}/${region}/triggerClassSpaceScheduler`
+            ? `http://127.0.0.1:5501/${projectId}/${region}/triggerClassSpaceScheduler`
             : `https://${region}-${projectId}.cloudfunctions.net/triggerClassSpaceScheduler`;
 
           console.log("[GroupsPage] Triggering scheduler at:", functionUrl);
@@ -853,7 +861,7 @@ export class GroupsPage {
               `Scheduler executed successfully! Spaces created: ${
                 result.spacesCreated || 0
               }, Deactivated: ${result.spacesDeactivated || 0}`,
-              "success"
+              "success",
             );
 
             // Invalidate cache and reload groups
@@ -870,7 +878,7 @@ export class GroupsPage {
           triggerBtn.innerHTML = "❌ Failed";
           notificationManager.show(
             `Failed to trigger scheduler: ${e.message}`,
-            "error"
+            "error",
           );
         } finally {
           setTimeout(() => {

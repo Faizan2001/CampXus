@@ -78,7 +78,7 @@ export class SafModeratePage {
       // Load university metadata
       try {
         const uniSnap = await getDoc(
-          doc(db, "universities", this.universityId)
+          doc(db, "universities", this.universityId),
         );
         if (uniSnap.exists()) {
           this.university = { id: uniSnap.id, ...uniSnap.data() };
@@ -126,7 +126,7 @@ export class SafModeratePage {
     try {
       const q1 = query(
         collection(db, "clubs"),
-        where("universityId", "==", this.universityId)
+        where("universityId", "==", this.universityId),
       );
       const snap1 = await getDocs(q1);
       snap1.forEach((d) => {
@@ -143,7 +143,7 @@ export class SafModeratePage {
     try {
       const q2 = query(
         collection(db, "clubs"),
-        where("universityCode", "==", this.universityId)
+        where("universityCode", "==", this.universityId),
       );
       const snap2 = await getDocs(q2);
       snap2.forEach((d) => {
@@ -160,7 +160,7 @@ export class SafModeratePage {
     try {
       const q3 = query(
         collection(db, "clubs"),
-        where("university", "==", this.universityId)
+        where("university", "==", this.universityId),
       );
       const snap3 = await getDocs(q3);
       snap3.forEach((d) => {
@@ -199,7 +199,7 @@ export class SafModeratePage {
         </div>
         <h2>Access Denied</h2>
         <p>${escapeHtml(
-          reason || "You do not have access to this dashboard."
+          reason || "You do not have access to this dashboard.",
         )}</p>
         <a href="#clubs" class="btn-primary">
           <i class="fas fa-flag"></i> Back to Clubs
@@ -356,7 +356,7 @@ export class SafModeratePage {
       const eventsRef = collection(db, "clubs", club.id, "events");
       const eventsQuery = query(
         eventsRef,
-        where("status", "==", "pending_saf")
+        where("status", "==", "pending_saf"),
       );
       const eventsSnap = await getDocs(eventsQuery);
       eventsSnap.forEach((evDoc) => {
@@ -390,8 +390,8 @@ export class SafModeratePage {
       <div class="section-header">
         <h2><i class="fas fa-clipboard-check"></i> Pending SAF Approval</h2>
         <span class="pending-count">${events.length} event${
-      events.length !== 1 ? "s" : ""
-    }</span>
+          events.length !== 1 ? "s" : ""
+        }</span>
       </div>
       <div class="saf-events-list">
         ${events.map((e) => this.renderEventCard(e)).join("")}
@@ -529,7 +529,7 @@ export class SafModeratePage {
           window.location.hostname === "127.0.0.1");
       if (isLocal) {
         try {
-          connectFunctionsEmulator(functions, "localhost", 5001);
+          connectFunctionsEmulator(functions, "localhost", 5501);
         } catch (_) {}
       }
 
@@ -538,7 +538,7 @@ export class SafModeratePage {
 
       // Remove from local list and re-render
       this.pendingEvents = this.pendingEvents.filter(
-        (e) => !(e.clubId === clubId && e.id === eventId)
+        (e) => !(e.clubId === clubId && e.id === eventId),
       );
 
       notificationManager.show("Event approved successfully!", "success");
@@ -547,7 +547,7 @@ export class SafModeratePage {
       logManager.error("SafModeratePage: approve failed", error);
       notificationManager.show(
         "Failed to approve event. Please try again.",
-        "error"
+        "error",
       );
       btn.disabled = false;
       btn.innerHTML = originalHtml;
@@ -587,7 +587,7 @@ export class SafModeratePage {
             window.location.hostname === "127.0.0.1");
         if (isLocal) {
           try {
-            connectFunctionsEmulator(functions, "localhost", 5001);
+            connectFunctionsEmulator(functions, "localhost", 5501);
           } catch (_) {}
         }
 
@@ -595,7 +595,7 @@ export class SafModeratePage {
         await callable({ clubId, eventId, reason });
 
         this.pendingEvents = this.pendingEvents.filter(
-          (e) => !(e.clubId === clubId && e.id === eventId)
+          (e) => !(e.clubId === clubId && e.id === eventId),
         );
 
         notificationManager.show("Event rejected.", "info");
@@ -648,14 +648,14 @@ export class SafModeratePage {
                 return `
                 <tr data-id="${club.id}" data-club-name="${rawName.replace(
                   /"/g,
-                  "&quot;"
+                  "&quot;",
                 )}">
                   <td>
                     <div class="club-name-cell">
                       ${
                         club.logoUrl
                           ? `<img src="${escapeAttr(
-                              club.logoUrl
+                              club.logoUrl,
                             )}" alt="" class="club-logo-small">`
                           : `<div class="club-logo-placeholder"><i class="fas fa-users"></i></div>`
                       }
@@ -816,14 +816,14 @@ export class SafModeratePage {
         } catch (imageError) {
           logManager.warn(
             "SafModeratePage: Failed to upload images",
-            imageError
+            imageError,
           );
         }
 
         logManager.info("SafModeratePage: Club created", { name, clubId });
         notificationManager.show(
           `Club "${name}" created successfully!`,
-          "success"
+          "success",
         );
 
         await this.loadTabContent("clubs");
@@ -913,7 +913,7 @@ export class SafModeratePage {
           });
           notificationManager.show(
             "Failed to update club. Please try again.",
-            "error"
+            "error",
           );
         }
       },
@@ -937,7 +937,7 @@ export class SafModeratePage {
       content: `
         <div class="assign-modal">
           <p>Search for a student to make president of <strong>${escapeHtml(
-            club.name || clubId
+            club.name || clubId,
           )}</strong>.</p>
           <div id="assign-president-search"></div>
         </div>
@@ -949,7 +949,7 @@ export class SafModeratePage {
     // Render user search
     setTimeout(() => {
       const searchContainer = document.getElementById(
-        "assign-president-search"
+        "assign-president-search",
       );
       if (searchContainer) {
         renderUserSearchAssign(searchContainer, {
@@ -967,10 +967,10 @@ export class SafModeratePage {
               title: "Confirm President",
               content: `
                 <p>Make <strong>${escapeHtml(
-                  displayName
+                  displayName,
                 )}</strong> the president of <strong>${escapeHtml(
-                club.name || clubId
-              )}</strong>?</p>
+                  club.name || clubId,
+                )}</strong>?</p>
                 <p class="warning-text" style="margin-top: 1rem; color: var(--warning-gold);">
                   <i class="fas fa-info-circle"></i> The current president (if any) will be removed from the club.
                 </p>
@@ -991,19 +991,19 @@ export class SafModeratePage {
                     window.location.hostname === "127.0.0.1");
                 if (isLocal) {
                   try {
-                    connectFunctionsEmulator(functions, "localhost", 5001);
+                    connectFunctionsEmulator(functions, "localhost", 5501);
                   } catch (_) {}
                 }
 
                 const callable = httpsCallable(
                   functions,
-                  "assignClubPresident"
+                  "assignClubPresident",
                 );
                 await callable({ clubId, userId: user.id });
 
                 notificationManager.show(
                   `${displayName} is now president of ${club.name}!`,
-                  "success"
+                  "success",
                 );
 
                 await this.loadTabContent("clubs");
@@ -1030,7 +1030,7 @@ export class SafModeratePage {
           <p class="warning-text">
             <strong>This action cannot be undone.</strong> This will permanently delete 
             the club "<strong>${escapeHtml(
-              clubName
+              clubName,
             )}</strong>" and all its associated data, 
             including events and memberships.
           </p>
@@ -1063,7 +1063,7 @@ export class SafModeratePage {
         logManager.info("SafModeratePage: Club deleted", { clubId, clubName });
         notificationManager.show(
           `Club "${clubName}" has been deleted.`,
-          "info"
+          "info",
         );
 
         await this.loadTabContent("clubs");

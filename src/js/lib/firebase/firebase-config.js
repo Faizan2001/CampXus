@@ -141,16 +141,16 @@ if (isLocalhost) {
 
   try {
     // Connect Auth emulator
-    connectAuthEmulator(auth, "http://localhost:9099", {
+    connectAuthEmulator(auth, "http://localhost:9899", {
       disableWarnings: true,
     });
 
     // Connect Firestore emulator
-    connectFirestoreEmulator(db, "localhost", 8080);
+    connectFirestoreEmulator(db, "localhost", 8880);
 
     // Connect Functions emulator
     functions = getFunctions(app, "us-central1");
-    connectFunctionsEmulator(functions, "localhost", 5001);
+    connectFunctionsEmulator(functions, "localhost", 5501);
 
     console.log(
       "%c🔧 EMULATOR MODE 🔧",
@@ -158,11 +158,11 @@ if (isLocalhost) {
     );
     console.log(
       "%cConnected to Firebase Emulators:\n" +
-        "  • Auth:      http://localhost:9099\n" +
-        "  • Firestore: http://localhost:8080\n" +
-        "  • Functions: http://localhost:5001\n" +
+        "  • Auth:      http://localhost:9899\n" +
+        "  • Firestore: http://localhost:8880\n" +
+        "  • Functions: http://localhost:5501\n" +
         "  • Storage:   http://localhost:9199\n" +
-        "  • UI:        http://localhost:4000",
+        "  • UI:        http://localhost:4200",
       "color: #51cf66; font-weight: bold;",
     );
     console.log(

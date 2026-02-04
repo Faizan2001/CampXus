@@ -67,7 +67,7 @@ export async function getCallableFunction(functionName) {
   // Connect to emulator once in development
   if (isLocalhost() && !emulatorConnected) {
     try {
-      connectFunctionsEmulator(functions, "localhost", 5001);
+      connectFunctionsEmulator(functions, "localhost", 5501);
       emulatorConnected = true;
     } catch (_) {
       // Emulator already connected or unavailable; non-fatal

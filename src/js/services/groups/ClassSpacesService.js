@@ -84,7 +84,7 @@ export class ClassSpacesService {
       throw new Error("Failed to get auth token");
     }
 
-    const url = `http://localhost:5001/${projectId}/us-central1/${functionName}`;
+    const url = `http://localhost:5501/${projectId}/us-central1/${functionName}`;
     console.log("[ClassSpacesService] Calling emulator:", url);
 
     const res = await fetch(url, {
@@ -222,7 +222,7 @@ export class ClassSpacesService {
         }
 
         try {
-          connectFunctionsEmulator(functions, "localhost", 5001);
+          connectFunctionsEmulator(functions, "localhost", 5501);
         } catch (_) {}
         const callable = httpsCallable(functions, "sendGroupMessage");
         const res = await callable({ spaceId, content });

@@ -76,6 +76,7 @@ import { getAvatarUrl } from "../../utils/avatar/avatarUtils.js";
 import { logManager } from "../../utils/debug/LogManager.js";
 import { currentUser } from "../../store/userStore.js";
 import { notificationManager } from "../realtime/NotificationService.js";
+import { sanitizeFirestoreData } from "../../utils/firebase/sanitizeFirestoreData.js";
 
 // Common field paths for queries
 export const FIELD_PATHS = {
@@ -2028,6 +2029,10 @@ class DataManager {
         throw new Error("Missing fromUserId/toUserId");
       }
 
+      // Firestore rejects undefined values anywhere in the payload (including nested objects).
+      // Legacy users / older docs may miss newer profile fields; sanitize before writing.
+      const sanitizedRequestData = sanitizeFirestoreData(requestData);
+
       // Deterministic ID prevents duplicates from rapid taps / multi-tab races
       const requestId = `${requestData.fromUserId}_${requestData.toUserId}`;
       const requestRef = doc(db, "friendRequests", requestId);
@@ -2043,11 +2048,13 @@ class DataManager {
           throw new Error("Friend request already sent");
         }
 
-        transaction.set(requestRef, {
-          ...requestData,
+        const payload = sanitizeFirestoreData({
+          ...sanitizedRequestData,
           createdAt: serverTimestamp(),
           respondedAt: null,
         });
+
+        transaction.set(requestRef, payload);
       });
 
       console.log("✅ Friend request created successfully with ID:", requestId);
@@ -4368,6 +4375,16 @@ class DataManager {
 
       const friendshipData = { id: friendshipDoc.id, ...friendshipDoc.data() };
 
+      // Legacy compatibility: older friendship docs may not have newer privacy fields.
+      // Always expose these as objects so downstream code can safely key into them.
+      if (
+        !friendshipData.locationVisibility ||
+        typeof friendshipData.locationVisibility !== "object" ||
+        Array.isArray(friendshipData.locationVisibility)
+      ) {
+        friendshipData.locationVisibility = {};
+      }
+
       // Store in cache
       this._friendshipCache.set(friendshipId, {
         data: friendshipData,
@@ -4486,12 +4503,14 @@ class DataManager {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
 
-      const docRef = await addDoc(notificationsRef, {
+      const payload = sanitizeFirestoreData({
         ...notificationData,
         createdAt: serverTimestamp(),
         expiresAt: expiresAt,
         status: notificationData.status || "pending",
       });
+
+      const docRef = await addDoc(notificationsRef, payload);
 
       console.log("✅ Notification created successfully with ID:", docRef.id);
       return { success: true, notificationId: docRef.id };

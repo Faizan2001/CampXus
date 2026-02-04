@@ -1630,7 +1630,10 @@ export class FriendsManager {
         // ⭐ Trigger UI callback for immediate update (before real-time sync)
         if (this.uiCallbacks.onQuickAccessUpdated) {
           // Get updated Quick Access data and trigger callback
-          this.getQuickAccessFriends(false)
+          // Use cache here: DataManager optimistically updates Quick Access cache in the same
+          // call that writes the transaction. A "fresh" Firestore read can be briefly stale
+          // and would incorrectly reset the UI star state.
+          this.getQuickAccessFriends(true)
             .then((quickAccessFriends) => {
               this.uiCallbacks.onQuickAccessUpdated({
                 userId: currentUser.uid,
@@ -1717,7 +1720,9 @@ export class FriendsManager {
         // ⭐ Trigger UI callback for immediate update (before real-time sync)
         if (this.uiCallbacks.onQuickAccessUpdated) {
           // Get updated Quick Access data and trigger callback
-          this.getQuickAccessFriends(false)
+          // Use cache here: DataManager optimistically updates Quick Access cache in the same
+          // call that writes the transaction. A "fresh" Firestore read can be briefly stale.
+          this.getQuickAccessFriends(true)
             .then((quickAccessFriends) => {
               this.uiCallbacks.onQuickAccessUpdated({
                 userId: currentUser.uid,
