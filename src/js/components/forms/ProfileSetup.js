@@ -66,6 +66,7 @@ import {
   processProfilePhoto,
   uploadProfilePhotoBlobs,
   deleteExistingProfilePhotos,
+  MAX_PROFILE_PHOTO_BYTES,
 } from "../../services/profile/ProfilePhotoService.js";
 import {
   STARTER_INTERESTS,
@@ -1972,9 +1973,10 @@ class ProfileSetup {
 
       console.log("📸 Processing uploaded photo...");
       const { mainBlob, thumbBlob } = await processProfilePhoto(file);
-      if (mainBlob.size > 400 * 1024) {
+      if (mainBlob.size > MAX_PROFILE_PHOTO_BYTES) {
+        const sizeKB = Math.round(mainBlob.size / 1024);
         notificationManager.show(
-          "Photo is too large after processing. Please choose a different image.",
+          `Photo is too large (${sizeKB} KB) even after compression. Please choose a less detailed image.`,
           "warning",
         );
         return;

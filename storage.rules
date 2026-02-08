@@ -60,7 +60,7 @@ service firebase.storage {
       // Create/Update: enforce owner, size and content-type
       allow create, update: if isSignedIn()
                             && request.auth.uid == uid
-                            && request.resource.size < 400 * 1024
+                            && request.resource.size < 500 * 1024
                             && request.resource.contentType.matches('image/.*');
 
       // Delete: owner can delete; request.resource is null during delete, so do not check size/type

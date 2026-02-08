@@ -6,10 +6,15 @@ import { getStorageInstance } from "../../lib/firebase/firebase-config.js";
 async function fileToImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    const url = URL.createObjectURL(file);
-    img.src = url;
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      reject(new Error("Failed to load image"));
+    };
+    img.src = URL.createObjectURL(file);
   });
 }
 
@@ -25,6 +30,8 @@ function centerCropToSquare(img, size) {
   const sx = (srcW - side) / 2;
   const sy = (srcH - side) / 2;
 
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
   return canvas;
 }
@@ -39,12 +46,30 @@ async function canvasToWebPBlob(canvas, quality = 0.82) {
   });
 }
 
+// Max allowed processed photo size (must match storage.rules)
+export const MAX_PROFILE_PHOTO_BYTES = 500 * 1024; // 500 KB
+// Max raw file size accepted before processing (skip obviously huge files)
+export const MAX_RAW_FILE_BYTES = 15 * 1024 * 1024; // 15 MB
+
 export async function processProfilePhoto(file) {
+  if (file.size > MAX_RAW_FILE_BYTES) {
+    throw new Error(`File too large (${Math.round(file.size / 1024 / 1024)}MB). Please choose an image under 15 MB.`);
+  }
+
   const img = await fileToImage(file);
   const main = centerCropToSquare(img, 512);
   const thumb = centerCropToSquare(img, 128);
-  const mainBlob = await canvasToWebPBlob(main, 0.82);
-  const thumbBlob = await canvasToWebPBlob(thumb, 0.8);
+
+  // Adaptive quality: start high, step down gently (never below 0.70 — faces
+  // show visible artifacts below that threshold per WebP compression studies)
+  const qualitySteps = [0.85, 0.80, 0.75, 0.70];
+  let mainBlob;
+  for (const q of qualitySteps) {
+    mainBlob = await canvasToWebPBlob(main, q);
+    if (mainBlob.size <= MAX_PROFILE_PHOTO_BYTES) break;
+  }
+
+  const thumbBlob = await canvasToWebPBlob(thumb, 0.75);
   return { mainBlob, thumbBlob };
 }
 
