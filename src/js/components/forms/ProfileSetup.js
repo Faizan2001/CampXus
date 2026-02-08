@@ -1972,7 +1972,7 @@ class ProfileSetup {
       if (!file) return;
 
       console.log("📸 Processing uploaded photo...");
-      const { mainBlob, thumbBlob } = await processProfilePhoto(file);
+      const { mainBlob, thumbBlob, mime } = await processProfilePhoto(file);
       if (mainBlob.size > MAX_PROFILE_PHOTO_BYTES) {
         const sizeKB = Math.round(mainBlob.size / 1024);
         notificationManager.show(
@@ -1989,6 +1989,7 @@ class ProfileSetup {
         userId,
         mainBlob,
         thumbBlob,
+        mime,
       );
 
       this.profilePhotoUrl = url;
