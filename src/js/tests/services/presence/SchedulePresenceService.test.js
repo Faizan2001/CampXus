@@ -172,6 +172,30 @@ describe("SchedulePresenceService.deriveStatus", () => {
     expect(status.metadata.nextClassTime).toBeInstanceOf(Date);
   });
 
+  test("shows FREE for 20 minutes after the last class ends", () => {
+    // Slot 1 ends at 11:10; at 11:20 user should still be considered free on campus
+    const now = createLocalDate(2025, 1, 6, 11, 20);
+    const friend = buildFriend({ busySlots: [1] }, now);
+
+    const status = SchedulePresenceService.deriveStatus(friend, now);
+
+    expect(status.state).toBe(PRESENCE_STATES.FREE_ON_CAMPUS);
+    expect(status.pillText).toBe("FREE");
+    expect(status.metadata.source).toBe("schedule");
+  });
+
+  test("shows NO CLASSES after 20 minutes since the last class ended", () => {
+    // Slot 1 ends at 11:10; at 11:31 user should no longer be in the post-class free window
+    const now = createLocalDate(2025, 1, 6, 11, 31);
+    const friend = buildFriend({ busySlots: [1] }, now);
+
+    const status = SchedulePresenceService.deriveStatus(friend, now);
+
+    expect(status.state).toBe(PRESENCE_STATES.NO_CLASSES);
+    expect(status.pillText).toBe("NO CLASSES");
+    expect(status.metadata.source).toBe("schedule");
+  });
+
   test("no schedule data returns UNKNOWN_NO_DATA", () => {
     const now = createLocalDate(2025, 1, 6, 10, 0);
     const status = SchedulePresenceService.deriveStatus(

@@ -1,42 +1,42 @@
 export const DEFAULT_TIMESLOTS = [
-  { start: "08:00", end: "09:30", label: "08:00-09:30" },
-  { start: "09:40", end: "11:10", label: "09:40-11:10" },
-  { start: "11:20", end: "12:50", label: "11:20-12:50" },
-  { start: "13:00", end: "14:30", label: "13:00-14:30" },
-  { start: "14:40", end: "16:10", label: "14:40-16:10" },
-  { start: "16:20", end: "17:50", label: "16:20-17:50" },
+  { start: "08:00", end: "09:15", label: "08:00-09:15" },
+  { start: "09:20", end: "10:35", label: "09:20-10:35" },
+  { start: "10:40", end: "11:55", label: "10:40-11:55" },
+  { start: "12:00", end: "13:15", label: "12:00-13:15" },
+  { start: "13:20", end: "14:35", label: "13:20-14:35" },
+  { start: "14:40", end: "15:55", label: "14:40-15:55" },
 ];
 
 // Time slot inference map for mobile-responsive OCR (handles partial/cut-off times)
 // Maps start time patterns to complete time slots for robust recognition
 export const TIME_SLOT_INFERENCE_MAP = {
   // Hour-based mapping (most robust - works even with just hour visible)
-  "08": { start: "08:00", end: "09:30", label: "08:00-09:30", slot: 0 },
-  "09": { start: "09:40", end: "11:10", label: "09:40-11:10", slot: 1 },
-  11: { start: "11:20", end: "12:50", label: "11:20-12:50", slot: 2 },
-  13: { start: "13:00", end: "14:30", label: "13:00-14:30", slot: 3 },
-  14: { start: "14:40", end: "16:10", label: "14:40-16:10", slot: 4 },
-  16: { start: "16:20", end: "17:50", label: "16:20-17:50", slot: 5 },
+  "08": { start: "08:00", end: "09:15", label: "08:00-09:15", slot: 0 },
+  "09": { start: "09:20", end: "10:35", label: "09:20-10:35", slot: 1 },
+  10: { start: "10:40", end: "11:55", label: "10:40-11:55", slot: 2 },
+  12: { start: "12:00", end: "13:15", label: "12:00-13:15", slot: 3 },
+  13: { start: "13:20", end: "14:35", label: "13:20-14:35", slot: 4 },
+  14: { start: "14:40", end: "15:55", label: "14:40-15:55", slot: 5 },
   18: { start: "18:30", end: "21:30", label: "18:30-21:30", slot: 6 },
 
   // Full start time mapping (most precise)
-  "08:00": { start: "08:00", end: "09:30", label: "08:00-09:30", slot: 0 },
-  "09:40": { start: "09:40", end: "11:10", label: "09:40-11:10", slot: 1 },
-  "11:20": { start: "11:20", end: "12:50", label: "11:20-12:50", slot: 2 },
-  "13:00": { start: "13:00", end: "14:30", label: "13:00-14:30", slot: 3 },
-  "14:40": { start: "14:40", end: "16:10", label: "14:40-16:10", slot: 4 },
-  "16:20": { start: "16:20", end: "17:50", label: "16:20-17:50", slot: 5 },
+  "08:00": { start: "08:00", end: "09:15", label: "08:00-09:15", slot: 0 },
+  "09:20": { start: "09:20", end: "10:35", label: "09:20-10:35", slot: 1 },
+  "10:40": { start: "10:40", end: "11:55", label: "10:40-11:55", slot: 2 },
+  "12:00": { start: "12:00", end: "13:15", label: "12:00-13:15", slot: 3 },
+  "13:20": { start: "13:20", end: "14:35", label: "13:20-14:35", slot: 4 },
+  "14:40": { start: "14:40", end: "15:55", label: "14:40-15:55", slot: 5 },
   "18:30": { start: "18:30", end: "21:30", label: "18:30-21:30", slot: 6 },
 
   // Partial time patterns (handles OCR variations)
-  "8:00": { start: "08:00", end: "09:30", label: "08:00-09:30", slot: 0 },
-  "9:40": { start: "09:40", end: "11:10", label: "09:40-11:10", slot: 1 },
-  800: { start: "08:00", end: "09:30", label: "08:00-09:30", slot: 0 },
-  940: { start: "09:40", end: "11:10", label: "09:40-11:10", slot: 1 },
-  1120: { start: "11:20", end: "12:50", label: "11:20-12:50", slot: 2 },
-  1300: { start: "13:00", end: "14:30", label: "13:00-14:30", slot: 3 },
-  1440: { start: "14:40", end: "16:10", label: "14:40-16:10", slot: 4 },
-  1620: { start: "16:20", end: "17:50", label: "16:20-17:50", slot: 5 },
+  "8:00": { start: "08:00", end: "09:15", label: "08:00-09:15", slot: 0 },
+  "9:20": { start: "09:20", end: "10:35", label: "09:20-10:35", slot: 1 },
+  800: { start: "08:00", end: "09:15", label: "08:00-09:15", slot: 0 },
+  920: { start: "09:20", end: "10:35", label: "09:20-10:35", slot: 1 },
+  1040: { start: "10:40", end: "11:55", label: "10:40-11:55", slot: 2 },
+  1200: { start: "12:00", end: "13:15", label: "12:00-13:15", slot: 3 },
+  1320: { start: "13:20", end: "14:35", label: "13:20-14:35", slot: 4 },
+  1440: { start: "14:40", end: "15:55", label: "14:40-15:55", slot: 5 },
   1830: { start: "18:30", end: "21:30", label: "18:30-21:30", slot: 6 },
 };
 

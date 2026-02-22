@@ -11,6 +11,7 @@ export const PRESENCE_STATES = {
 
 export const PRESENCE_CONFIG = {
   MAX_CAMPUS_GAP_MINUTES: 180,
+  LAST_CLASS_FREE_WINDOW_MINUTES: 20,
   POST_CLASS_TIMEOUT_MINUTES: 120,
   GPS_PRIORITY_WINDOW_MINUTES: 30,
   STATUS_UPDATE_INTERVAL_MS: 60000,
@@ -307,7 +308,16 @@ function deriveScheduleContext(friend, now) {
   } else if (!previousClass && nextClass) {
     scheduleState = "no_class_now_but_later";
   } else if (previousClass && !nextClass) {
-    scheduleState = "no_classes_today";
+    if (
+      Number.isFinite(minutesSinceLastClass) &&
+      minutesSinceLastClass <= PRESENCE_CONFIG.LAST_CLASS_FREE_WINDOW_MINUTES
+    ) {
+      // Keep users as "FREE" briefly after their final class since they may still be on campus.
+      scheduleState = "between_classes";
+      inGap = true;
+    } else {
+      scheduleState = "no_classes_today";
+    }
   }
 
   return {
