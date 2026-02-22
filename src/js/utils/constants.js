@@ -59,7 +59,7 @@ export function inferTimeSlotFromPartial(partialTime) {
     .trim();
 
   console.log(
-    `🕐 Inferring time slot from: "${partialTime}" → cleaned: "${cleanTime}"`
+    `🕐 Inferring time slot from: "${partialTime}" → cleaned: "${cleanTime}"`,
   );
 
   // Try exact matches first
@@ -105,7 +105,7 @@ export function inferTimeSlotFromPartial(partialTime) {
         if (TIME_SLOT_INFERENCE_MAP[possibleTime]) {
           const result = TIME_SLOT_INFERENCE_MAP[possibleTime];
           console.log(
-            `✅ Reconstructed match found: ${possibleTime} → ${result.label}`
+            `✅ Reconstructed match found: ${possibleTime} → ${result.label}`,
           );
           return result;
         }

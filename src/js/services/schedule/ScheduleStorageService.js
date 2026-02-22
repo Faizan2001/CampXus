@@ -33,6 +33,15 @@ import { currentUser } from "../../store/userStore.js";
 import { DEFAULT_TIMESLOTS } from "../../utils/constants.js";
 import { normalizeCourseForSave } from "../../utils/schedule/courseNormalization.js";
 
+const LEGACY_IUB_BASE_TIMESLOTS = [
+  { start: "08:00", end: "09:30", label: "08:00-09:30" },
+  { start: "09:40", end: "11:10", label: "09:40-11:10" },
+  { start: "11:20", end: "12:50", label: "11:20-12:50" },
+  { start: "13:00", end: "14:30", label: "13:00-14:30" },
+  { start: "14:40", end: "16:10", label: "14:40-16:10" },
+  { start: "16:20", end: "17:50", label: "16:20-17:50" },
+];
+
 /**
  * Phase-1 Schedule Storage Service
  * Handles dual storage strategy with real-time sync
@@ -182,6 +191,18 @@ export class ScheduleStorageService {
           await this.saveUserSchedule(userId, updated);
           this.cacheScheduleData(userId, updated);
           scheduleData = updated;
+        } else if (this._hasLegacyIubBaseSlots(scheduleData?.timeSlots)) {
+          const migrated = {
+            ...scheduleData,
+            timeSlots: this._migrateLegacyIubBaseSlots(scheduleData.timeSlots),
+          };
+
+          console.log("🧭 Migrating legacy IUB base slots to latest defaults");
+
+          // Persist migration once and refresh cache so UI picks up new labels/times.
+          await this.saveUserSchedule(userId, migrated);
+          this.cacheScheduleData(userId, migrated);
+          scheduleData = migrated;
         }
       }
     } catch (e) {
@@ -500,6 +521,34 @@ export class ScheduleStorageService {
       console.warn("Failed to get cached schedule data:", error);
     }
     return null;
+  }
+
+  _hasLegacyIubBaseSlots(timeSlots) {
+    if (!Array.isArray(timeSlots) || timeSlots.length < LEGACY_IUB_BASE_TIMESLOTS.length) {
+      return false;
+    }
+
+    return LEGACY_IUB_BASE_TIMESLOTS.every((legacy, idx) => {
+      const slot = timeSlots[idx];
+      return (
+        slot &&
+        slot.start === legacy.start &&
+        slot.end === legacy.end &&
+        slot.label === legacy.label
+      );
+    });
+  }
+
+  _migrateLegacyIubBaseSlots(timeSlots) {
+    return timeSlots.map((slot, idx) => {
+      if (idx >= DEFAULT_TIMESLOTS.length) return slot;
+      return {
+        ...slot,
+        start: DEFAULT_TIMESLOTS[idx].start,
+        end: DEFAULT_TIMESLOTS[idx].end,
+        label: DEFAULT_TIMESLOTS[idx].label,
+      };
+    });
   }
 
   _convertMapToScheduleArray(scheduleMap, desiredSlotsLen = null) {

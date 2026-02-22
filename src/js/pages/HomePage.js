@@ -2410,6 +2410,7 @@ async function loadState(retryAttempt = 0) {
           pinnedSlots: data?.pinnedSlots || null,
           timeBasedPins: data?.timeBasedPins || null,
           slotInfo: data?.slotInfo || null,
+          timeSlots: data?.timeSlots || null,
         });
         // Track last applied version for robust realtime gating
         state.lastAppliedScheduleVersion =
@@ -2468,6 +2469,7 @@ async function loadState(retryAttempt = 0) {
               pinnedSlots: freshData?.pinnedSlots || null,
               timeBasedPins: freshData?.timeBasedPins || null,
               slotInfo: freshData?.slotInfo || null,
+              timeSlots: freshData?.timeSlots || null,
             });
             if (freshSig === state.lastScheduleSignature) {
               return;
@@ -2573,6 +2575,7 @@ function setupScheduleRealTimeSync(userId) {
             pinnedSlots: updatedScheduleData?.pinnedSlots || null,
             timeBasedPins: updatedScheduleData?.timeBasedPins || null,
             slotInfo: updatedScheduleData?.slotInfo || null,
+            timeSlots: updatedScheduleData?.timeSlots || null,
           });
         } catch (_) {}
 
@@ -2628,6 +2631,7 @@ function setupScheduleRealTimeSync(userId) {
               pinnedSlots: updatedScheduleData?.pinnedSlots || null,
               timeBasedPins: updatedScheduleData?.timeBasedPins || null,
               slotInfo: updatedScheduleData?.slotInfo || null,
+              timeSlots: updatedScheduleData?.timeSlots || null,
             });
           if (state.lastScheduleSignature === newSignature) {
             // Still update userStore timestamps for consistency, but avoid UI work
