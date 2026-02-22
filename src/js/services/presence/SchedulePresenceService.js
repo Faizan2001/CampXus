@@ -1,5 +1,16 @@
 import { DEFAULT_TIMESLOTS } from "../../utils/constants.js";
 
+// UI shows Ramadan-adjusted labels for these canonical base slots.
+// Presence inference should use the same effective windows to keep "CLASS/FREE/NO CLASSES" aligned.
+const RAMADAN_SLOT_TIME_OVERRIDES = Object.freeze({
+  "08:00-09:30": { start: "08:00", end: "09:15" },
+  "09:40-11:10": { start: "09:20", end: "10:35" },
+  "11:20-12:50": { start: "10:40", end: "11:55" },
+  "13:00-14:30": { start: "12:00", end: "13:15" },
+  "14:40-16:10": { start: "13:20", end: "14:35" },
+  "16:20-17:50": { start: "14:40", end: "15:55" },
+});
+
 export const PRESENCE_STATES = {
   IN_CLASS: "IN_CLASS",
   FREE_ON_CAMPUS: "FREE_ON_CAMPUS",
@@ -348,8 +359,9 @@ function buildClassesForDay(daySchedule, timeSlots, now) {
   for (let i = 0; i < limit; i++) {
     if (!daySchedule[i]) continue;
     const slot = slots[i];
-    const start = buildDateFromSlot(now, slot?.start);
-    const end = buildDateFromSlot(now, slot?.end);
+    const effective = getEffectiveSlotTimes(slot);
+    const start = buildDateFromSlot(now, effective.start);
+    const end = buildDateFromSlot(now, effective.end);
     if (!start || !end) continue;
     classes.push({
       start,
@@ -359,6 +371,24 @@ function buildClassesForDay(daySchedule, timeSlots, now) {
   }
 
   return classes;
+}
+
+function getEffectiveSlotTimes(slot) {
+  const start = slot?.start;
+  const end = slot?.end;
+  const key = `${start || ""}-${end || ""}`;
+
+  if (RAMADAN_SLOT_TIME_OVERRIDES[key]) {
+    return RAMADAN_SLOT_TIME_OVERRIDES[key];
+  }
+
+  // Fallback by label for payloads where label may be canonical but start/end differ by source.
+  const label = typeof slot?.label === "string" ? slot.label : "";
+  if (label && RAMADAN_SLOT_TIME_OVERRIDES[label]) {
+    return RAMADAN_SLOT_TIME_OVERRIDES[label];
+  }
+
+  return { start, end };
 }
 
 function buildDateFromSlot(now, timeString) {
