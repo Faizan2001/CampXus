@@ -30,17 +30,8 @@ import {
   REALTIME_EVENTS,
 } from "../realtime/RealtimeService.js";
 import { currentUser } from "../../store/userStore.js";
-import { DEFAULT_TIMESLOTS } from "../../utils/constants.js";
+import { DEFAULT_TIMESLOTS, UNIVERSITY_DAY_CODES } from "../../utils/constants.js";
 import { normalizeCourseForSave } from "../../utils/schedule/courseNormalization.js";
-
-const LEGACY_IUB_BASE_TIMESLOTS = [
-  { start: "08:00", end: "09:30", label: "08:00-09:30" },
-  { start: "09:40", end: "11:10", label: "09:40-11:10" },
-  { start: "11:20", end: "12:50", label: "11:20-12:50" },
-  { start: "13:00", end: "14:30", label: "13:00-14:30" },
-  { start: "14:40", end: "16:10", label: "14:40-16:10" },
-  { start: "16:20", end: "17:50", label: "16:20-17:50" },
-];
 
 /**
  * Phase-1 Schedule Storage Service
@@ -191,18 +182,22 @@ export class ScheduleStorageService {
           await this.saveUserSchedule(userId, updated);
           this.cacheScheduleData(userId, updated);
           scheduleData = updated;
-        } else if (this._hasLegacyIubBaseSlots(scheduleData?.timeSlots)) {
-          const migrated = {
-            ...scheduleData,
-            timeSlots: this._migrateLegacyIubBaseSlots(scheduleData.timeSlots),
-          };
+        }
+      }
 
-          console.log("🧭 Migrating legacy IUB base slots to latest defaults");
-
-          // Persist migration once and refresh cache so UI picks up new labels/times.
-          await this.saveUserSchedule(userId, migrated);
-          this.cacheScheduleData(userId, migrated);
-          scheduleData = migrated;
+      // Safety net: if schedule grid became empty but normalized users.courses still exists,
+      // reconstruct schedule/slotInfo once to recover class visibility.
+      if (
+        isCurrent &&
+        scheduleData &&
+        this._isScheduleGridEmpty(scheduleData, userId)
+      ) {
+        const restored = await this._restoreScheduleFromCourses(
+          userId,
+          scheduleData,
+        );
+        if (restored) {
+          scheduleData = restored;
         }
       }
     } catch (e) {
@@ -221,13 +216,16 @@ export class ScheduleStorageService {
    */
   async saveUserSchedule(userId, scheduleData) {
     try {
+      const normalizedScheduleData =
+        this._normalizeHomePageSchedulePayload(scheduleData);
+
       // 1. Prepare payload with preserved metadata and cache for immediate UI response
       const previous =
         currentUser?.scheduleData || this.getCachedScheduleData(userId);
       const existingMetadata = previous?.metadata || null;
       const scheduleForSave = existingMetadata
-        ? { ...scheduleData, metadata: existingMetadata }
-        : scheduleData;
+        ? { ...normalizedScheduleData, metadata: existingMetadata }
+        : normalizedScheduleData;
 
       this.cacheScheduleData(userId, scheduleForSave);
       console.log("💾 Schedule saved to localStorage cache");
@@ -302,6 +300,186 @@ export class ScheduleStorageService {
       console.error("❌ Failed to save schedule:", error);
       this.lastError = error.message;
       return false;
+    }
+  }
+
+  _normalizeHomePageSchedulePayload(scheduleData) {
+    if (!scheduleData || typeof scheduleData !== "object") {
+      return scheduleData;
+    }
+
+    const hasMapSchedule =
+      scheduleData.schedule &&
+      typeof scheduleData.schedule === "object" &&
+      !Array.isArray(scheduleData.schedule);
+
+    const hasMapSlotInfo =
+      scheduleData.slotInfo &&
+      typeof scheduleData.slotInfo === "object" &&
+      !Array.isArray(scheduleData.slotInfo);
+
+    const hasMapPinned =
+      scheduleData.pinnedSlots &&
+      typeof scheduleData.pinnedSlots === "object" &&
+      !Array.isArray(scheduleData.pinnedSlots);
+
+    if (!hasMapSchedule && !hasMapSlotInfo && !hasMapPinned) {
+      return scheduleData;
+    }
+
+    const desiredSlotsLen = Array.isArray(scheduleData.timeSlots)
+      ? scheduleData.timeSlots.length
+      : null;
+
+    return {
+      ...scheduleData,
+      schedule: hasMapSchedule
+        ? this._convertMapToScheduleArray(scheduleData.schedule, desiredSlotsLen)
+        : scheduleData.schedule || [],
+      slotInfo: hasMapSlotInfo
+        ? this._convertMapToSlotInfoArray(scheduleData.slotInfo, desiredSlotsLen)
+        : scheduleData.slotInfo || [],
+      pinnedSlots: hasMapPinned
+        ? this._convertMapToScheduleArray(
+            scheduleData.pinnedSlots,
+            desiredSlotsLen,
+          )
+        : scheduleData.pinnedSlots || [],
+    };
+  }
+
+  _isScheduleGridEmpty(scheduleData, userId) {
+    try {
+      const converted = this.convertToHomePageFormat(scheduleData, userId);
+      const user = converted?.users?.[userId];
+      if (!user) return true;
+
+      const hasBusy = Array.isArray(user.schedule)
+        ? user.schedule.some(
+            (day) => Array.isArray(day) && day.some((slot) => slot === true),
+          )
+        : false;
+
+      if (hasBusy) return false;
+
+      const hasSlotInfo = Array.isArray(user.slotInfo)
+        ? user.slotInfo.some(
+            (day) =>
+              Array.isArray(day) &&
+              day.some((slot) => {
+                const code = String(slot?.courseCode || "").trim();
+                const room = String(slot?.classroomNumber || "").trim();
+                return Boolean(code || room);
+              }),
+          )
+        : false;
+
+      return !hasSlotInfo;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  async _restoreScheduleFromCourses(userId, scheduleData) {
+    try {
+      const profile = await this.dataManager.getUserProfile(userId);
+      const courses = Array.isArray(profile?.courses) ? profile.courses : [];
+      if (courses.length === 0) {
+        return null;
+      }
+
+      const base = this.convertToHomePageFormat(scheduleData, userId)?.users?.[
+        userId
+      ];
+      if (!base || !Array.isArray(base.timeSlots) || base.timeSlots.length === 0) {
+        return null;
+      }
+
+      const slotsLen = base.timeSlots.length;
+      const schedule = Array.from({ length: 7 }, () =>
+        Array.from({ length: slotsLen }, () => false),
+      );
+      const slotInfo = Array.from({ length: 7 }, () =>
+        Array.from({ length: slotsLen }, () => ({
+          courseCode: "",
+          classroomNumber: "",
+        })),
+      );
+
+      const dayNameToIndex = {
+        sunday: 0,
+        monday: 1,
+        tuesday: 2,
+        wednesday: 3,
+        thursday: 4,
+        friday: 5,
+        saturday: 6,
+      };
+
+      const findSlotIndex = (course) => {
+        if (course?.timeStart && course?.timeEnd) {
+          const idx = base.timeSlots.findIndex(
+            (slot) =>
+              slot?.start === course.timeStart && slot?.end === course.timeEnd,
+          );
+          if (idx >= 0) return idx;
+        }
+
+        const slotId = String(course?.timeSlot || "");
+        const match = slotId.match(/^(\d{2})(\d{2})-(\d{2})(\d{2})$/);
+        if (!match) return -1;
+        const [, sh, sm, eh, em] = match;
+        const start = `${sh}:${sm}`;
+        const end = `${eh}:${em}`;
+        return base.timeSlots.findIndex(
+          (slot) => slot?.start === start && slot?.end === end,
+        );
+      };
+
+      let restoredCount = 0;
+      for (const course of courses) {
+        const dayPattern = String(course?.dayPattern || "").toUpperCase();
+        const days = UNIVERSITY_DAY_CODES[dayPattern] || [];
+        if (!Array.isArray(days) || days.length === 0) continue;
+
+        const slotIndex = findSlotIndex(course);
+        if (slotIndex < 0) continue;
+
+        for (const dayName of days) {
+          const dayIndex = dayNameToIndex[String(dayName).toLowerCase()];
+          if (typeof dayIndex !== "number") continue;
+
+          schedule[dayIndex][slotIndex] = true;
+          slotInfo[dayIndex][slotIndex] = {
+            courseCode: String(course?.courseCode || "").trim(),
+            classroomNumber: String(course?.classroom || "").trim(),
+          };
+          restoredCount += 1;
+        }
+      }
+
+      if (restoredCount === 0) {
+        return null;
+      }
+
+      const restored = {
+        ...scheduleData,
+        schedule,
+        slotInfo,
+        timeSlots: base.timeSlots,
+        pinnedSlots: base.pinnedSlots || [],
+        timeBasedPins: base.timeBasedPins || scheduleData?.timeBasedPins || {},
+      };
+
+      console.log(
+        `🛟 Restoring empty schedule from users.courses (${restoredCount} mapped entries)`,
+      );
+      await this.saveUserSchedule(userId, restored);
+      this.cacheScheduleData(userId, restored);
+      return restored;
+    } catch (error) {
+      console.warn("⚠️ Failed to restore schedule from users.courses:", error);
+      return null;
     }
   }
 
@@ -521,34 +699,6 @@ export class ScheduleStorageService {
       console.warn("Failed to get cached schedule data:", error);
     }
     return null;
-  }
-
-  _hasLegacyIubBaseSlots(timeSlots) {
-    if (!Array.isArray(timeSlots) || timeSlots.length < LEGACY_IUB_BASE_TIMESLOTS.length) {
-      return false;
-    }
-
-    return LEGACY_IUB_BASE_TIMESLOTS.every((legacy, idx) => {
-      const slot = timeSlots[idx];
-      return (
-        slot &&
-        slot.start === legacy.start &&
-        slot.end === legacy.end &&
-        slot.label === legacy.label
-      );
-    });
-  }
-
-  _migrateLegacyIubBaseSlots(timeSlots) {
-    return timeSlots.map((slot, idx) => {
-      if (idx >= DEFAULT_TIMESLOTS.length) return slot;
-      return {
-        ...slot,
-        start: DEFAULT_TIMESLOTS[idx].start,
-        end: DEFAULT_TIMESLOTS[idx].end,
-        label: DEFAULT_TIMESLOTS[idx].label,
-      };
-    });
   }
 
   _convertMapToScheduleArray(scheduleMap, desiredSlotsLen = null) {
