@@ -145,9 +145,9 @@ describe("SchedulePresenceService.deriveStatus", () => {
   });
 
   test("between classes resolves to FREE with schedule source", () => {
-    // Ramadan mapping makes slot 0 end at 09:15 and slot 1 start at 09:20.
-    // At 09:18, previous class ended and next class starts soon.
-    const now = createLocalDate(2025, 1, 6, 9, 18);
+    // With the original IUB slots, slot 0 ends at 09:30 and slot 1 starts at 09:40.
+    // At 09:35, previous class ended and next class starts soon.
+    const now = createLocalDate(2025, 1, 6, 9, 35);
     const friend = buildFriend({ busySlots: [0, 1] }, now);
 
     const status = SchedulePresenceService.deriveStatus(friend, now);
@@ -173,9 +173,9 @@ describe("SchedulePresenceService.deriveStatus", () => {
   });
 
   test("shows FREE for 20 minutes after the last class ends", () => {
-    // Slot 1 is mapped to 09:20-10:35 in Ramadan display logic.
-    // At 10:50 user should still be considered free on campus.
-    const now = createLocalDate(2025, 1, 6, 10, 50);
+    // Slot 1 runs from 09:40-11:10.
+    // At 11:25 user should still be considered free on campus.
+    const now = createLocalDate(2025, 1, 6, 11, 25);
     const friend = buildFriend({ busySlots: [1] }, now);
 
     const status = SchedulePresenceService.deriveStatus(friend, now);
@@ -186,9 +186,9 @@ describe("SchedulePresenceService.deriveStatus", () => {
   });
 
   test("shows NO CLASSES after 20 minutes since the last class ended", () => {
-    // Slot 1 is mapped to 09:20-10:35 in Ramadan display logic.
-    // At 10:56 user should no longer be in the post-class free window.
-    const now = createLocalDate(2025, 1, 6, 10, 56);
+    // Slot 1 runs from 09:40-11:10.
+    // At 11:31 user should no longer be in the post-class free window.
+    const now = createLocalDate(2025, 1, 6, 11, 31);
     const friend = buildFriend({ busySlots: [1] }, now);
 
     const status = SchedulePresenceService.deriveStatus(friend, now);

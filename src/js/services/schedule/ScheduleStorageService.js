@@ -33,6 +33,15 @@ import { currentUser } from "../../store/userStore.js";
 import { DEFAULT_TIMESLOTS, UNIVERSITY_DAY_CODES } from "../../utils/constants.js";
 import { normalizeCourseForSave } from "../../utils/schedule/courseNormalization.js";
 
+const RAMADAN_IUB_TIMESLOTS = [
+  { start: "08:00", end: "09:15", label: "08:00-09:15" },
+  { start: "09:20", end: "10:35", label: "09:20-10:35" },
+  { start: "10:40", end: "11:55", label: "10:40-11:55" },
+  { start: "12:00", end: "13:15", label: "12:00-13:15" },
+  { start: "13:20", end: "14:35", label: "13:20-14:35" },
+  { start: "14:40", end: "15:55", label: "14:40-15:55" },
+];
+
 /**
  * Phase-1 Schedule Storage Service
  * Handles dual storage strategy with real-time sync
@@ -185,6 +194,21 @@ export class ScheduleStorageService {
         }
       }
 
+      const normalizedTimeSlots = this._normalizeStoredIubTimeSlots(
+        scheduleData?.timeSlots,
+      );
+      if (normalizedTimeSlots !== scheduleData?.timeSlots) {
+        scheduleData = {
+          ...scheduleData,
+          timeSlots: normalizedTimeSlots,
+        };
+
+        if (isCurrent) {
+          await this.saveUserSchedule(userId, scheduleData);
+          this.cacheScheduleData(userId, scheduleData);
+        }
+      }
+
       // Safety net: if schedule grid became empty but normalized users.courses still exists,
       // reconstruct schedule/slotInfo once to recover class visibility.
       if (
@@ -308,6 +332,10 @@ export class ScheduleStorageService {
       return scheduleData;
     }
 
+    const normalizedTimeSlots = this._normalizeStoredIubTimeSlots(
+      scheduleData.timeSlots,
+    );
+
     const hasMapSchedule =
       scheduleData.schedule &&
       typeof scheduleData.schedule === "object" &&
@@ -323,16 +351,22 @@ export class ScheduleStorageService {
       typeof scheduleData.pinnedSlots === "object" &&
       !Array.isArray(scheduleData.pinnedSlots);
 
-    if (!hasMapSchedule && !hasMapSlotInfo && !hasMapPinned) {
+    if (
+      !hasMapSchedule &&
+      !hasMapSlotInfo &&
+      !hasMapPinned &&
+      normalizedTimeSlots === scheduleData.timeSlots
+    ) {
       return scheduleData;
     }
 
-    const desiredSlotsLen = Array.isArray(scheduleData.timeSlots)
-      ? scheduleData.timeSlots.length
+    const desiredSlotsLen = Array.isArray(normalizedTimeSlots)
+      ? normalizedTimeSlots.length
       : null;
 
     return {
       ...scheduleData,
+      timeSlots: normalizedTimeSlots,
       schedule: hasMapSchedule
         ? this._convertMapToScheduleArray(scheduleData.schedule, desiredSlotsLen)
         : scheduleData.schedule || [],
@@ -626,9 +660,12 @@ export class ScheduleStorageService {
     const isIub =
       isCurrent && (email.endsWith("@iub.edu.bd") || profileUni === "iub");
 
+    const normalizedTimeSlots = this._normalizeStoredIubTimeSlots(
+      firestoreData.timeSlots,
+    );
     const providedLen =
-      firestoreData.timeSlots && firestoreData.timeSlots.length > 0
-        ? firestoreData.timeSlots.length
+      normalizedTimeSlots && normalizedTimeSlots.length > 0
+        ? normalizedTimeSlots.length
         : isIub
           ? DEFAULT_TIMESLOTS.length
           : 0;
@@ -647,8 +684,8 @@ export class ScheduleStorageService {
             providedLen,
           ),
           timeSlots:
-            firestoreData.timeSlots && firestoreData.timeSlots.length > 0
-              ? firestoreData.timeSlots
+            normalizedTimeSlots && normalizedTimeSlots.length > 0
+              ? normalizedTimeSlots
               : isIub
                 ? DEFAULT_TIMESLOTS
                 : [],
@@ -699,6 +736,42 @@ export class ScheduleStorageService {
       console.warn("Failed to get cached schedule data:", error);
     }
     return null;
+  }
+
+  _normalizeStoredIubTimeSlots(timeSlots) {
+    if (!this._hasRamadanIubTimeSlots(timeSlots)) {
+      return timeSlots;
+    }
+
+    return timeSlots.map((slot, idx) => {
+      if (idx >= DEFAULT_TIMESLOTS.length) {
+        return slot;
+      }
+
+      const canonical = DEFAULT_TIMESLOTS[idx];
+      return {
+        ...slot,
+        start: canonical.start,
+        end: canonical.end,
+        label: canonical.label,
+      };
+    });
+  }
+
+  _hasRamadanIubTimeSlots(timeSlots) {
+    if (!Array.isArray(timeSlots) || timeSlots.length < RAMADAN_IUB_TIMESLOTS.length) {
+      return false;
+    }
+
+    return RAMADAN_IUB_TIMESLOTS.every((slot, idx) => {
+      const candidate = timeSlots[idx];
+      return (
+        candidate &&
+        candidate.start === slot.start &&
+        candidate.end === slot.end &&
+        candidate.label === slot.label
+      );
+    });
   }
 
   _convertMapToScheduleArray(scheduleMap, desiredSlotsLen = null) {

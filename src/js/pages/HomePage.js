@@ -138,27 +138,6 @@ export function _resetStateForTesting() {
   };
 }
 
-const DISPLAY_TIMESLOT_LABELS = Object.freeze({
-  "08:00-09:30": "08:00-09:15",
-  "09:40-11:10": "09:20-10:35",
-  "11:20-12:50": "10:40-11:55",
-  "13:00-14:30": "12:00-13:15",
-  "14:40-16:10": "13:20-14:35",
-  "16:20-17:50": "14:40-15:55",
-});
-
-function getDisplayTimeSlotLabel(timeSlotOrLabel) {
-  const rawLabel =
-    typeof timeSlotOrLabel === "string"
-      ? timeSlotOrLabel
-      : timeSlotOrLabel?.label || "";
-  return DISPLAY_TIMESLOT_LABELS[rawLabel] || rawLabel;
-}
-
-function getDisplayTimeSlotLabel12Hour(timeSlotOrLabel) {
-  return convertTimeRangeTo12Hour(getDisplayTimeSlotLabel(timeSlotOrLabel));
-}
-
 /* ================================
    UTILITY FUNCTIONS
 ================================== */
@@ -1978,7 +1957,7 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
   const modalContent = `
     <div class="slot-info-form">
       <p><strong>Day:</strong> ${dayName}</p>
-      <p><strong>Time:</strong> ${getDisplayTimeSlotLabel(timeSlot)}</p>
+      <p><strong>Time:</strong> ${timeSlot.label}</p>
       <div class="form-group">
         <label for="editCourseCodeInput">Course Code:</label>
         <input type="text" id="editCourseCodeInput" class="modal-input" 
@@ -2084,7 +2063,7 @@ function showEditSlotInfoModal(dayIndex, timeIndex, user) {
 
       showModal({
         title: "Delete Slot",
-        content: `Are you sure you want to delete this slot and mark it as free?\n\nDay: ${dayName}\nTime: ${getDisplayTimeSlotLabel(timeSlot)}`,
+        content: `Are you sure you want to delete this slot and mark it as free?\n\nDay: ${dayName}\nTime: ${timeSlot.label}`,
         showConfirmationButtons: true,
         confirmText: "Delete",
         cancelText: "Cancel",
@@ -2207,7 +2186,7 @@ function showSlotInfoModal(dayIndex, timeIndex, user) {
   const modalContent = `
     <div class="slot-info-form">
       <p><strong>Day:</strong> ${dayName}</p>
-      <p><strong>Time:</strong> ${getDisplayTimeSlotLabel(timeSlot)}</p>
+      <p><strong>Time:</strong> ${timeSlot.label}</p>
       <div class="form-group">
         <label for="courseCodeInput">Course Code:</label>
         <input type="text" id="courseCodeInput" class="modal-input" 
@@ -3593,7 +3572,7 @@ async function _renderScheduleGridInternal() {
     // First cell: Time slot label (24-hour format for grid view)
     const timeCell = document.createElement("td");
     timeCell.classList.add("time-slot-label");
-    timeCell.textContent = getDisplayTimeSlotLabel(timeSlot);
+    timeCell.textContent = timeSlot.label;
 
     if (allowEditingHeaders) {
       timeCell.classList.add("editable-timeslot-header");
@@ -5739,7 +5718,7 @@ function createNormalSlotContent(
     : "";
 
   // Convert time label to 12-hour format for display
-  const displayTime = getDisplayTimeSlotLabel12Hour(timeSlot);
+  const displayTime = convertTimeRangeTo12Hour(timeSlot.label);
 
   return `
     <div class="slot-time">${displayTime}</div>
@@ -5774,7 +5753,7 @@ function createCompareSlotContent(timeSlot, timeIndex) {
   );
 
   // Convert time label to 12-hour format for display
-  const displayTime = getDisplayTimeSlotLabel12Hour(timeSlot);
+  const displayTime = convertTimeRangeTo12Hour(timeSlot.label);
 
   return `
     <div class="slot-time">${displayTime}</div>
@@ -5826,7 +5805,7 @@ function createDayViewCompareSlotContent(
   }
 
   // Convert time label to 12-hour format for display
-  const displayTime = getDisplayTimeSlotLabel12Hour(timeSlot);
+  const displayTime = convertTimeRangeTo12Hour(timeSlot.label);
 
   return `
     <div class="slot-time">${displayTime}</div>
