@@ -4,6 +4,7 @@ import {
   getAvatarFallback,
 } from "../../utils/avatar/avatarUtils.js";
 import { currentUser } from "../../store/userStore.js";
+import { escapeHTML, escapeAttr } from "../../utils/security/sanitize.js";
 
 const DEBOUNCE_MS = 300;
 
@@ -185,13 +186,13 @@ export function renderUserSearchAssign(container, opts = {}) {
       fallback: getAvatarFallback(user.id || handle),
     });
     return `
-      <div class="user-result-card glass-card" data-uid="${user.id}">
+      <div class="user-result-card glass-card" data-uid="${escapeAttr(user.id)}">
         <div class="user-avatar">${avatarHtml}</div>
         <div class="user-details">
-          <div class="user-name">${displayName}</div>
-          <div class="user-meta">@${handle} • ${uni}</div>
+          <div class="user-name">${escapeHTML(displayName)}</div>
+          <div class="user-meta">@${escapeHTML(handle)} • ${escapeHTML(uni)}</div>
         </div>
-        <button class="btn-assign-user" data-uid="${user.id}" type="button">
+        <button class="btn-assign-user" data-uid="${escapeAttr(user.id)}" type="button">
           <i class="fas fa-plus"></i> Assign
         </button>
       </div>

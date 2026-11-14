@@ -2,6 +2,7 @@ import { dataManager } from "../services/data/DataService.js";
 import { logManager } from "../utils/debug/LogManager.js";
 import { unreadTracker } from "../services/groups/UnreadTracker.js";
 import { currentUser } from "../store/userStore.js";
+import { escapeHTML, escapeAttr } from "../utils/security/sanitize.js";
 import { groupsCache } from "../services/groups/GroupsCache.js";
 import { notificationManager } from "../services/realtime/NotificationService.js";
 import { authManager } from "../services/auth/AuthService.js";
@@ -515,7 +516,7 @@ export class GroupsPage {
         </div>
         <div class="card-body">
           <div class="card-row-top">
-            <span class="course-tag">${courseCode}</span>
+            <span class="course-tag">${escapeHTML(courseCode)}</span>
             ${
               sectionLabel
                 ? `<span class="section-tag">${sectionLabel}</span>`
@@ -531,7 +532,7 @@ export class GroupsPage {
             </span>
             <span class="room-info">
               <i class="fas fa-door-open"></i>
-              <strong>${s.classroom || "TBD"}</strong>
+              <strong>${escapeHTML(s.classroom || "TBD")}</strong>
             </span>
           </div>
         </div>
@@ -619,7 +620,7 @@ export class GroupsPage {
         </div>
         <div class="card-body">
           <div class="card-row-top">
-            <span class="course-tag">${courseCode}</span>
+            <span class="course-tag">${escapeHTML(courseCode)}</span>
             ${
               sectionLabel
                 ? `<span class="section-tag">${sectionLabel}</span>`
@@ -633,11 +634,11 @@ export class GroupsPage {
             </span>
             <span class="room-info">
               <i class="fas fa-door-open"></i>
-              <strong>${s.classroom || "TBD"}</strong>
+              <strong>${escapeHTML(s.classroom || "TBD")}</strong>
             </span>
           </div>
         </div>
-        <button class="rejoin-btn" data-space-id="${s.spaceId}" ${!canRejoinToday ? "disabled" : ""}>
+        <button class="rejoin-btn" data-space-id="${escapeAttr(s.spaceId)}" ${!canRejoinToday ? "disabled" : ""}>
           <i class="fas fa-redo"></i>
           <span>${canRejoinToday ? "Rejoin" : "Tomorrow"}</span>
         </button>

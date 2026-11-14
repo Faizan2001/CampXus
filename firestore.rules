@@ -463,11 +463,29 @@ service cloud.firestore {
       allow delete: if request.auth != null &&
         isInvolvedInFriendship();
 
-      // Create/update require verified OR dev email and caller must be a participant
+      // 🛡️ Create: only the RECIPIENT of a pending friend request may create the
+      // friendship, and only under the canonical ID. Previously any signed-in
+      // user could create a friendship with anyone (no consent check), which
+      // also unlocked read access to that user's document via
+      // canViewFriendSchedule(). The client accepts a request in one
+      // transaction (create friendship + delete request); exists()/get() see
+      // the state before that transaction, so the request is still visible.
+      // Shape written by FriendsService.acceptFriendRequest:
+      //   user1Id = request sender, user2Id = accepter (the caller)
       allow create: if request.auth != null &&
+        (isVerified() || isDevEmail()) &&
         request.resource.data.users is list &&
-        request.auth.uid in request.resource.data.users &&
-        (isVerified() || isDevEmail());
+        request.resource.data.users.size() == 2 &&
+        request.resource.data.user1Id is string &&
+        request.resource.data.user2Id == request.auth.uid &&
+        request.resource.data.user1Id != request.auth.uid &&
+        request.resource.data.users.hasAll([request.resource.data.user1Id, request.auth.uid]) &&
+        friendshipId == (request.resource.data.user1Id < request.auth.uid
+          ? request.resource.data.user1Id + '_' + request.auth.uid
+          : request.auth.uid + '_' + request.resource.data.user1Id) &&
+        exists(/databases/$(database)/documents/friendRequests/$(request.resource.data.user1Id + '_' + request.auth.uid)) &&
+        get(/databases/$(database)/documents/friendRequests/$(request.resource.data.user1Id + '_' + request.auth.uid)).data.fromUserId == request.resource.data.user1Id &&
+        get(/databases/$(database)/documents/friendRequests/$(request.resource.data.user1Id + '_' + request.auth.uid)).data.toUserId == request.auth.uid;
       allow update: if request.auth != null &&
         resource != null &&
         resource.data.users is list &&
@@ -504,7 +522,10 @@ service cloud.firestore {
 	      allow delete: if request.auth != null && 
 	        (resource.data.toUserId == request.auth.uid || resource.data.fromUserId == request.auth.uid);
 	      // Create friend request requires verified OR dev email
+	      // 🛡️ The ID must be "<sender>_<recipient>": one request per pair (no
+	      // spam under random IDs) and the friendship create rule relies on it.
 	      allow create: if request.auth != null &&
+	        requestId == request.auth.uid + '_' + request.resource.data.toUserId &&
 	        request.resource.data.fromUserId == request.auth.uid &&
 	        request.resource.data.toUserId is string &&
 	        request.resource.data.toUserId != request.auth.uid &&
@@ -554,7 +575,13 @@ service cloud.firestore {
 	        (isVerified() || isDevEmail());
       
       // Users can update/delete notifications sent TO them (mark as read, dismiss) if verified OR dev email
-      allow update, delete: if request.auth != null && 
+      // 🛡️ An update may not change the recipient: otherwise a user could
+      // re-address a notification they received into anyone else's feed.
+      allow update: if request.auth != null && 
+        (('userId' in resource.data) && resource.data.userId == request.auth.uid) &&
+        request.resource.data.userId == resource.data.userId &&
+        (isVerified() || isDevEmail());
+      allow delete: if request.auth != null && 
         (('userId' in resource.data) && resource.data.userId == request.auth.uid) &&
         (isVerified() || isDevEmail());
     }

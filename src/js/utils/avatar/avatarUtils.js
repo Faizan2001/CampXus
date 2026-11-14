@@ -12,6 +12,7 @@
  */
 
 import { avatarManager } from "./avatarManager.js";
+import { safeImageUrl } from "../security/sanitize.js";
 
 /**
  * Internal: extract avatar-related fields from different shapes
@@ -43,11 +44,13 @@ function extractAvatarFields(userData = {}) {
     if (!avatarConfig && src.avatarConfig) {
       avatarConfig = src.avatarConfig;
     }
+    // 🛡️ Photo URLs are user-writable: only accept ones that are safe for
+    // an <img src>. Every avatar in the app is rendered through this function.
     if (!profilePhotoUrl && src.profilePhotoUrl) {
-      profilePhotoUrl = src.profilePhotoUrl;
+      profilePhotoUrl = safeImageUrl(src.profilePhotoUrl);
     }
     if (!profilePhotoThumbUrl && src.profilePhotoThumbUrl) {
-      profilePhotoThumbUrl = src.profilePhotoThumbUrl;
+      profilePhotoThumbUrl = safeImageUrl(src.profilePhotoThumbUrl);
     }
     if (
       typeof useAvatar === "undefined" &&
@@ -154,7 +157,10 @@ export function getAvatarUrl(userData, useCache = true) {
 
     // When useCache is true, do NOT bust cache (avoid adding timestamp),
     // so avatars remain stable across re-renders.
-    return avatarManager.generateAvatarUrl(avatarConfig, !useCache);
+    // 🛡️ avatarConfig is user-writable too; validate the generated URL
+    return safeImageUrl(
+      avatarManager.generateAvatarUrl(avatarConfig, !useCache)
+    );
   } catch (error) {
     console.error("❌ Error generating avatar URL:", error);
     return null;
