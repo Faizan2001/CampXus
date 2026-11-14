@@ -224,6 +224,11 @@ body:not(.dark-mode) .day-time-slot .slot-classroom {
   opacity: 0.9;
 }
 
+/* Current time slot edge - deeper green to read on white cards */
+body:not(.dark-mode) .day-time-slot.is-now::before {
+  background: var(--success, #059669);
+}
+
 /* ============================================================================
    3. SCHEDULE - VIEW CONTROLS & BUTTONS
    Day selector and view toggle buttons

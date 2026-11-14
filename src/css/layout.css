@@ -290,10 +290,11 @@ body.immersive-chat-mode .main-content {
   position: relative;
   overflow: hidden;
   transform: translateY(0);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  /* Animated gradient */
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Static gradient (the shimmer below is the only animation) */
   background-size: 200% 200%;
-  animation: installGradientShift 3s ease infinite;
+  background-position: 50% 50%;
 }
 
 /* Subtle shimmer effect overlay */
@@ -314,21 +315,6 @@ body.immersive-chat-mode .main-content {
   animation: installShimmer 3s ease-in-out infinite;
 }
 
-/* Pulsing glow effect to draw attention */
-#installPwaBtn.nav-link::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 0.75rem;
-  opacity: 0;
-  box-shadow: 0 0 30px rgba(139, 125, 232, 0.8);
-  animation: installPulse 2s ease-in-out infinite;
-  pointer-events: none;
-}
-
 /* Hover state - more intense and lifted */
 #installPwaBtn.nav-link:hover {
   background: linear-gradient(
@@ -340,10 +326,6 @@ body.immersive-chat-mode .main-content {
   transform: translateY(-3px) scale(1.05) !important;
   box-shadow: 0 6px 25px rgba(139, 125, 232, 0.6),
     0 0 35px rgba(139, 125, 232, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
-}
-
-#installPwaBtn.nav-link:hover::after {
-  opacity: 1;
 }
 
 /* Active/pressed state */
@@ -396,17 +378,6 @@ body:not(.dark-mode) #installPwaBtn.nav-link:hover {
     0 0 0 4px rgba(139, 125, 232, 0.2) !important;
 }
 
-/* Gradient animation */
-@keyframes installGradientShift {
-  0%,
-  100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
 /* Shimmer animation */
 @keyframes installShimmer {
   0% {
@@ -414,17 +385,6 @@ body:not(.dark-mode) #installPwaBtn.nav-link:hover {
   }
   100% {
     transform: translateX(100%) translateY(100%) rotate(45deg);
-  }
-}
-
-/* Pulse glow animation */
-@keyframes installPulse {
-  0%,
-  100% {
-    opacity: 0;
-  }
-  50% {
-    opacity: 0.6;
   }
 }
 
@@ -460,12 +420,7 @@ body:not(.dark-mode) #installPwaBtn.nav-link:hover {
 
 /* Reduce motion for users who prefer it */
 @media (prefers-reduced-motion: reduce) {
-  #installPwaBtn.nav-link {
-    animation: none;
-  }
-
-  #installPwaBtn.nav-link::before,
-  #installPwaBtn.nav-link::after {
+  #installPwaBtn.nav-link::before {
     animation: none;
   }
 

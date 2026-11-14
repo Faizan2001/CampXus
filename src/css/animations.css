@@ -165,6 +165,23 @@ This file contains all animation and transition styles:
 }
 
 
+/* ===== PAGE FADE (router) ===== */
+/* Opacity only: a transform/will-change on .main-content would become the
+   containing block for position:fixed descendants. The class is removed on
+   animationend, so the resting state is always fully visible. */
+.main-content.page-fade-in {
+  animation: pageFadeIn 150ms ease-out;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* ===== RESPONSIVE ANIMATION CONTROLS ===== */
 @media (prefers-reduced-motion: reduce) {
   *,

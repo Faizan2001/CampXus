@@ -2046,12 +2046,10 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after {
   border: none !important;
   transform: none !important;
 }
-.friend-avatar-item.compare-mode-available {
-  animation: attention-wiggle 0.3s ease-in-out infinite alternate;
-}
+/* Steady "tap to compare" ring (no motion); selected avatars override it below */
 .friend-avatar-item.compare-mode-available .avatar-container {
   box-shadow:
-    0 0 0 2px rgba(139, 92, 246, 0.25),
+    0 0 0 2px rgba(139, 92, 246, 0.85),
     0 6px 18px rgba(139, 92, 246, 0.25);
 }
 .friend-avatar-item.compare-mode-available:not(.compare-selected)
@@ -2073,22 +2071,6 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after {
   opacity: 0.6;
   pointer-events: none;
   z-index: 0;
-  animation: compare-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes compare-pulse {
-  0% {
-    opacity: 0.45;
-    transform: translateX(-50%) scaleX(0.92);
-  }
-  50% {
-    opacity: 0.95;
-    transform: translateX(-50%) scaleX(1.06);
-  }
-  100% {
-    opacity: 0.45;
-    transform: translateX(-50%) scaleX(0.92);
-  }
 }
 .friend-avatar-item.compare-mode-available.compare-selected {
   animation: none !important;
@@ -2114,14 +2096,6 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after {
   color: white;
   z-index: 3;
   animation: checkmark-appear 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-@keyframes attention-wiggle {
-  0% {
-    transform: rotate(-2.5deg) scale(0.995);
-  }
-  100% {
-    transform: rotate(2.5deg) scale(1.005);
-  }
 }
 @keyframes checkmark-appear {
   0% {

@@ -401,8 +401,6 @@ body.page-friends .friends-container {
 }
 .student-card {
   background: var(--friends-student-card-bg);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   border: var(--friends-student-card-border);
   border-radius: 12px;
   padding: 12px;
@@ -599,8 +597,6 @@ body.page-friends .friends-container {
 
 .friend-request-card {
   background: var(--friends-request-card-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: var(--friends-request-card-border);
   border-left: var(--friends-request-card-border-left);
   border-radius: 12px;
@@ -762,8 +758,6 @@ body.page-friends .friends-container {
 
 .friend-card {
   background: var(--friends-card-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: var(--friends-card-border);
   border-radius: 12px;
   padding: 16px;

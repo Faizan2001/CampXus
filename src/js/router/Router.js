@@ -203,6 +203,10 @@ class SPARouter {
     this._profileGateInProgress = false;
     // Allow SPA init to skip the first full-screen loading overlay
     this._skipNextLoadingOverlay = false;
+    // Fade pages in only after the first render (cold start paints at once)
+    this._hasRenderedPage = false;
+    // Whether the page-fade animationend listener is attached
+    this._pageFadeBound = false;
     // Short auth grace window so returning users with a cached
     // session hint can see their schedule immediately while
     // Firebase Auth finishes hydrating in the background.
@@ -1268,6 +1272,29 @@ class SPARouter {
         `📝 Injecting template content into main-content (${htmlContent.length} chars)`
       );
       this.mainContentContainer.innerHTML = htmlContent;
+
+      // Soft 150ms opacity fade-in on every navigation except the first render
+      // (cold start paints immediately). The class is removed on animationend
+      // and the element is fully visible whenever the class is absent.
+      if (this._hasRenderedPage) {
+        const container = this.mainContentContainer;
+        if (!this._pageFadeBound) {
+          this._pageFadeBound = true;
+          container.addEventListener("animationend", (event) => {
+            if (
+              event.target === container &&
+              event.animationName === "pageFadeIn"
+            ) {
+              container.classList.remove("page-fade-in");
+            }
+          });
+        }
+        container.classList.remove("page-fade-in");
+        // Force a reflow so back-to-back navigations restart the animation
+        void container.offsetWidth;
+        container.classList.add("page-fade-in");
+      }
+      this._hasRenderedPage = true;
 
       // Accessibility: move focus to main content after navigation
       try {

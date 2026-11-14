@@ -100,6 +100,10 @@ export function _setStateForTesting(newState) {
   state = { ...state, ...newState };
 }
 
+export function _renderDayViewForTesting() {
+  return renderDayView();
+}
+
 // Forward declaration for memoCache clearing (actual cache defined later)
 let clearMemoCache = () => {};
 
@@ -5458,7 +5462,10 @@ async function renderDayView() {
   // Brief pause to ensure cleanup is complete
   await new Promise((resolve) => setTimeout(resolve, 5));
 
-  // Clear existing content
+  // Clear existing content (including the template's placeholder rows)
+  const replacedPlaceholders = !!container.querySelector(
+    ".day-slot-placeholder"
+  );
   container.innerHTML = "";
 
   // ✅ UNIFIED SCHEDULE LOGIC: Use same calculation as grid view
@@ -5571,6 +5578,231 @@ async function renderDayView() {
     slotCount: currentTimeSlotsToRender.length,
     usedUnifiedSchedule,
   });
+
+  refreshNowSlotMarker(container);
+
+  // The scroll hint was first measured against the placeholder rows
+  if (replacedPlaceholders) {
+    const scrollIndicator = document.querySelector(
+      ".schedule-scroll-indicator"
+    );
+    if (scrollIndicator) {
+      updateScrollIndicatorVisibility(container, scrollIndicator);
+    }
+  }
+}
+
+/* ================================
+   CURRENT TIME SLOT ("NOW") MARKER
+================================== */
+
+let nowSlotTimer = null;
+let nowSlotAutoScrolled = false;
+let nowSlotVisibilityListening = false;
+
+/**
+ * Find the time slot that contains the given moment.
+ * A slot covers [start, end): the start minute counts, the end minute does not.
+ * @param {Array<{start: string, end: string}>} timeSlots - "HH:MM" 24-hour bounds
+ * @param {Date} now - Moment to test (only its local time of day is used)
+ * @returns {number} Index of the matching slot, or -1
+ */
+export function findCurrentTimeSlotIndex(timeSlots, now) {
+  if (!Array.isArray(timeSlots)) return -1;
+  if (!(now instanceof Date) || Number.isNaN(now.getTime())) return -1;
+
+  const nowMinutes =
+    now.getHours() * 60 +
+    now.getMinutes() +
+    now.getSeconds() / 60 +
+    now.getMilliseconds() / 60000;
+
+  for (let i = 0; i < timeSlots.length; i++) {
+    const start = parseTime(timeSlots[i]?.start);
+    const end = parseTime(timeSlots[i]?.end);
+    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) continue;
+    if (nowMinutes >= start && nowMinutes < end) return i;
+  }
+  return -1;
+}
+
+/**
+ * Chip text for the current slot, e.g. "Now · 12 min left".
+ * @param {{end: string}} timeSlot - Slot containing `now`
+ * @param {Date} now - Current moment
+ * @returns {string}
+ */
+export function formatNowSlotChipText(timeSlot, now) {
+  const end = parseTime(timeSlot?.end);
+  const nowMs =
+    ((now.getHours() * 60 + now.getMinutes()) * 60 + now.getSeconds()) *
+      1000 +
+    now.getMilliseconds();
+  const minutesLeft = Math.floor((end * 60000 - nowMs) / 60000);
+  if (Number.isNaN(minutesLeft)) return "Now";
+  return minutesLeft < 1
+    ? "Now · <1 min left"
+    : `Now · ${minutesLeft} min left`;
+}
+
+/**
+ * Mark the day-view row whose slot contains `now` (class + chip). Idempotent:
+ * clears the marker from every other row. Only rows for today's weekday are
+ * marked, and compare-mode rows never are (their tint already means availability).
+ * @param {HTMLElement} container - #dayViewContainer
+ * @param {Date} [now]
+ * @returns {HTMLElement|null} The marked row, if any
+ */
+export function applyNowSlotMarker(container, now = new Date()) {
+  if (!container) return null;
+  const rows = Array.from(container.querySelectorAll(".day-time-slot"));
+  const slots = rows.map((row) => ({
+    start: row.dataset.slotStart,
+    end: row.dataset.slotEnd,
+  }));
+
+  const isToday =
+    rows.length > 0 && Number(rows[0].dataset.day) === now.getDay();
+  const isCompare = rows.some((row) => row.classList.contains("compare-mode"));
+  const nowIndex =
+    isToday && !isCompare ? findCurrentTimeSlotIndex(slots, now) : -1;
+
+  let nowRow = null;
+  rows.forEach((row, index) => {
+    const chip = row.querySelector(".now-chip");
+    if (index !== nowIndex) {
+      row.classList.remove("is-now");
+      if (chip) chip.remove();
+      return;
+    }
+    nowRow = row;
+    row.classList.add("is-now");
+    const chipText = formatNowSlotChipText(slots[index], now);
+    if (chip) {
+      chip.textContent = chipText;
+    } else {
+      const newChip = document.createElement("span");
+      newChip.className = "now-chip";
+      newChip.textContent = chipText;
+      (row.querySelector(".slot-content") || row).appendChild(newChip);
+    }
+  });
+  return nowRow;
+}
+
+/**
+ * Re-apply the marker after a day-view render, scroll to it once per Home
+ * visit, and keep it ticking each minute while the page is visible.
+ * @param {HTMLElement} container - #dayViewContainer
+ */
+function refreshNowSlotMarker(container) {
+  if (!container || !container.isConnected) return;
+  const nowRow = applyNowSlotMarker(container, new Date());
+
+  // One-shot scroll: the first laid-out render of today's rows in this visit
+  const hasRows = !!container.querySelector(".day-time-slot");
+  const isToday = state.selectedDay === new Date().getDay();
+  if (
+    !nowSlotAutoScrolled &&
+    hasRows &&
+    isToday &&
+    container.clientHeight > 0
+  ) {
+    nowSlotAutoScrolled = true;
+    if (nowRow) scrollNowSlotIntoView(container, nowRow);
+  }
+
+  if (!nowSlotVisibilityListening) {
+    document.addEventListener(
+      "visibilitychange",
+      handleNowSlotVisibilityChange
+    );
+    nowSlotVisibilityListening = true;
+  }
+  scheduleNowSlotTick();
+}
+
+/**
+ * Scroll only the day-view container (never the page), without animation,
+ * and only when the row is outside its visible part.
+ */
+function scrollNowSlotIntoView(container, row) {
+  if (container.scrollHeight <= container.clientHeight) return;
+  const rowTop = row.offsetTop;
+  const rowBottom = rowTop + row.offsetHeight;
+  const viewTop = container.scrollTop;
+  const viewBottom = viewTop + container.clientHeight;
+
+  let target = null;
+  if (rowTop < viewTop) {
+    target = rowTop;
+  } else if (rowBottom > viewBottom) {
+    target = rowBottom - container.clientHeight;
+  }
+  if (target === null) return;
+
+  // .day-view-container sets scroll-behavior: smooth; jump instead
+  const previousBehavior = container.style.scrollBehavior;
+  container.style.scrollBehavior = "auto";
+  container.scrollTop = Math.max(0, target);
+  container.style.scrollBehavior = previousBehavior;
+}
+
+/**
+ * Tick on the next minute boundary so "N min left" changes on time.
+ */
+function scheduleNowSlotTick() {
+  stopNowSlotTimer();
+  if (document.hidden) return;
+  const container = DOM_ELEMENTS.dayViewContainer;
+  if (!container || !container.isConnected) return;
+
+  const now = new Date();
+  const msToNextMinute =
+    60000 - (now.getSeconds() * 1000 + now.getMilliseconds());
+  nowSlotTimer = setTimeout(() => {
+    nowSlotTimer = null;
+    const current = DOM_ELEMENTS.dayViewContainer;
+    if (!current || !current.isConnected) return;
+    applyNowSlotMarker(current, new Date());
+    scheduleNowSlotTick();
+  }, msToNextMinute + 50);
+}
+
+function stopNowSlotTimer() {
+  if (nowSlotTimer) {
+    clearTimeout(nowSlotTimer);
+    nowSlotTimer = null;
+  }
+}
+
+/**
+ * Pause while the PWA is backgrounded; update at once when it returns.
+ */
+function handleNowSlotVisibilityChange() {
+  if (document.hidden) {
+    stopNowSlotTimer();
+    return;
+  }
+  const container = DOM_ELEMENTS.dayViewContainer;
+  if (!container || !container.isConnected) return;
+  applyNowSlotMarker(container, new Date());
+  scheduleNowSlotTick();
+}
+
+/**
+ * Stop the marker timer and listener (home route unload).
+ */
+function teardownNowSlotMarker() {
+  stopNowSlotTimer();
+  if (nowSlotVisibilityListening) {
+    document.removeEventListener(
+      "visibilitychange",
+      handleNowSlotVisibilityChange
+    );
+    nowSlotVisibilityListening = false;
+  }
+  nowSlotAutoScrolled = false;
 }
 
 /**
@@ -5581,6 +5813,13 @@ function createDayViewTimeSlot(timeSlot, timeIndex, user, unifiedOptions = {}) {
   slotDiv.className = "day-time-slot";
   slotDiv.dataset.timeIndex = timeIndex;
   slotDiv.dataset.day = state.selectedDay;
+  // Slot bounds for the "now" marker (rows can come from a filtered unified list)
+  if (typeof timeSlot?.start === "string") {
+    slotDiv.dataset.slotStart = timeSlot.start;
+  }
+  if (typeof timeSlot?.end === "string") {
+    slotDiv.dataset.slotEnd = timeSlot.end;
+  }
   // If using unified schedule, store the effective unified index for tooltip mapping
   if (unifiedOptions?.usedUnifiedSchedule) {
     const effectiveIndex = unifiedOptions.unifiedDisplayedIndices
@@ -8203,6 +8442,9 @@ document.addEventListener("spa:page:unload", (event) => {
     }
 
     destroyLocationPermissionBanner();
+
+    // Stop the current-slot marker's minute timer and visibility listener
+    teardownNowSlotMarker();
 
     hideAllCoachMarks();
     clearOnboardingTimeouts();
