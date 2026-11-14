@@ -18,6 +18,9 @@ import { logManager } from "../utils/debug/LogManager.js";
 import { AnalyticsService } from "../services/analytics/AnalyticsService.js"; // 📊 Track page views
 import { profileCache } from "../cache/profileCache.js"; // 🚀 Session hint for faster initial route
 
+// 🚀 Navigations faster than this never show the full-screen loading overlay
+const LOADING_OVERLAY_DELAY_MS = 150;
+
 // Lazy DataService loader so Firestore bundle is only pulled in when needed
 let routerDataManagerPromise = null;
 async function getRouterDataManager() {
@@ -203,7 +206,19 @@ class SPARouter {
     // Short auth grace window so returning users with a cached
     // session hint can see their schedule immediately while
     // Firebase Auth finishes hydrating in the background.
-    this._initialAuthGraceUntil = Date.now() + 5000;
+    // The window closes as soon as Firebase reports the real auth state
+    // (see _authStateKnown); the timestamp is only an upper bound for very
+    // slow networks, after which Firebase auth is the sole source of truth.
+    this._initialAuthGraceUntil = Date.now() + 15000;
+    this._authStateKnown = false;
+    try {
+      authManager?.auth
+        ?.authStateReady?.()
+        .then(() => {
+          this._authStateKnown = true;
+        })
+        .catch(() => {});
+    } catch (_) {}
 
     // 🎯 Learning: Initialize the router when created
     this.init();
@@ -308,8 +323,6 @@ class SPARouter {
       width: 100%;
       height: 100%;
       background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
       display: none;
       z-index: 9999;
       opacity: 0;
@@ -336,7 +349,6 @@ class SPARouter {
           0 20px 40px rgba(0, 0, 0, 0.1),
           0 8px 20px rgba(0, 0, 0, 0.05),
           inset 0 1px 0 rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(20px);
         border: 1px solid rgba(255, 255, 255, 0.3);
         min-width: 200px;
         animation: slideUpIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -778,11 +790,31 @@ class SPARouter {
       return this.navigateTo(desiredRoute, false);
     }
 
-    // Route requires auth but Firebase auth user is not yet known — avoid flashing landing and wait briefly
-    this._suppressAuthRedirects = true;
-    if (!hasSessionHint) {
-      this.showLoading();
+    // 🚀 Returning user (cached profile): render the protected route NOW.
+    // Waiting for auth here could not change the destination — with a session
+    // hint we always ended up on `desiredRoute` — it only delayed first paint
+    // by the token refresh + profile fetch (up to ~4.5s). The initial auth
+    // grace window in navigateTo() lets the route through; if Firebase then
+    // reports "signed out", the auth listener redirects to landing as before.
+    if (hasSessionHint) {
+      this._suppressAuthRedirects = true;
+      try {
+        await this.navigateTo(desiredRoute, true);
+      } finally {
+        this._suppressAuthRedirects = false;
+      }
+      // The navigation above ran before the user was known, so the usual
+      // lastActive update was skipped; do it once auth has resolved.
+      authReadyPromise
+        ?.then?.(() => this._updateLastActiveInBackground(this.currentPage))
+        ?.catch?.(() => {});
+      return;
     }
+
+    // Route requires auth, auth is not yet known and there is no session hint —
+    // avoid flashing landing and wait briefly
+    this._suppressAuthRedirects = true;
+    this.showLoading();
     try {
       if (authReadyPromise && typeof authReadyPromise.then === "function") {
         await Promise.race([
@@ -878,7 +910,10 @@ class SPARouter {
           !!authManager?.auth?.currentUser ||
           !!profileCache.peek() ||
           currentUser.isLoggedIn();
+        // Only while Firebase has not yet answered. Once the auth state is
+        // known, a missing user means "signed out" and the hint is ignored.
         const withinInitialGrace =
+          !this._authStateKnown &&
           typeof this._initialAuthGraceUntil === "number" &&
           Date.now() <= this._initialAuthGraceUntil;
 
@@ -984,25 +1019,11 @@ class SPARouter {
     if (skipLastActiveOnce) {
       sessionStorage.removeItem("skipLastActiveOnce");
     }
-    if (
-      !skipLastActiveOnce &&
-      currentUser.isLoggedIn() &&
-      (route === "home" || route === "friends")
-    ) {
-      try {
-        const dm = await getRouterDataManager();
-        if (dm && currentUser.user?.uid) {
-          await dm.updateUserLastActive(currentUser.user.uid);
-          logManager.system.info(
-            `⚡ Immediate lastActive update on navigation to ${route}`
-          );
-        }
-      } catch (lastActiveError) {
-        logManager.system.warn(
-          `⚠️ Failed to update lastActive on ${route} navigation (non-critical):`,
-          lastActiveError
-        );
-      }
+    if (!skipLastActiveOnce) {
+      // 🚀 Fire-and-forget: a Firestore write resolves only when the server
+      // acknowledges it, so awaiting it here delayed every Home/Friends render
+      // by a network round trip (and indefinitely while offline).
+      this._updateLastActiveInBackground(route);
     }
     try {
       // 🎯 LEARNING: Show the loading indicator at the start of the navigation process.
@@ -1044,6 +1065,26 @@ class SPARouter {
       this.hideLoading();
       this._pendingRoute = null;
     }
+  }
+
+  /**
+   * Refresh the user's lastActive timestamp without blocking navigation.
+   * Failures are non-critical: lastActive only feeds "recently active" hints.
+   * @param {string} route - Route being shown (only home/friends update it)
+   */
+  _updateLastActiveInBackground(route) {
+    if (route !== "home" && route !== "friends") return;
+    if (!currentUser.isLoggedIn()) return;
+    const uid = currentUser.user?.uid;
+    if (!uid) return;
+    getRouterDataManager()
+      .then((dm) => dm?.updateUserLastActive(uid))
+      .catch((lastActiveError) => {
+        logManager.system.warn(
+          `⚠️ Failed to update lastActive on ${route} navigation (non-critical):`,
+          lastActiveError
+        );
+      });
   }
 
   /**
@@ -1162,6 +1203,11 @@ class SPARouter {
 
       // Load CSS files if needed
       await this.loadCSS(routeData.cssFiles);
+
+      // 🚀 Start downloading the page controller in parallel with the template
+      // instead of after it. import() results are cached by the module system,
+      // so loadRouteCode() below resolves instantly once this has finished.
+      this._prefetchRouteCode(routeData);
 
       // Load the HTML template (cancellable)
       const htmlContent = await this.loadTemplate(routeData.template, signal);
@@ -1408,6 +1454,19 @@ class SPARouter {
 
     // Template loaded successfully
     return html;
+  }
+
+  /**
+   * Kick off the route's dynamic imports without waiting for them.
+   * Errors are ignored here; loadRouteCode() awaits the same imports and
+   * reports any failure through the normal navigation error path.
+   */
+  _prefetchRouteCode(routeData) {
+    for (const importer of routeData?.jsImporters || []) {
+      try {
+        Promise.resolve(importer()).catch(() => {});
+      } catch (_) {}
+    }
   }
 
   /**
@@ -1761,13 +1820,30 @@ class SPARouter {
       this._skipNextLoadingOverlay = false;
       return;
     }
-    if (this.loadingIndicator) {
+    if (!this.loadingIndicator) return;
+
+    // A pending fade-out must not hide an overlay we are about to show again
+    clearTimeout(this._loadingHideTimer);
+    this._loadingHideTimer = null;
+
+    if (this.loadingIndicator.style.display === "block") {
+      this.loadingIndicator.classList.add("show");
+      return;
+    }
+    if (this._loadingShowTimer) return;
+
+    // 🚀 Only show the overlay if the navigation is actually slow. Cached
+    // templates and already-loaded route code finish well inside this window,
+    // so fast navigations no longer flash a full-screen overlay.
+    this._loadingShowTimer = setTimeout(() => {
+      this._loadingShowTimer = null;
+      if (!this.loadingIndicator) return;
       this.loadingIndicator.style.display = "block";
       // Small delay to ensure display is set before adding animation class
       requestAnimationFrame(() => {
-        this.loadingIndicator.classList.add("show");
+        this.loadingIndicator?.classList.add("show");
       });
-    }
+    }, LOADING_OVERLAY_DELAY_MS);
   }
 
   /**
@@ -1775,15 +1851,22 @@ class SPARouter {
    * 🎯 Learning: Exit animations are just as important as entrance animations
    */
   hideLoading() {
-    if (this.loadingIndicator) {
-      this.loadingIndicator.classList.remove("show");
-      // Wait for fade out animation before hiding
-      setTimeout(() => {
-        if (this.loadingIndicator) {
-          this.loadingIndicator.style.display = "none";
-        }
-      }, 300); // Match the CSS transition duration
-    }
+    // Navigation finished before the overlay appeared: never show it
+    clearTimeout(this._loadingShowTimer);
+    this._loadingShowTimer = null;
+
+    if (!this.loadingIndicator) return;
+    if (this.loadingIndicator.style.display !== "block") return;
+
+    this.loadingIndicator.classList.remove("show");
+    // Wait for fade out animation before hiding
+    clearTimeout(this._loadingHideTimer);
+    this._loadingHideTimer = setTimeout(() => {
+      this._loadingHideTimer = null;
+      if (this.loadingIndicator) {
+        this.loadingIndicator.style.display = "none";
+      }
+    }, 300); // Match the CSS transition duration
   }
 
   /**

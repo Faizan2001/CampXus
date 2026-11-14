@@ -6,11 +6,20 @@ const NGROK_HOST = process.env.NGROK_HOST || process.env.NGROK_DOMAIN || null;
 export default defineConfig(({ mode }) => {
   const isProd = mode === "production";
   return {
+    // Strip verbose logging from production bundles. This is a TOP-LEVEL Vite
+    // option; nested under `build` it is silently ignored. console.warn/error
+    // are kept on purpose so real failures stay visible in the field.
+    esbuild: isProd
+      ? {
+          drop: ["debugger"],
+          pure: ["console.log", "console.debug", "console.info"],
+        }
+      : undefined,
+
     build: {
       copyPublicDir: true,
-      sourcemap: true,
-      // Drop console/debugger in production builds only
-      esbuild: isProd ? { drop: ["console", "debugger"] } : undefined,
+      // Source maps are for local debugging; don't publish them with the site.
+      sourcemap: !isProd,
       rollupOptions: {
         output: {
           manualChunks: {

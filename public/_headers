@@ -4,6 +4,21 @@
 /assets/*.js
   Content-Type: application/javascript
 
+/* Vite content-hashed build output: the filename changes whenever the content
+   does, so browsers may cache these forever without revalidating. */
+/assets/js/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/css/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/images/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/* The service worker must always be revalidated so deploys reach installed PWAs. */
+/sw.js
+  Cache-Control: no-cache
+
 /*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff

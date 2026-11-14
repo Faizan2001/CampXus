@@ -14,8 +14,11 @@
   ┌────────────────────┬─────────────────────────────────────────────┐
   │ Resource Type      │ Strategy                                    │
   ├────────────────────┼─────────────────────────────────────────────┤
-  │ Navigation (HTML)  │ Network-first, fallback to cached shell    │
-  │ JS/CSS bundles     │ Stale-while-revalidate (instant + refresh) │
+  │ App shell ("/")    │ Cached shell instantly, atomic bg refresh  │
+  │ Other navigations  │ Network-first, fallback to cached shell    │
+  │ Hashed /assets/*   │ Cache-first (content-hashed = immutable)   │
+  │ /templates/*.html  │ Stale-while-revalidate (instant + refresh) │
+  │ Other JS/CSS/img   │ Stale-while-revalidate (instant + refresh) │
   │ Google Fonts       │ Cache-first (fonts rarely change)          │
   │ API/Firestore      │ Network-only (dynamic data)                │
   │ Icons              │ Network-first (allow updates)              │
@@ -27,35 +30,105 @@
 // ═══════════════════════════════════════════════════════════════════
 
 // Bump version to force clients to re-cache everything (increment on deploy)
-const CACHE_VERSION = "v11";
+const CACHE_VERSION = "v12";
 const STATIC_CACHE = `meetchuthere-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `meetchuthere-dynamic-${CACHE_VERSION}`;
 const FONT_CACHE = `meetchuthere-fonts-${CACHE_VERSION}`;
 const AVATAR_CACHE = `meetchuthere-avatars-${CACHE_VERSION}`;
 const AVATAR_CACHE_MAX_ENTRIES = 300;
 
-// Core app shell - these MUST be cached for offline startup
-const APP_SHELL = [
-  "/",
-  "/index.html",
-  "/manifest.json",
-  // CSS is bundled by Vite, will be cached dynamically on first load
-];
+// The SPA shell is always stored under this one key, whatever URL launched it
+// ("/", "/?logs=debug", "/index.html"). We fetch "/" rather than "/index.html"
+// because some hosts (Cloudflare Pages) redirect "/index.html" → "/", and a
+// redirected response cannot be used to answer a navigation request.
+const SHELL_URL = "/";
+
+// Vite emits content-hashed files into these folders (see vite.config.js).
+// A hashed URL never changes content, so it is safe to serve cache-first forever.
+// NOTE: unhashed files copied from public/assets/ live directly under /assets/
+// and are deliberately NOT matched here.
+const HASHED_ASSET_PATH = /^\/assets\/(js|css|images)\//;
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * True when a response is a real asset rather than the SPA fallback.
+ * The host rewrites unknown paths to index.html with status 200, so a missing
+ * JS/CSS file would otherwise be cached as HTML and break the app.
+ */
+function isRealAssetResponse(response) {
+  if (!response || response.status !== 200) return false;
+  const contentType = response.headers.get("content-type") || "";
+  return !contentType.includes("text/html");
+}
+
+/** Collect the hashed assets (entry JS, preloaded chunks, CSS) a shell references. */
+function extractShellAssets(html) {
+  const assets = new Set();
+  const pattern = /(?:src|href)="(\/assets\/(?:js|css|images)\/[^"]+)"/g;
+  let match;
+  while ((match = pattern.exec(html)) !== null) {
+    assets.add(match[1]);
+  }
+  return [...assets];
+}
+
+/**
+ * Fetch the latest shell and swap it into the cache ATOMICALLY:
+ * every asset the new shell references is cached first, and only then is the
+ * shell itself replaced. A cached shell therefore never points at assets that
+ * are missing from the cache, even right after a deploy or while offline.
+ */
+async function refreshShell() {
+  const response = await fetch(SHELL_URL, {
+    cache: "no-cache",
+    credentials: "same-origin",
+  });
+  const contentType = (response && response.headers.get("content-type")) || "";
+  if (!response || response.status !== 200 || !contentType.includes("text/html")) {
+    throw new Error("Shell refresh: unexpected response");
+  }
+
+  const html = await response.text();
+  const assetCache = await caches.open(DYNAMIC_CACHE);
+  await Promise.all(
+    extractShellAssets(html).map(async (assetUrl) => {
+      if (await assetCache.match(assetUrl)) return;
+      const assetResponse = await fetch(assetUrl);
+      if (!isRealAssetResponse(assetResponse)) {
+        throw new Error(`Shell refresh: asset unavailable ${assetUrl}`);
+      }
+      await assetCache.put(assetUrl, assetResponse);
+    })
+  );
+
+  // Keep the original headers: the Content-Security-Policy and other security
+  // headers are delivered as HTTP headers and must survive in the cached copy.
+  const headers = new Headers(response.headers);
+  headers.delete("content-encoding"); // body below is already decoded
+  headers.delete("content-length");
+  const shell = new Response(html, { status: 200, headers });
+  const shellCache = await caches.open(STATIC_CACHE);
+  await shellCache.put(SHELL_URL, shell);
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // INSTALL EVENT - Pre-cache app shell
 // ═══════════════════════════════════════════════════════════════════
 
 self.addEventListener("install", (event) => {
-  console.log("[SW] Installing service worker...");
   event.waitUntil(
-    caches
-      .open(STATIC_CACHE)
-      .then((cache) => {
-        console.log("[SW] Pre-caching app shell");
-        return cache.addAll(APP_SHELL);
-      })
-      .then(() => self.skipWaiting()) // Activate immediately
+    Promise.all([
+      // Best-effort: a failed pre-cache must not block installation. The fetch
+      // handler falls back to the network until a shell has been cached.
+      refreshShell().catch(() => {}),
+      caches
+        .open(STATIC_CACHE)
+        .then((cache) => cache.add("/manifest.json"))
+        .catch(() => {}),
+    ]).then(() => self.skipWaiting()) // Activate immediately
   );
 });
 
@@ -64,7 +137,6 @@ self.addEventListener("install", (event) => {
 // ═══════════════════════════════════════════════════════════════════
 
 self.addEventListener("activate", (event) => {
-  console.log("[SW] Activating service worker...");
   const currentCaches = [STATIC_CACHE, DYNAMIC_CACHE, FONT_CACHE, AVATAR_CACHE];
 
   event.waitUntil(
@@ -75,7 +147,6 @@ self.addEventListener("activate", (event) => {
           cacheNames.map((cacheName) => {
             // Delete old version caches
             if (!currentCaches.includes(cacheName)) {
-              console.log("[SW] Deleting old cache:", cacheName);
               return caches.delete(cacheName);
             }
           })
@@ -96,27 +167,42 @@ self.addEventListener("fetch", (event) => {
   // Only handle GET requests
   if (request.method !== "GET") return;
 
+  const isSameOrigin = url.origin === self.location.origin;
+
   // ─────────────────────────────────────────────────────────────────
-  // Strategy 1: NAVIGATION REQUESTS (HTML pages)
-  // Network-first with offline fallback to cached shell
+  // Strategy 1a: APP SHELL NAVIGATION ("/" – the PWA start_url)
+  // Serve the cached shell immediately so launch never waits on the network,
+  // then refresh it in the background for the next launch.
   // ─────────────────────────────────────────────────────────────────
   if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Cache successful navigation responses
-          if (response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(STATIC_CACHE).then((cache) => {
-              cache.put(request, responseClone);
-            });
+    const isShellNavigation =
+      isSameOrigin && (url.pathname === "/" || url.pathname === "/index.html");
+
+    if (isShellNavigation) {
+      event.respondWith(
+        (async () => {
+          const cachedShell = await caches.match(SHELL_URL);
+          // Runs after we respond; keeps the worker alive until it finishes.
+          event.waitUntil(refreshShell().catch(() => {}));
+          if (cachedShell) return cachedShell;
+          try {
+            return await fetch(request);
+          } catch (_e) {
+            return (await caches.match(SHELL_URL)) || Response.error();
           }
-          return response;
-        })
-        .catch(() => {
-          // Offline: return cached index.html (SPA will handle routing)
-          return caches.match("/index.html");
-        })
+        })()
+      );
+      return;
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // Strategy 1b: OTHER NAVIGATIONS (e.g. the static /about/ page)
+    // Network-first; offline falls back to the cached SPA shell.
+    // ───────────────────────────────────────────────────────────────
+    event.respondWith(
+      fetch(request).catch(async () => {
+        return (await caches.match(SHELL_URL)) || Response.error();
+      })
     );
     return;
   }
@@ -286,17 +372,68 @@ self.addEventListener("fetch", (event) => {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // Strategy 5: SAME-ORIGIN STATIC ASSETS
+  // Strategy 5a: CONTENT-HASHED BUILD ASSETS (/assets/js|css|images/)
+  // Cache-first, never revalidated: the hash in the filename changes whenever
+  // the content does, so re-downloading them on every launch is pure waste.
+  // ─────────────────────────────────────────────────────────────────
+  if (isSameOrigin && HASHED_ASSET_PATH.test(url.pathname)) {
+    event.respondWith(
+      caches.open(DYNAMIC_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        const networkResponse = await fetch(request);
+        if (isRealAssetResponse(networkResponse)) {
+          cache.put(request, networkResponse.clone()).catch(() => {});
+        }
+        return networkResponse;
+      })
+    );
+    return;
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Strategy 5b: SPA PAGE TEMPLATES (/templates/*.html)
+  // Stale-while-revalidate: the router gets the fragment instantly (and
+  // offline), while a fresh copy is stored for the next visit.
+  // ─────────────────────────────────────────────────────────────────
+  if (
+    isSameOrigin &&
+    url.pathname.startsWith("/templates/") &&
+    url.pathname.endsWith(".html")
+  ) {
+    event.respondWith(
+      caches.open(DYNAMIC_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        const revalidate = (async () => {
+          const networkResponse = await fetch(request);
+          if (networkResponse.status === 200) {
+            // Never cache the SPA fallback (a full document) as a template.
+            const body = await networkResponse.clone().text();
+            if (!/^\s*<!doctype/i.test(body)) {
+              await cache.put(request, networkResponse.clone());
+            }
+          }
+          return networkResponse;
+        })();
+
+        if (cached) {
+          event.waitUntil(revalidate.catch(() => {}));
+          return cached;
+        }
+        return revalidate;
+      })
+    );
+    return;
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Strategy 5c: OTHER SAME-ORIGIN STATIC ASSETS
   // Stale-while-revalidate for instant loading + freshness
   // ─────────────────────────────────────────────────────────────────
-  const isSameOrigin = url.origin === self.location.origin;
 
   // Skip icon paths (allow favicon updates)
   const isIconPath =
     url.pathname.startsWith("/icons/") || url.pathname === "/favicon.ico";
-
-  // Skip HTML templates (dynamic content)
-  const isTemplatePath = url.pathname.includes("/templates/");
 
   // Cacheable static assets: JS, CSS, fonts, images (except icons)
   const isStaticAsset =
@@ -304,13 +441,15 @@ self.addEventListener("fetch", (event) => {
       url.pathname
     ) || url.pathname === "/manifest.json";
 
-  if (isSameOrigin && isStaticAsset && !isIconPath && !isTemplatePath) {
+  if (isSameOrigin && isStaticAsset && !isIconPath) {
     // In dev (Vite), module URLs often include cache-buster query params like `?t=...`.
     // Caching those causes Cache Storage to grow on every reload and can interfere with HMR.
+    // The service worker script itself must always come from the network.
     if (
       url.searchParams.has("t") ||
       url.pathname.startsWith("/@vite") ||
-      url.pathname.startsWith("/src/")
+      url.pathname.startsWith("/src/") ||
+      url.pathname === "/sw.js"
     ) {
       return;
     }
@@ -320,7 +459,7 @@ self.addEventListener("fetch", (event) => {
         // Start network fetch in background (revalidate)
         const networkFetch = fetch(request)
           .then((networkResponse) => {
-            if (networkResponse.status === 200) {
+            if (isRealAssetResponse(networkResponse)) {
               const responseClone = networkResponse.clone();
               caches.open(DYNAMIC_CACHE).then((cache) => {
                 cache.put(request, responseClone);
@@ -330,11 +469,14 @@ self.addEventListener("fetch", (event) => {
           })
           .catch(() => {
             // Network failed, return cached if available
-            return cachedResponse;
+            return cachedResponse || Response.error();
           });
 
-        // Return cached immediately, update in background
-        return cachedResponse || networkFetch;
+        if (cachedResponse) {
+          event.waitUntil(networkFetch.catch(() => {}));
+          return cachedResponse;
+        }
+        return networkFetch;
       })
     );
     return;

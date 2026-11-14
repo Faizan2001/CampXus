@@ -1133,32 +1133,6 @@ class DataManager {
     return { success: result.success, error: result.error };
   }
 
-  /**
-   * Update the user's last active timestamp in Firestore.
-   * @param {string} userId - The user's UID
-   * @returns {Promise<{success: boolean, error?: string}>}
-   * @example
-   *   await dataManager.updateUserLastActive("abc123");
-   */
-  async updateUserLastActive(userId) {
-    try {
-      // Skip silently if no authenticated user (e.g., just logged out)
-      if (!auth.currentUser) {
-        return { success: false, error: "not_authenticated" };
-      }
-      if (!userId || typeof userId !== "string")
-        throw new Error("Invalid userId");
-
-      await updateDoc(doc(db, "users", userId), {
-        "systemInfo.lastActive": serverTimestamp(),
-      });
-      return { success: true };
-    } catch (error) {
-      console.error("[dataManager] Error updating lastActive:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
   // =========================
   // SCHEDULE FUNCTIONS
   // =========================
@@ -3054,25 +3028,14 @@ class DataManager {
     const startHealthMonitoring = () => {
       if (healthCheckInterval) clearInterval(healthCheckInterval);
 
-      healthCheckInterval = setInterval(() => {
-        const timeSinceLastUpdate = Date.now() - lastSuccessfulUpdate;
-        const healthThreshold = 90000; // 90 seconds threshold for mobile
-
-        if (
-          timeSinceLastUpdate > healthThreshold &&
-          navigator.onLine &&
-          isConnected
-        ) {
-          console.warn(
-            `📱 Friendships listener health check failed - ${Math.round(
-              timeSinceLastUpdate / 1000
-            )}s since last update`
-          );
-          // Force reconnection
-          reconnectionAttempts = 0;
-          scheduleReconnection();
-        }
-      }, 30000); // Check every 30 seconds
+      // 💰 Intentionally no idle-based reconnect. A snapshot listener is silent
+      // whenever nothing changes, so "no update for 90s" is the normal healthy
+      // state, not a fault. Treating it as one tore the listener down and
+      // re-created it every ~90-120s on every idle phone, re-emitting the whole
+      // friendships snapshot each time. The Firestore SDK already restores its
+      // own connection; real failures still reconnect through handleError and
+      // the network-change handler below.
+      healthCheckInterval = null;
     };
 
     // Handle network state changes
@@ -4170,6 +4133,10 @@ class DataManager {
    */
   async updateUserLastActive(userId) {
     try {
+      // Skip silently if no authenticated user (e.g., just logged out)
+      if (!auth.currentUser) {
+        return { success: false, error: "not_authenticated" };
+      }
       if (!userId || typeof userId !== "string") {
         throw new Error("Invalid userId");
       }
@@ -4332,6 +4299,9 @@ class DataManager {
         );
       }
 
+      // 💰 Remember the result. Without this the guard above never matched, so
+      // every lastActive / location write paid for an extra read of the user doc.
+      this._systemInfoEnsured.add(userId);
       return true;
     } catch (error) {
       console.error(

@@ -22,6 +22,8 @@ import { authManager } from "../services/auth/AuthService.js";
 import { dataManager } from "../services/data/DataService.js";
 import { scheduleStorageService } from "../services/schedule/ScheduleStorageService.js";
 import { currentUser } from "../store/userStore.js";
+import { profileCache } from "../cache/profileCache.js"; // 🚀 Pre-auth schedule paint
+import { escapeHTML, escapeAttr } from "../utils/security/sanitize.js";
 import { navigateTo } from "../app.js"; // Import navigateTo for SPA navigation
 import { getAvatarUrl } from "../utils/avatar/avatarUtils.js"; // Import avatar utilities
 import { initScheduleControlsToggle } from "../components/schedule/ScheduleControlsToggle.js";
@@ -2316,39 +2318,38 @@ async function loadState(retryAttempt = 0) {
       return;
     }
 
-    // Check if user is authenticated with retry mechanism for race condition fix
-    let user = authManager.getCurrentUser();
+    // Check if user is authenticated
+    const user = authManager.getCurrentUser();
     if (!user) {
       logManager.auth.user(
-        "No authenticated user found, waiting for auth state to settle"
+        "No authenticated user yet, painting cached schedule and waiting for auth"
       );
 
-      // Wait a brief moment for auth state listener to fire after login
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      user = authManager.getCurrentUser();
+      // 🚀 Cold start: Firebase needs a token refresh before it reports the
+      // user. Show the schedule this device already has instead of an empty
+      // grid; the full load below replaces it once auth resolves.
+      paintCachedScheduleBeforeAuth();
 
-      if (!user) {
-        console.log(
-          "⚠️ [Phase-1] Still no authenticated user after delay, will retry when auth state becomes available"
-        );
+      // Retry once the auth state arrives (no fixed delay: the store notifies us)
+      const unsubscribe = currentUser.subscribe((userState) => {
+        if (userState.isLoggedIn && userState.user) {
+          unsubscribe(); // Clean up listener
+          loadState(retryAttempt + 1).then(() => updateUI());
+        }
+      });
 
-        // Set up a one-time listener for when auth state becomes available
-        const unsubscribe = currentUser.subscribe((userState) => {
-          if (userState.isLoggedIn && userState.user) {
-            console.log(
-              "🔄 [Phase-1] Auth state became available, retrying schedule load"
-            );
-            unsubscribe(); // Clean up listener
-            loadState(retryAttempt + 1); // Retry loading with incremented attempt count
-          }
-        });
+      return;
+    }
 
-        return;
+    // Drop the pre-auth placeholder if it belonged to a different account
+    if (state.optimisticScheduleUid) {
+      if (state.optimisticScheduleUid !== user.uid) {
+        delete state.users[state.optimisticScheduleUid];
+        if (state.activeUserId === state.optimisticScheduleUid) {
+          state.activeUserId = null;
+        }
       }
-
-      console.log(
-        "✅ [Phase-1] Found authenticated user after delay, proceeding with schedule load"
-      );
+      state.optimisticScheduleUid = null;
     }
 
     console.log(`👤 [Phase-1] Loading schedule for user: ${user.uid}`);
@@ -2511,6 +2512,45 @@ async function loadState(retryAttempt = 0) {
     }
   } finally {
     currentUser.setScheduleLoading(false);
+  }
+}
+
+/**
+ * Paint the locally cached schedule before Firebase Auth has resolved.
+ * 🚀 Performance: removes the wait for the auth token refresh from first paint.
+ * 🛡️ Privacy: the uid comes from this device's own profile cache and the data
+ * from this device's own schedule cache; both are cleared on logout. Nothing
+ * is fetched, and nothing can be saved until the real user is known.
+ * @returns {boolean} true if a cached schedule was painted
+ */
+function paintCachedScheduleBeforeAuth() {
+  try {
+    if (state.activeUserId) return false; // something is already on screen
+    const cachedUid = profileCache.peek()?.uid;
+    if (!cachedUid) return false;
+
+    const cachedSchedule =
+      scheduleStorageService.getCachedScheduleData(cachedUid);
+    if (!cachedSchedule) return false;
+
+    const cachedUser = scheduleStorageService.convertToHomePageFormat(
+      cachedSchedule,
+      cachedUid
+    )?.users?.[cachedUid];
+    if (!cachedUser) return false;
+
+    // The converter labels anyone but the signed-in user "Friend"
+    cachedUser.name = "You";
+    state.users[cachedUid] = cachedUser;
+    state.activeUserId = cachedUid;
+    state.optimisticScheduleUid = cachedUid;
+    memoCache.clear();
+    matrixCache.clear();
+    updateUI();
+    return true;
+  } catch (error) {
+    logManager.system.warn("Pre-auth schedule paint skipped", error);
+    return false;
   }
 }
 
@@ -6010,13 +6050,13 @@ function generateAvatarsForCompareSlot(dayIndex, timeIndex, options = {}) {
     // Avoid verbose per-avatar logs to reduce console noise
 
     avatarsHTML += `
-      <div class="friend-avatar ${statusClass}" data-friend-id="${
-      user.id
-    }" aria-label="${user.name || user.id} - ${statusTitle}">
-  <img src="${avatarUrl}" alt="${
+      <div class="friend-avatar ${statusClass}" data-friend-id="${escapeAttr(
+        user.id
+      )}" aria-label="${escapeAttr(user.name || user.id)} - ${statusTitle}">
+  <img src="${escapeAttr(avatarUrl)}" alt="${escapeAttr(
       user.name || user.id
-    }" loading="lazy" decoding="async" />
-        <div class="avatar-label">${user.name || user.id}</div>
+    )}" loading="lazy" decoding="async" />
+        <div class="avatar-label">${escapeHTML(user.name || user.id)}</div>
       </div>
     `;
   });

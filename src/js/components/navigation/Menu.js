@@ -55,6 +55,7 @@ let messagesSpacesUnsub = null;
 let _messagesHasUnread = false;
 let _messagesSpacesCache = []; // Cache for recalculation on view
 let _messagesUserId = null; // Track which user's spaces are cached
+let _messagesSetupUid = null; // UID the messages listener was last requested for
 let _activeRoute = null; // Used to suppress nav dots on active pages
 
 // Clubs notification indicator
@@ -1508,12 +1509,20 @@ function initializeMessagesEntry() {
         if (!b) return;
         b.style.display = isLoggedIn ? "inline-flex" : "none";
         if (!isLoggedIn) {
+          _messagesSetupUid = null;
           setMessagesDot(false);
           teardownMessagesIndicator();
         } else {
-          // Setup unread messages listener when logged in
+          // Setup unread messages listener when logged in.
+          // 💰 Only when the UID changes: this subscriber fires on every store
+          // update (profile, schedule loading flags, realtime schedule events),
+          // and re-running setup each time tore down and re-opened the
+          // Firestore listener, leaking the ones still waiting on auth.
           const uid = currentUser?.uid;
-          if (uid) setupMessagesIndicator(uid);
+          if (uid && uid !== _messagesSetupUid) {
+            _messagesSetupUid = uid;
+            setupMessagesIndicator(uid);
+          }
         }
       });
     }
@@ -1604,6 +1613,9 @@ async function setupMessagesIndicator(userId) {
     const { unreadTracker } = await import(
       "../../services/groups/UnreadTracker.js"
     );
+
+    // The user logged out or switched while the imports above were loading
+    if (_messagesSetupUid !== requestedUid) return;
 
     // Helper to calculate unread state from cached spaces
     const recalculateUnread = () => {
