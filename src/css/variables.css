@@ -25,6 +25,19 @@ design system for the MeetchuThere application. It includes:
   -webkit-tap-highlight-color: transparent; /* Remove blue tap flash on mobile/PWA */
 }
 
+/* Low-specificity defaults: any class-level rule overrides these */
+:where(button, [role="button"]) {
+  touch-action: manipulation; /* no double-tap-zoom delay on controls */
+  -webkit-user-select: none;
+  user-select: none; /* long-press shouldn't select button labels */
+}
+/* Text fields are left out: they match :focus-visible on mouse focus too and
+   already draw their own focus border. */
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-primary, #8b5cf6);
+  outline-offset: 2px;
+}
+
 /* Global touch feedback for interactive elements */
 button:active,
 a:active,

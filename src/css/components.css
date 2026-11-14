@@ -945,6 +945,7 @@ body.dark-mode .schedule-section .horizontal-friends-bar:active {
 /* Friends scroll container - expandable in the middle */
 .friends-scroll-container {
   flex: 1;
+  overscroll-behavior-x: contain;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;

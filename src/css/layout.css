@@ -58,6 +58,10 @@ body.theme-ready:not(.dark-mode) {
 html {
   background-color: var(--color-bg);
 }
+html,
+body {
+  overscroll-behavior-y: none;
+}
 body {
   /* iOS black-translucent uses body background for status bar area */
   background-color: var(--color-nav);
@@ -1133,11 +1137,8 @@ body:not(.dark-mode) .user-dropdown {
   padding-bottom: env(safe-area-inset-bottom, 0px);
   height: calc(var(--bn-h) + var(--mobile-bottom-nav-top-gap, 8px));
   background: var(--color-nav);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  transition: background 0.3s var(--animation-smooth),
-    backdrop-filter 0.3s var(--animation-smooth);
+  transition: background 0.3s var(--animation-smooth);
 }
 
 /* Global safe-area fills using body pseudo-elements */

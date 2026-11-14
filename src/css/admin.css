@@ -905,7 +905,7 @@
   border: 1px solid var(--input-border);
   border-radius: 8px;
   color: var(--text-primary);
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 .saf-list {
@@ -1335,7 +1335,7 @@
   border: 1px solid var(--input-border);
   border-radius: 8px;
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: 1rem;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 

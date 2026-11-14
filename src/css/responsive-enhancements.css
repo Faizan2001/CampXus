@@ -360,14 +360,6 @@ body:not(.dark-mode) .pin-mode-button.pin-mode-active {
 
 /* ===== PERFORMANCE OPTIMIZATIONS ===== */
 
-/* GPU acceleration for smooth animations */
-.schedule-grid,
-.glass-card,
-button {
-  transform: translateZ(0);
-  will-change: transform;
-}
-
 /* Content visibility for better rendering performance */
 
 /* ===== PRINT STYLES OPTIMIZATION ===== */

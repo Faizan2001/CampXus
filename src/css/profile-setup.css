@@ -934,7 +934,7 @@ body.page-profile .profile-setup-card.glass-card {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-family: inherit;
   resize: none;
   transition: all 0.2s ease;
@@ -1111,7 +1111,7 @@ body.page-profile .profile-setup-card.glass-card {
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-family: inherit;
   resize: none;
   min-height: 60px;
@@ -1354,7 +1354,7 @@ body.page-profile .profile-setup-card.glass-card {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
-  font-size: 0.85rem;
+  font-size: 1rem;
   font-family: inherit;
 }
 
@@ -1487,7 +1487,7 @@ body:not(.dark-mode) .add-custom-btn {
 
   .story-bio-input {
     min-height: 60px;
-    font-size: 0.9rem;
+    font-size: 1rem;
   }
 
   .icebreaker-card {
@@ -1506,7 +1506,7 @@ body:not(.dark-mode) .add-custom-btn {
   }
 
   .icebreaker-answer-input {
-    font-size: 0.85rem;
+    font-size: 1rem;
     min-height: 55px;
   }
 
@@ -1686,7 +1686,7 @@ body:not(.dark-mode) .add-custom-btn {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-primary);
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-family: inherit;
   resize: none;
   transition: all 0.2s ease;
@@ -2198,7 +2198,7 @@ body:not(.dark-mode)
 @media (max-width: 480px) {
   .schedule-paste-input {
     min-height: 70px;
-    font-size: 0.85rem;
+    font-size: 1rem;
   }
 
   .schedule-parse-btn {
@@ -3885,7 +3885,7 @@ body:not(.dark-mode)
   border-radius: 0.75rem;
   background: var(--input-bg);
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: 1rem;
   transition: all 0.3s ease;
 }
 .option-select:focus {

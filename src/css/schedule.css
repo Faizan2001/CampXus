@@ -2608,3 +2608,8 @@ body.dark-mode .schedule-section .horizontal-friends-bar::after {
     padding: 0.4rem 0.6rem !important;
   }
 }
+
+/* Touch devices keep :hover applied after a tap; undo the hover lift there */
+@media (hover: none) {
+  .friend-avatar-item:hover { transform: none; }
+}
